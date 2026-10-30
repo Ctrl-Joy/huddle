@@ -8,7 +8,8 @@ import { useChannelUnread } from '../../stores/readStates';
 import { usePendingIncomingCount } from '../../stores/relationships';
 import { useCustomStatus } from '../../stores/presences';
 import { Avatar, Badge, GuildIcon, Tooltip } from '../common/Avatar';
-import { IconPlus, IconUsers } from '../common/icons';
+import { IconClose, IconPlus, IconUsers } from '../common/icons';
+import { api } from '../../api/client';
 import { buildChannelMenu, buildUserMenu } from '../menus/menus';
 import { pluralize } from '../../lib/format';
 import { useVoiceStore } from '../../stores/voice';
@@ -75,6 +76,13 @@ function DMRow({ channel, active }: { channel: Channel; active: boolean }) {
           : custom ? <span className="dm-sub truncate">{custom}</span> : null}
       </div>
       {mentions > 0 && !active && <Badge count={mentions} />}
+      <button
+        className="dm-close"
+        aria-label={isGroup ? 'Leave group' : 'Close DM'}
+        onClick={(e) => { e.stopPropagation(); void api.del(`/channels/${channel.id}`); }}
+      >
+        <IconClose size={14} />
+      </button>
     </div>
   );
 }
