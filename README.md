@@ -18,6 +18,11 @@ Open http://localhost:5173 for the marketing site, or http://localhost:5173/logi
 To try two accounts at once, use two origins with separate storage, e.g.
 `http://localhost:5173` and `http://127.0.0.1:5173`.
 
+To fill Discover for local testing or a demo, run `npm run seed:demo -w @huddle/server`. It adds ~24 clearly
+fictional public communities (generated banners and icons, a few messages each) and ~40 demo member accounts with
+random, unprinted passwords. It is idempotent (communities that already exist by name are skipped), safe to run while
+`npm run dev` is up, and **for local/demo use only**: it is not part of `npm run seed`, so a production deploy starts clean.
+
 ## Test
 
 ```bash

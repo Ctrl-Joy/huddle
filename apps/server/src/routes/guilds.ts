@@ -147,6 +147,39 @@ export default function guildRoutes(app: FastifyInstance, ctx: Ctx) {
     return updated;
   });
 
+  // Discover card banner image (the card falls back to banner_color without one).
+  app.post('/guilds/:id/banner', async (req) => {
+    const me = uid(req);
+    const { id } = req.params as { id: string };
+    const { g } = requireGuildPerm(db, id, me, Permissions.MANAGE_GUILD);
+    const { files } = await readMultipart(req, { maxFiles: 1, maxFileBytes: LIMITS.GUILD_BANNER_BYTES });
+    const f = files[0];
+    if (!f) throw badRequest('No file uploaded');
+    const kind = sniffImage(f.data);
+    if (!kind) throw invalidField('file', 'Banner must be a PNG, JPEG, GIF or WebP image');
+    const { url } = saveUpload(ctx.cfg.uploadsDir, `banners/${g.id}-${ctx.id()}.${IMAGE_EXT[kind]}`, f.data);
+    db.run('UPDATE guilds SET banner = ? WHERE id = ?', url, g.id);
+    removeUpload(ctx.cfg.uploadsDir, g.banner);
+    writeAudit(ctx, g.id, me, AuditLogAction.GUILD_UPDATE, g.id, [{ key: 'banner', old_value: g.banner, new_value: url }]);
+    const updated = guild(getGuildRow(db, g.id)!);
+    gw.dispatchToGuild(g.id, 'GUILD_UPDATE', updated);
+    return updated;
+  });
+
+  app.delete('/guilds/:id/banner', async (req) => {
+    const me = uid(req);
+    const { id } = req.params as { id: string };
+    const { g } = requireGuildPerm(db, id, me, Permissions.MANAGE_GUILD);
+    if (g.banner) {
+      db.run('UPDATE guilds SET banner = NULL WHERE id = ?', g.id);
+      removeUpload(ctx.cfg.uploadsDir, g.banner);
+      writeAudit(ctx, g.id, me, AuditLogAction.GUILD_UPDATE, g.id, [{ key: 'banner', old_value: g.banner, new_value: null }]);
+    }
+    const updated = guild(getGuildRow(db, g.id)!);
+    if (g.banner) gw.dispatchToGuild(g.id, 'GUILD_UPDATE', updated);
+    return updated;
+  });
+
   app.delete('/guilds/:id', async (req, reply) => {
     const me = uid(req);
     const { id } = req.params as { id: string };

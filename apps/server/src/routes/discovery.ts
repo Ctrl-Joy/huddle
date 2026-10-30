@@ -37,6 +37,7 @@ export default function discoveryRoutes(app: FastifyInstance, ctx: Ctx) {
       return {
         id: g.id, name: g.name, icon: g.icon, description: g.description,
         category: (g.category as DiscoverableGuild['category']) ?? null, banner_color: g.banner_color,
+        banner: g.banner, verified: !!g.verified,
         member_count: ids.length,
         online_count: ids.filter((id) => ctx.gw.presence(id).status !== 'offline').length,
       };

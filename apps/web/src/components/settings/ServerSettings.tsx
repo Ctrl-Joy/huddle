@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AuditLogAction, ChannelType, GUILD_CATEGORIES, PERMISSION_INFO, Permissions, has, type GuildCategory,
+  AuditLogAction, ChannelType, GUILD_CATEGORIES, LIMITS, PERMISSION_INFO, Permissions, has, type GuildCategory,
   type AuditLogEntry, type Invite, type Role, type PublicUser,
 } from '@huddle/shared';
 import { SettingsLayout, UnsavedBar } from './SettingsLayout';
@@ -11,13 +11,16 @@ import { confirmDialog, openModal, toast } from '../../stores/ui';
 import { api, errorMessage } from '../../api/client';
 import { useGuildPermissions } from '../../lib/permissions';
 import { canActOn, myHighestPosition } from '../../lib/permissionsCore';
-import { createRole, deleteGuild, deleteRole, kickMember, reorderRoles, updateMember, updateRole, uploadIcon, fetchMembers } from '../../lib/actions';
+import { createRole, deleteGuild, deleteRole, kickMember, reorderRoles, updateMember, updateRole, uploadIcon, fetchMembers,
+  removeGuildBanner, uploadGuildBanner,
+} from '../../lib/actions';
 import { formatShortDate, formatTimestamp, relativeTime } from '../../lib/format';
 import { Avatar, GuildIcon, Spinner, Tooltip } from '../common/Avatar';
 import { Field, Modal, Toggle } from '../modals/Modal';
 import { IconArrowDown, IconArrowUp, IconClose, IconPlus, IconSearch, IconTrash, IconShield } from '../common/icons';
 import { inviteUrl } from '../modals/InviteModal';
 import { EmojiTab } from './EmojiSettings';
+import { DiscoverBanner, ServerCardView } from '../discover/Discover';
 
 type Tab = 'overview' | 'discovery' | 'roles' | 'emoji' |'members' | 'invites' | 'bans' | 'audit';
 
@@ -144,6 +147,9 @@ function DiscoveryTab({ guildId }: { guildId: string }) {
   const [banner, setBanner] = useState(guild.banner_color ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [bannerBusy, setBannerBusy] = useState(false);
+  const bannerRef = useRef<HTMLInputElement>(null);
+  const memberCount = useGuildStore((s) => Object.keys(s.members[guildId] ?? {}).length);
   const dirty = enabled !== guild.discoverable || category !== (guild.category ?? '') ||
     description !== (guild.description ?? '') || banner !== (guild.banner_color ?? '');
 
@@ -163,6 +169,24 @@ function DiscoveryTab({ guildId }: { guildId: string }) {
       toast(enabled ? 'Your server is listed in Discover' : 'Discovery settings saved', 'success');
     } catch (e) { setError(errorMessage(e)); }
     finally { setBusy(false); }
+  };
+
+  const onBanner = async (f?: File) => {
+    if (!f) return;
+    if (f.size > LIMITS.GUILD_BANNER_BYTES) { toast('Banner images can be up to 2 MB', 'error'); return; }
+    setBannerBusy(true);
+    try { await uploadGuildBanner(guildId, f); toast('Banner updated', 'success'); } catch (e) { toast(errorMessage(e), 'error'); }
+    finally { setBannerBusy(false); }
+  };
+  const clearBanner = async () => {
+    setBannerBusy(true);
+    try { await removeGuildBanner(guildId); } catch (e) { toast(errorMessage(e), 'error'); }
+    finally { setBannerBusy(false); }
+  };
+  const card = {
+    id: guild.id, name: guild.name, icon: guild.icon, description: description || 'Your description goes here.',
+    category: category || null, banner: guild.banner, banner_color: banner || null, verified: guild.verified,
+    member_count: Math.max(1, memberCount), online_count: 0,
   };
 
   return (
@@ -186,8 +210,23 @@ function DiscoveryTab({ guildId }: { guildId: string }) {
       <Field label="Description" hint="Shown on your Discover card and invite pages.">
         <textarea rows={3} maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's your server about?" />
       </Field>
+      <span className="field-label">Banner Image</span>
+      <div className="banner-upload">
+        <div className="banner-upload-thumb"><DiscoverBanner guild={card} /></div>
+        <div className="banner-upload-actions">
+          <div>
+            <button className="btn btn-secondary" disabled={bannerBusy} onClick={() => bannerRef.current?.click()}>
+              {bannerBusy ? 'Uploading…' : guild.banner ? 'Change Image' : 'Upload Image'}
+            </button>
+            {guild.banner && <button className="btn btn-ghost" disabled={bannerBusy} onClick={() => void clearBanner()}>Remove</button>}
+          </div>
+          <span className="muted small">PNG, JPEG, WebP or GIF up to 2 MB. 16:9 works best (e.g. 960×540).</span>
+        </div>
+        <input ref={bannerRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => { void onBanner(e.target.files?.[0]); e.target.value = ''; }} />
+      </div>
       <div className="field">
         <span className="field-label">Banner Colour</span>
+        <span className="setting-desc">Used when there’s no image.</span>
         <div className="swatches" role="radiogroup" aria-label="Banner colour">
           <button type="button" role="radio" aria-checked={!banner} className={'swatch default' + (!banner ? ' selected' : '')} title="Category colour" onClick={() => setBanner('')} />
           {BANNER_COLORS.map((c) => (
@@ -197,12 +236,7 @@ function DiscoveryTab({ guildId }: { guildId: string }) {
       </div>
       <span className="field-label">Preview</span>
       <div className="discover-card discover-card-preview" aria-hidden="true">
-        <div className={'discover-banner cat-' + (category || 'other')} style={banner ? { background: banner } : undefined} />
-        <GuildIcon guild={guild} size={52} className="discover-card-icon" />
-        <div className="discover-card-body">
-          <div className="discover-card-name"><strong className="truncate">{guild.name}</strong></div>
-          <p className="discover-card-desc">{description || 'Your description goes here.'}</p>
-        </div>
+        <ServerCardView guild={card} preview />
       </div>
       {dirty && <UnsavedBar onReset={reset} onSave={save} busy={busy} error={error} />}
     </div>

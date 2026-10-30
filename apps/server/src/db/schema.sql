@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS guilds (
   -- public directory (older DBs get these via migrate() in db/index.ts)
   discoverable      INTEGER NOT NULL DEFAULT 0,
   category          TEXT,
-  banner_color      TEXT
+  banner_color      TEXT,
+  banner            TEXT,
+  verified          INTEGER NOT NULL DEFAULT 0 -- set by seed/admin tooling only, never through the API
 );
 
 CREATE TABLE IF NOT EXISTS members (

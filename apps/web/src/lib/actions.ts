@@ -62,6 +62,21 @@ export async function uploadIcon(guildId: string, file: File) {
   return g;
 }
 
+/** Discover card banner image (PNG/JPEG/WebP/GIF, ≤2 MB). */
+export async function uploadGuildBanner(guildId: string, file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  const g = await uploadWithProgress<Guild>(`/guilds/${guildId}/banner`, form).promise;
+  if (g?.id) useGuildStore.getState().updateGuild(g);
+  return g;
+}
+
+export async function removeGuildBanner(guildId: string) {
+  const g = await api.del<Guild>(`/guilds/${guildId}/banner`);
+  if (g?.id) useGuildStore.getState().updateGuild(g);
+  return g;
+}
+
 // ---- custom emoji ----
 export async function uploadEmoji(guildId: string, name: string, file: File) {
   const form = new FormData();
@@ -99,8 +114,8 @@ export async function deleteGuild(guildId: string) {
 }
 
 // ---- discovery ----
-export function fetchDiscovery(query: { category?: GuildCategory | null; q?: string }, signal?: AbortSignal) {
-  return api.get<DiscoveryResponse>('/discovery', { category: query.category, q: query.q?.trim() }, signal);
+export function fetchDiscovery(query: { category?: GuildCategory | null; q?: string; limit?: number }, signal?: AbortSignal) {
+  return api.get<DiscoveryResponse>('/discovery', { category: query.category, q: query.q?.trim(), limit: query.limit }, signal);
 }
 
 /** Joins a listed server (no invite needed); a no-op if already a member. */

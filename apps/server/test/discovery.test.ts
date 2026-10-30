@@ -2,8 +2,18 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { ChannelType, GUILD_TEMPLATES, MessageType } from '@huddle/shared';
 import {
-  GatewayClient, expectStatus, register, setupGuild, sleep, startServer, type TestServer, type TestUser,
+  GatewayClient, expectStatus, joinGuild, register, setupGuild, sleep, startServer, type TestServer, type TestUser,
 } from './helpers';
+
+/** A 1x1 PNG (valid: IHDR, IDAT, IEND with correct CRCs). */
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+
+const fileForm = (data: Buffer, type: string, name: string) => {
+  const form = new FormData();
+  form.append('file', new Blob([data], { type }), name);
+  return form;
+};
 
 let srv: TestServer;
 let owner: TestUser, bob: TestUser, carol: TestUser;
@@ -91,6 +101,63 @@ test('discovery listing filters by category and text, with member + online count
     online = after.guilds.find((g: any) => g.id === gaming.guildId).online_count;
   }
   assert.equal(online, 0);
+});
+
+test('banner upload: served from /uploads, listed in discovery, replace + remove clean up', async () => {
+  const { guildId } = await listed('Banner Bay', 'art', 'Big pictures');
+  const ownerGw = await GatewayClient.connect(srv, owner.token);
+  try {
+    const g = expectStatus(await owner.api.post(`/guilds/${guildId}/banner`, fileForm(TINY_PNG, 'image/png', 'banner.png')), 200);
+    assert.match(g.banner, /^\/uploads\/banners\/.+\.png$/);
+    await ownerGw.waitFor('GUILD_UPDATE', (u) => u.id === guildId && u.banner === g.banner);
+    const served = await fetch(srv.base + g.banner);
+    assert.equal(served.status, 200);
+    assert.ok(Buffer.from(await served.arrayBuffer()).equals(TINY_PNG));
+
+    const card = expectStatus(await bob.api.get('/discovery?q=banner%20bay'), 200).guilds[0];
+    assert.equal(card.banner, g.banner);
+    assert.equal(card.verified, false);
+
+    // replacing deletes the old file; DELETE clears it
+    const g2 = expectStatus(await owner.api.post(`/guilds/${guildId}/banner`, fileForm(TINY_PNG, 'image/png', 'b2.png')), 200);
+    assert.notEqual(g2.banner, g.banner);
+    let gone = 0;
+    for (let i = 0; i < 20 && gone !== 404; i++) { if (i) await sleep(25); gone = (await fetch(srv.base + g.banner)).status; }
+    assert.equal(gone, 404);
+    const cleared = expectStatus(await owner.api.del(`/guilds/${guildId}/banner`), 200);
+    assert.equal(cleared.banner, null);
+    assert.equal(expectStatus(await bob.api.get('/discovery?q=banner%20bay'), 200).guilds[0].banner, null);
+    expectStatus(await owner.api.del(`/guilds/${guildId}/banner`), 200); // already empty: still fine
+  } finally {
+    await ownerGw.close();
+  }
+});
+
+test('banner upload: content-sniffed type, size cap and MANAGE_GUILD are enforced', async () => {
+  const { guildId, generalId } = await listed('Banner Rules', 'other', 'Checks');
+  // the extension and declared type lie: content decides
+  const fake = await owner.api.post(`/guilds/${guildId}/banner`, fileForm(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'image/png', 'x.png'));
+  assert.equal(fake.status, 400);
+  assert.ok(fake.body.errors.file);
+  const big = Buffer.concat([TINY_PNG, Buffer.alloc(2 * 1024 * 1024)]);
+  assert.equal((await owner.api.post(`/guilds/${guildId}/banner`, fileForm(big, 'image/png', 'big.png'))).status, 413);
+  assert.equal((await owner.api.post(`/guilds/${guildId}/banner`, new FormData())).status, 400);
+
+  // a plain member can't change it; a non-member doesn't see the guild at all
+  await joinGuild(owner, generalId, bob);
+  assert.equal((await bob.api.post(`/guilds/${guildId}/banner`, fileForm(TINY_PNG, 'image/png', 'b.png'))).status, 403);
+  assert.equal((await bob.api.del(`/guilds/${guildId}/banner`)).status, 403);
+  assert.equal((await carol.api.post(`/guilds/${guildId}/banner`, fileForm(TINY_PNG, 'image/png', 'b.png'))).status, 404);
+  assert.equal(expectStatus(await owner.api.get(`/guilds/${guildId}`), 200).banner, null);
+});
+
+test('verified can only be set outside the API (PATCH ignores it)', async () => {
+  const { guildId } = await listed('Verified Maybe', 'community', 'Trust us');
+  const g = expectStatus(await owner.api.patch(`/guilds/${guildId}`, { verified: true }), 200);
+  assert.equal(g.verified, false);
+  srv.app.huddle.db.run('UPDATE guilds SET verified = 1 WHERE id = ?', guildId);
+  const card = expectStatus(await bob.api.get('/discovery?q=verified%20maybe'), 200).guilds[0];
+  assert.equal(card.verified, true);
 });
 
 test('joining a discoverable guild fires the invite-join events; repeat join is a no-op', async () => {

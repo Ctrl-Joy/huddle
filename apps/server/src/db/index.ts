@@ -41,7 +41,9 @@ export class Db {
         if (!have.has(name)) this.raw.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`);
       }
     };
-    addColumns('guilds', { discoverable: 'INTEGER NOT NULL DEFAULT 0', category: 'TEXT', banner_color: 'TEXT' });
+    addColumns('guilds', {
+      discoverable: 'INTEGER NOT NULL DEFAULT 0', category: 'TEXT', banner_color: 'TEXT', banner: 'TEXT', verified: 'INTEGER NOT NULL DEFAULT 0',
+    });
     this.raw.exec('CREATE INDEX IF NOT EXISTS idx_guilds_discoverable ON guilds(discoverable)');
   }
 

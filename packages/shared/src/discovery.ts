@@ -24,6 +24,8 @@ export interface DiscoverableGuild {
   description: string | null;
   category: GuildCategory | null;
   banner_color: string | null;
+  banner: string | null;
+  verified: boolean;
   member_count: number;
   online_count: number;
 }

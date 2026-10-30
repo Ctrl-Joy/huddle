@@ -21,13 +21,13 @@ import { useAppEffects } from './useAppEffects';
 import { ConnectionBanner } from './ConnectionBanner';
 import { IncomingCall } from '../voice/IncomingCall';
 import { useSwipePanels } from './useSwipePanels';
-import { DISCOVER_PATH, DiscoverSidebar, DiscoverView, parseDiscoverCategory } from '../discover/Discover';
+import { DISCOVER_PATH, DiscoverSidebar, DiscoverView, parseDiscoverPage } from '../discover/Discover';
 
 export function AppShell() {
   const { guildId = '@me', channelId } = useParams();
   const isDiscover = guildId === 'discover';
   const isHome = guildId === '@me' || isDiscover; // discover borrows the home shell (no guild)
-  const discoverCategory = isDiscover ? parseDiscoverCategory(channelId) : null;
+  const discoverPage = isDiscover ? parseDiscoverPage(channelId) : null;
   const guild = useGuildStore((s) => (isHome ? undefined : s.guilds[guildId]));
   const channel = useGuildStore((s) => (channelId ? s.channels[channelId] : undefined));
   const channels = useGuildStore((s) => s.channels);
@@ -72,11 +72,11 @@ export function AppShell() {
   if (!isHome && (!channelId || !valid) && fallbackChannel && fallbackChannel !== channelId) {
     return <Navigate to={`/channels/${guildId}/${fallbackChannel}`} replace />;
   }
-  if (isDiscover && channelId && !discoverCategory) return <Navigate to={DISCOVER_PATH} replace />;
+  if (isDiscover && discoverPage === undefined) return <Navigate to={DISCOVER_PATH} replace />;
   if (isHome && !isDiscover && channelId && !valid) return <Navigate to="/channels/@me" replace />;
 
   let main;
-  if (isDiscover) main = <DiscoverView category={discoverCategory} />;
+  if (isDiscover) main = <DiscoverView page={discoverPage ?? null} />;
   else if (isHome && !channelId) main = <FriendsHome />;
   else if (channel && valid && channel.type === ChannelType.GUILD_VOICE) main = <VoiceView channel={channel} />;
   else if (channel && valid) main = <ChatView key={channel.id} channel={channel} />;
@@ -89,7 +89,7 @@ export function AppShell() {
         <nav className="nav-column" aria-label="Navigation">
           <ServerRail activeGuildId={isHome ? null : guildId} discover={isDiscover} />
           <aside className="sidebar">
-            {isDiscover ? <DiscoverSidebar category={discoverCategory} /> : isHome ? <DMSidebar activeChannelId={channelId} /> : <ChannelSidebar guildId={guildId} activeChannelId={channelId} />}
+            {isDiscover ? <DiscoverSidebar page={discoverPage ?? null} /> : isHome ? <DMSidebar activeChannelId={channelId} /> : <ChannelSidebar guildId={guildId} activeChannelId={channelId} />}
             <VoicePanel />
             <UserPanel />
           </aside>

@@ -15,7 +15,7 @@ export interface UserRow {
 export interface GuildRow {
   id: string; name: string; icon: string | null; description: string | null; owner_id: string;
   system_channel_id: string | null; created_at: string; discoverable: number; category: string | null;
-  banner_color: string | null;
+  banner_color: string | null; banner: string | null; verified: number;
 }
 export interface MemberRow {
   guild_id: string; user_id: string; nick: string | null; joined_at: string;
@@ -83,6 +83,7 @@ export function guild(g: GuildRow): Guild {
     id: g.id, name: g.name, icon: g.icon, description: g.description, owner_id: g.owner_id,
     system_channel_id: g.system_channel_id, created_at: g.created_at,
     discoverable: !!g.discoverable, category: (g.category as Guild['category']) ?? null, banner_color: g.banner_color ?? null,
+    banner: g.banner ?? null, verified: !!g.verified,
   };
 }
 

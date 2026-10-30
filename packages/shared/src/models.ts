@@ -121,6 +121,10 @@ export interface Guild {
   category: GuildCategory | null;
   /** #rrggbb used for the directory card banner. */
   banner_color: string | null;
+  /** Uploaded directory banner image (/uploads/…); the card falls back to banner_color. */
+  banner: string | null;
+  /** Shown with a badge in Discover. Set by seed/admin tooling only. */
+  verified: boolean;
 }
 
 /** Guild as delivered in READY / GUILD_CREATE — includes nested collections. */
@@ -298,4 +302,5 @@ export const LIMITS = {
   PASSWORD_MIN: 8,
   GROUP_DM_RECIPIENTS: 10,
   MESSAGES_PAGE: 50,
+  GUILD_BANNER_BYTES: 2 * 1024 * 1024,
 } as const;
