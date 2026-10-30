@@ -17,6 +17,9 @@ import { formatBytes } from '../../lib/format';
 import { useVoiceStore, voiceActions } from '../../stores/voice';
 import { CallStage, CallControls } from '../voice/VoiceView';
 import { usePhone } from '../../lib/usePhone';
+import { useThreadPanel } from '../../stores/threads';
+import { ThreadPanelView } from '../threads/ThreadPanel';
+import { useThreadParam } from '../threads/useThreadParam';
 
 export function addFilesChecked(channelId: string, files: File[]) {
   const ok: File[] = [];
@@ -39,6 +42,8 @@ export function ChatView({ channel }: { channel: Channel }) {
   const canAttach = canAttachPerm && canSend;
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
+  useThreadParam(channel.id); // before the ?m= handler below
+  const threadPanel = useThreadPanel(channel.id);
   const [params, setParams] = useSearchParams();
   const isDM = isPrivateChannel(channel);
 
@@ -64,7 +69,9 @@ export function ChatView({ channel }: { channel: Channel }) {
     addFilesChecked(channel.id, Array.from(e.dataTransfer.files));
   };
 
-  const side = searchOpen && channel.guild_id && (!phone || memberListOpen) ? <SearchPanel guildId={channel.guild_id} />
+  // an open thread takes the right-side slot on desktop and the whole screen on phones (rendered below)
+  const side = threadPanel ? (phone ? null : <ThreadPanelView panel={threadPanel} parent={channel} />)
+    : searchOpen && channel.guild_id && (!phone || memberListOpen) ? <SearchPanel guildId={channel.guild_id} />
     : memberListOpen ? (isDM ? <DMProfilePanel channel={channel} /> : <MemberList guildId={channel.guild_id!} channelId={channel.id} />)
     : null;
 
@@ -79,6 +86,7 @@ export function ChatView({ channel }: { channel: Channel }) {
         </div>
         {side}
       </div>
+      {threadPanel && phone && <ThreadPanelView panel={threadPanel} parent={channel} />}
       {dragging && (
         <div className="drop-overlay">
           <div className="drop-card">

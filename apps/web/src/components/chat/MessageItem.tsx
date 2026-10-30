@@ -14,10 +14,19 @@ import { toggleReaction, deleteMessage } from '../../lib/actions';
 import { Avatar, Tooltip } from '../common/Avatar';
 import { IconEdit, IconMore, IconReply, IconSmilePlus, IconTrash, IconArrowDown, IconPin, IconUserPlus, IconPhone, IconImage } from '../common/icons';
 import { buildMessageMenu, confirmDeleteMessage, openUserPopoutAt } from '../menus/menus';
+import { ThreadChip, ThreadToolbarButton } from '../threads/ThreadChip';
+import { openThread } from '../../lib/threads';
+import { IconThread } from '../common/icons';
 import { Attachments } from './Attachments';
 import { Reactions } from './Reactions';
 import { EditBox } from './EditBox';
 import { EmojiPicker } from './EmojiPicker';
+import { openModal } from '../../stores/ui';
+import { IconForward, IconPoll } from '../common/icons';
+import { canForward } from '../menus/menus';
+import { PollView, PollResultLine } from './Poll';
+import { Embeds } from './Embeds';
+import { ForwardedMessage } from './ForwardedMessage';
 
 function useAuthorInfo(m: Message) {
   const guildId = m.guild_id;
@@ -42,6 +51,7 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
   const canManage = useCan(m.channel_id, Permissions.MANAGE_MESSAGES);
   const canReact = useCan(m.channel_id, Permissions.ADD_REACTIONS);
   const canSend = useCan(m.channel_id, Permissions.SEND_MESSAGES);
+  const canReadHistory = useCan(m.channel_id, Permissions.READ_MESSAGE_HISTORY);
   const { name, color, user } = useAuthorInfo(m);
   const [pickerOpen, setPickerOpen] = useState(false);
   // only messages that just arrived get the entrance animation (not history loaded on mount)
@@ -92,7 +102,10 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
               </div>
             )
           )}
+          {m.forward && <ForwardedMessage message={m} snap={m.forward} />}
+          {m.poll && <PollView message={m} canVote={canReadHistory && !m._state} />}
           {m.attachments.length > 0 && <Attachments message={m} />}
+          {!!m.embeds?.length && <Embeds message={m} embeds={m.embeds} canSuppress={own || (canManage && !!m.guild_id)} />}
           {m._progress !== undefined && pending && (
             <div className="upload-progress"><span style={{ width: `${Math.round(m._progress * 100)}%` }} /></div>
           )}
@@ -104,6 +117,7 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
             </div>
           )}
           {m.reactions.length > 0 && <Reactions message={m} canReact={canReact} onAdd={() => setPickerOpen(true)} />}
+          {m.thread && <ThreadChip message={m} />}
         </div>
       </div>
       {!m._state && !editing && (
@@ -113,9 +127,15 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
               <button ref={pickerAnchor} className="tb-btn" aria-label="Add Reaction" onClick={() => setPickerOpen((v) => !v)}><IconSmilePlus size={18} /></button>
             </Tooltip>
           )}
+          <ThreadToolbarButton message={m} />
           {canSend && (
             <Tooltip label="Reply">
               <button className="tb-btn" aria-label="Reply" onClick={() => useUIStore.getState().setReplyTo(m.channel_id, m.id)}><IconReply size={18} /></button>
+            </Tooltip>
+          )}
+          {canForward(m) && (
+            <Tooltip label="Forward">
+              <button className="tb-btn" aria-label="Forward" onClick={() => openModal('forwardMessage', { message: m })}><IconForward size={18} /></button>
             </Tooltip>
           )}
           {own && (
@@ -193,9 +213,21 @@ function SystemMessage({ m, name, color, highlighted }: { m: Message; name: stri
       icon = <IconArrowDown size={16} />; cls = 'leave';
       body = <>{author} left the group.</>;
       break;
+    case MessageType.THREAD_CREATED: {
+      icon = <IconThread size={16} />; cls = 'thread';
+      const t = m.thread;
+      body = <>{author} started a thread: {t
+        ? <button className="btn-link thread-link" onClick={() => openThread(t)}>{m.content}</button>
+        : <strong>{m.content}</strong>}</>;
+      break;
+    }
     case MessageType.CHANNEL_NAME_CHANGE:
       icon = <IconEdit size={16} />; cls = 'pin';
       body = <>{author} changed the channel name: <strong>{m.content}</strong></>;
+      break;
+    case MessageType.POLL_RESULT:
+      icon = <IconPoll size={16} />; cls = 'poll-ended';
+      body = <><PollResultLine m={m} />{' '}{m.message_reference && <button className="btn-link" onClick={() => void useMessageStore.getState().jumpTo(m.channel_id, m.message_reference!.message_id)}>View poll</button>}</>;
       break;
     default:
       body = <>{author}: {m.content}</>;

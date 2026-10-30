@@ -7,6 +7,7 @@ import {
 } from '../serializers';
 import { getGuildRow, requireGuild, requireGuildPerm } from '../services/permissions';
 import { createGuild, deleteGuild, fullGuild } from '../services/guilds';
+import { parseAvailableTags } from '../services/threads';
 import { isTemplateId } from '../services/templates';
 import { diff, writeAudit } from '../services/audit';
 import { IMAGE_EXT, removeUpload, saveUpload, sniffImage } from '../uploads';
@@ -14,7 +15,7 @@ import { arrayBody, auditReason, body, isSnowflake, optBool, optInt, optStr, rea
 import { AVATAR_BYTES } from './users';
 
 export function normalizeChannelName(name: string, type: number): string {
-  if (type === ChannelType.GUILD_TEXT) {
+  if (type === ChannelType.GUILD_TEXT || type === ChannelType.GUILD_ANNOUNCEMENT || type === ChannelType.GUILD_FORUM) {
     const n = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]+/gu, '').replace(/-+/g, '-').slice(0, LIMITS.CHANNEL_NAME);
     return n || 'channel';
   }
@@ -204,8 +205,11 @@ export default function guildRoutes(app: FastifyInstance, ctx: Ctx) {
     const { g, perms } = requireGuildPerm(db, id, me, Permissions.MANAGE_CHANNELS);
     const b = body(req);
     const type = b.type === undefined ? ChannelType.GUILD_TEXT : Number(b.type);
-    if (![ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY].includes(type)) {
-      throw invalidField('type', 'type must be 0 (text), 2 (voice) or 4 (category)');
+    const CREATABLE: number[] = [
+      ChannelType.GUILD_TEXT, ChannelType.GUILD_VOICE, ChannelType.GUILD_CATEGORY, ChannelType.GUILD_ANNOUNCEMENT, ChannelType.GUILD_FORUM,
+    ];
+    if (!CREATABLE.includes(type)) {
+      throw invalidField('type', 'type must be 0 (text), 2 (voice), 4 (category), 5 (announcement) or 15 (forum)');
     }
     const name = normalizeChannelName(reqStr(b, 'name', { min: 1, max: LIMITS.CHANNEL_NAME }), type);
     let parentId: string | null = null;
@@ -215,7 +219,9 @@ export default function guildRoutes(app: FastifyInstance, ctx: Ctx) {
       if (!p || p.guild_id !== g.id || p.type !== ChannelType.GUILD_CATEGORY) throw invalidField('parent_id', 'Unknown category');
       parentId = p.id;
     }
-    const topic = type === ChannelType.GUILD_TEXT ? optStr(b, 'topic', { max: 1024, nullable: true }) ?? null : null;
+    const hasTopic = type === ChannelType.GUILD_TEXT || type === ChannelType.GUILD_ANNOUNCEMENT || type === ChannelType.GUILD_FORUM;
+    const topic = hasTopic ? optStr(b, 'topic', { max: 1024, nullable: true }) ?? null : null;
+    const tags = type === ChannelType.GUILD_FORUM && b.available_tags !== undefined ? parseAvailableTags(ctx, b.available_tags) : [];
     const rl = optInt(b, 'rate_limit_per_user', 0, 21600) ?? 0;
     let ows: ReturnType<typeof parseOverwrites> = [];
     if (b.permission_overwrites !== undefined) {
@@ -235,9 +241,9 @@ export default function guildRoutes(app: FastifyInstance, ctx: Ctx) {
     const cid = ctx.id();
     db.tx(() => {
       db.run(
-        `INSERT INTO channels (id, type, guild_id, name, topic, position, parent_id, rate_limit_per_user, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        cid, type, g.id, name, topic, position!, parentId, rl, now(),
+        `INSERT INTO channels (id, type, guild_id, name, topic, position, parent_id, rate_limit_per_user, created_at, available_tags)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        cid, type, g.id, name, topic, position!, parentId, rl, now(), JSON.stringify(tags),
       );
       for (const o of ows) {
         db.run('INSERT INTO permission_overwrites (channel_id, target_id, type, allow, deny) VALUES (?, ?, ?, ?, ?)',

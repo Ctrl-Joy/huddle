@@ -8,8 +8,11 @@ import { useStatus } from '../../stores/presences';
 import { useVoiceStore, voiceActions } from '../../stores/voice';
 import { InlineMarkdown } from '../../lib/markdown';
 import { Avatar, StatusDot, Tooltip } from '../common/Avatar';
-import { IconAt, IconHash, IconMenu, IconPhone, IconPin, IconSearch, IconUsers, IconVideo, IconClose } from '../common/icons';
+import { IconAt, IconMenu, IconPhone, IconPin, IconSearch, IconUsers, IconVideo, IconClose } from '../common/icons';
 import { PinsPopover } from './PinsPopover';
+import { ChannelIcon } from '../common/ChannelIcon';
+import { ThreadsButton } from '../threads/ThreadsPopover';
+import { InboxButton } from './InboxPopover';
 
 export function ChatHeader({ channel }: { channel: Channel }) {
   const me = useAuthStore((s) => s.user!.id);
@@ -45,7 +48,7 @@ export function ChatHeader({ channel }: { channel: Channel }) {
           </>
         ) : (
           <>
-            <IconHash size={22} className="header-icon" />
+            <ChannelIcon type={channel.type} size={22} className="header-icon" />
             <span className="header-name">{channel.name}</span>
           </>
         )}
@@ -67,18 +70,20 @@ export function ChatHeader({ channel }: { channel: Channel }) {
             </Tooltip>
           </>
         )}
-        <div className="popover-anchor">
+        {(channel.type === ChannelType.GUILD_TEXT || channel.type === ChannelType.GUILD_ANNOUNCEMENT) && <ThreadsButton channel={channel} />}
+        {channel.type !== ChannelType.GUILD_FORUM && <div className="popover-anchor">
           <Tooltip label="Pinned Messages" side="bottom">
             <button className={'icon-btn' + (pinsOpen ? ' active' : '')} aria-label="Pinned Messages" onClick={() => setPinsOpen((v) => !v)}><IconPin size={20} /></button>
           </Tooltip>
           {pinsOpen && <PinsPopover channel={channel} close={() => setPinsOpen(false)} />}
-        </div>
+        </div>}
         <Tooltip label={isDM ? (memberListOpen ? 'Hide User Profile' : 'Show User Profile') : memberListOpen ? 'Hide Member List' : 'Show Member List'} side="bottom">
           <button className={'icon-btn' + (memberListOpen ? ' active' : '')} aria-label="Toggle member list" onClick={() => (isPhone() ? useUIStore.getState().setMobileMembers(true) : useUIStore.getState().toggleMemberList())}>
             {isDM && other ? <Avatar user={other} size={22} /> : <IconUsers size={20} />}
           </button>
         </Tooltip>
         {channel.guild_id && <SearchBox guildId={channel.guild_id} />}
+        <InboxButton />
       </div>
     </header>
   );

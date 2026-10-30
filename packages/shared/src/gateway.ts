@@ -1,6 +1,6 @@
 import type {
   Channel, FullGuild, Guild, GuildEmoji, Member, Message, Presence, PresenceStatus, PublicUser, ReadState,
-  Relationship, Role, User, UserGuildSettings, VoiceState,
+  Relationship, Role, User, UserGuildSettings, UserSettings, VoiceState,
 } from './models';
 import type { CustomEmojiRef } from './emojis';
 
@@ -62,6 +62,8 @@ export interface ReadyPayload {
   presences: Presence[]; // friends + DM recipients
   read_states: ReadState[];
   user_guild_settings: UserGuildSettings[];
+  /** Server folders + rail order (synced across devices). */
+  user_settings: UserSettings;
   /** Voice states for DM calls the user can see. */
   voice_states: VoiceState[];
 }
@@ -90,6 +92,10 @@ export interface DispatchEvents {
   CHANNEL_CREATE: Channel;
   CHANNEL_UPDATE: Channel;
   CHANNEL_DELETE: Channel;
+  /** Threads (and forum posts) go to everyone who can view the parent channel. */
+  THREAD_CREATE: Channel;
+  THREAD_UPDATE: Channel;
+  THREAD_DELETE: { id: string; guild_id: string; parent_id: string };
   CHANNEL_PINS_UPDATE: { channel_id: string; guild_id: string | null };
 
   MESSAGE_CREATE: Message;
@@ -98,6 +104,9 @@ export interface DispatchEvents {
   MESSAGE_REACTION_ADD: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; emoji: string; custom_emoji?: CustomEmojiRef | null };
   MESSAGE_REACTION_REMOVE: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; emoji: string; custom_emoji?: CustomEmojiRef | null };
   MESSAGE_ACK: ReadState;
+  /** One per answer added / removed when a member changes their vote set. */
+  MESSAGE_POLL_VOTE_ADD: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; answer_id: number };
+  MESSAGE_POLL_VOTE_REMOVE: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; answer_id: number };
 
   TYPING_START: { channel_id: string; guild_id: string | null; user_id: string; timestamp: number; member?: Member };
 
@@ -107,6 +116,8 @@ export interface DispatchEvents {
   RELATIONSHIP_REMOVE: { id: string; type: number };
 
   USER_GUILD_SETTINGS_UPDATE: UserGuildSettings;
+  /** Sent to all of the user's own sessions after PATCH /users/@me/settings. */
+  USER_SETTINGS_UPDATE: UserSettings;
 
   VOICE_STATE_UPDATE: VoiceState; // channel_id null = left
   VOICE_SIGNAL: VoiceSignalPayload & { from_user_id: string };

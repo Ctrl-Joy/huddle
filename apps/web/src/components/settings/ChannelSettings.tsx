@@ -8,6 +8,7 @@ import { errorMessage } from '../../api/client';
 import { Field, Toggle } from '../modals/Modal';
 import { Avatar } from '../common/Avatar';
 import { IconCheck, IconClose, IconPlus, IconSlash, IconTrash, IconLock } from '../common/icons';
+import { ForumTagsEditor } from '../threads/ForumTagsEditor';
 
 type Tab = 'overview' | 'permissions';
 
@@ -56,7 +57,7 @@ function Overview({ channelId }: { channelId: string }) {
   const [slow, setSlow] = useState(channel.rate_limit_per_user);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const isText = channel.type === ChannelType.GUILD_TEXT;
+  const isText = channel.type === ChannelType.GUILD_TEXT || channel.type === ChannelType.GUILD_ANNOUNCEMENT || channel.type === ChannelType.GUILD_FORUM;
   const dirty = name !== (channel.name ?? '') || topic !== (channel.topic ?? '') || slow !== channel.rate_limit_per_user;
   const reset = () => { setName(channel.name ?? ''); setTopic(channel.topic ?? ''); setSlow(channel.rate_limit_per_user); setError(''); };
   const save = async () => {
@@ -86,6 +87,7 @@ function Overview({ channelId }: { channelId: string }) {
           <p className="setting-desc">Members will be restricted to sending one message per this interval, unless they have Manage Channel or Manage Messages.</p>
         </>
       )}
+      {channel.type === ChannelType.GUILD_FORUM && <ForumTagsEditor channel={channel} />}
       {dirty && <UnsavedBar onReset={reset} onSave={save} busy={busy} error={error} />}
     </div>
   );

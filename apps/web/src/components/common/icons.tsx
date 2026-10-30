@@ -88,3 +88,14 @@ export const IconVerified = ({ size = 16, ...rest }: P) => (
     <path d="m8 12.2 2.7 2.6L16.2 9.3" fill="none" stroke="var(--verified-check, #fff)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+export const IconPoll = (p: P) => <Svg {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></Svg>;
+export const IconForward = (p: P) => <Svg {...p}><path d="m15 5 6 6-6 6" /><path d="M21 11H10a6 6 0 0 0-6 6v2" /></Svg>;
+export const IconPlay = (p: P) => <Svg {...p}><path d="M7 4.5v15l12-7.5z" fill="currentColor" /></Svg>;
+export const IconPause = (p: P) => <Svg {...p}><path d="M7 4h3v16H7zM14 4h3v16h-3z" fill="currentColor" /></Svg>;
+export const IconSend = (p: P) => <Svg {...p}><path d="m22 2-7 20-4-9-9-4z" /><path d="M22 2 11 13" /></Svg>;
+// threads / forums / announcements
+export const IconThread = (p: P) => <Svg {...p}><path d="M5 9h12M4 15h8M10 3 8 21M16 3l-1.2 9" /><path d="M14 16.5a2.5 2.5 0 0 1 2.5-2.5H20a2 2 0 0 1 2 2v2.5a2 2 0 0 1-2 2h-.5V22l-2-1.5h-1A2.5 2.5 0 0 1 14 18z" /></Svg>;
+export const IconForum = (p: P) => <Svg {...p}><path d="M3 5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8l-4 3v-3.2A2 2 0 0 1 3 11z" /><path d="M19 8h.5A1.5 1.5 0 0 1 21 9.5V16a1.5 1.5 0 0 1-1.5 1.5H19V20l-3-2.5h-5a1.5 1.5 0 0 1-1.5-1.5V16" /></Svg>;
+export const IconMegaphone = (p: P) => <Svg {...p}><path d="M3 10.5v3a1 1 0 0 0 1 1h3l10 5.5V4L7 9.5H4a1 1 0 0 0-1 1z" /><path d="M20 9.5a3 3 0 0 1 0 5" /><path d="M7 14.5V19a1.5 1.5 0 0 0 1.5 1.5h1A1.5 1.5 0 0 0 11 19v-2.5" /></Svg>;
+export const IconArchive = (p: P) => <Svg {...p}><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" /></Svg>;
+export const IconArrowLeft = (p: P) => <Svg {...p}><path d="M19 12H5M12 19l-7-7 7-7" /></Svg>;

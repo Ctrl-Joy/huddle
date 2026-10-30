@@ -17,6 +17,8 @@ export function setToken(t: string | null): void {
   } catch { /* ignore */ }
 }
 export function onUnauthorized(fn: () => void): void { unauthorizedHandler = fn; }
+/** For non-REST rejections of the token (the gateway closing with 4004). */
+export function notifyUnauthorized(): void { unauthorizedHandler?.(); }
 
 export class ApiError extends Error {
   status: number;

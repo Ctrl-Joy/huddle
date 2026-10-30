@@ -22,7 +22,10 @@ export default function searchRoutes(app: FastifyInstance, ctx: Ctx) {
     if (authorId && !isSnowflake(authorId)) throw invalidField('author_id', 'author_id must be a snowflake');
     if (channelId && !isSnowflake(channelId)) throw invalidField('channel_id', 'channel_id must be a snowflake');
 
-    const readable = db.all<ChannelRow>('SELECT * FROM channels WHERE guild_id = ? AND type = ?', g.id, ChannelType.GUILD_TEXT)
+    const readable = db.all<ChannelRow>(
+      'SELECT * FROM channels WHERE guild_id = ? AND type IN (?, ?, ?)',
+      g.id, ChannelType.GUILD_TEXT, ChannelType.GUILD_ANNOUNCEMENT, ChannelType.PUBLIC_THREAD,
+    )
       .filter((c) => has(channelPerms(db, c, me), Permissions.VIEW_CHANNEL | Permissions.READ_MESSAGE_HISTORY))
       .map((c) => c.id)
       .filter((id) => !channelId || id === channelId);

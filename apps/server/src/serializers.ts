@@ -1,16 +1,17 @@
 import {
-  ChannelType, customReactionId, type Attachment, type AuditLogEntry, type Ban, type Channel, type CustomEmojiRef,
-  type Guild, type GuildEmoji, type Invite, type Member,
+  ChannelType, MessageType, customReactionId, type Attachment, type AuditLogEntry, type Ban, type Channel, type CustomEmojiRef,
+  type ForumTag, type Guild, type GuildEmoji, type Invite, type Member,
   type Message, type PermissionOverwrite, type PublicUser, type Reaction, type ReadState, type Relationship, type Role,
   type User, type UserGuildSettings,
 } from '@huddle/shared';
 import { placeholders, type Db } from './db';
+import { attachment, messageExtras } from './messageExtras';
 
 // ---------- row types ----------
 export interface UserRow {
   id: string; email: string; username: string; display_name: string | null; password_hash: string;
   avatar: string | null; banner_color: string | null; bio: string | null; custom_status: string | null;
-  status: string; bot: number; created_at: string;
+  status: string; bot: number; created_at: string; banner: string | null; accent_color: string | null; pronouns: string | null;
 }
 export interface GuildRow {
   id: string; name: string; icon: string | null; description: string | null; owner_id: string;
@@ -29,11 +30,14 @@ export interface ChannelRow {
   id: string; type: number; guild_id: string | null; name: string | null; topic: string | null; position: number;
   parent_id: string | null; rate_limit_per_user: number; last_message_id: string | null; owner_id: string | null;
   icon: string | null; created_at: string;
+  archived: number; archive_timestamp: string | null; auto_archive_duration: number; message_count: number;
+  last_message_at: string | null; starter_message_id: string | null; applied_tags: string; available_tags: string;
 }
 export interface MessageRow {
   id: string; channel_id: string; guild_id: string | null; author_id: string; content: string; type: number;
   created_at: string; edited_at: string | null; pinned: number; pinned_at: string | null; mention_everyone: number;
   mentions: string; mention_roles: string; reference_id: string | null; reference_channel_id: string | null;
+  flags?: number; embeds?: string | null; forward_json?: string | null;
 }
 export interface OverwriteRow { channel_id: string; target_id: string; type: number; allow: string; deny: string }
 
@@ -46,6 +50,9 @@ export function publicUser(u: UserRow): PublicUser {
     avatar: u.avatar,
     banner_color: u.banner_color,
     bio: u.bio,
+    banner: u.banner ?? null,
+    accent_color: u.accent_color ?? null,
+    pronouns: u.pronouns ?? null,
     bot: !!u.bot,
     created_at: u.created_at,
   };
@@ -73,7 +80,7 @@ export function usersById(db: Db, ids: Iterable<string>): Map<string, UserRow> {
 }
 
 const DELETED_USER = (id: string): PublicUser => ({
-  id, username: 'deleted-user', display_name: 'Deleted User', avatar: null, banner_color: null, bio: null, bot: false,
+  id, username: 'deleted-user', display_name: 'Deleted User', avatar: null, banner_color: null, bio: null, banner: null, accent_color: null, pronouns: null, bot: false,
   created_at: new Date(0).toISOString(),
 });
 
@@ -179,7 +186,44 @@ export function recipientIds(db: Db, channelId: string): string[] {
     .map((r) => r.user_id);
 }
 
+export function isThread(c: { type: number }): boolean {
+  return c.type === ChannelType.PUBLIC_THREAD;
+}
+
+function parseJsonList<T>(raw: string | null | undefined): T[] {
+  try {
+    const v = JSON.parse(raw || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+export function forumTags(c: ChannelRow): ForumTag[] {
+  return parseJsonList<ForumTag>(c.available_tags);
+}
+
+/** Thread-only fields (threads never carry overwrites; they inherit the parent's). */
+function threadFields(c: ChannelRow): Partial<Channel> {
+  return {
+    owner_id: c.owner_id,
+    thread_metadata: {
+      archived: !!c.archived, archive_timestamp: c.archive_timestamp ?? null, auto_archive_duration: c.auto_archive_duration ?? 4320,
+    },
+    message_count: c.message_count ?? 0,
+    last_message_at: c.last_message_at ?? null,
+    starter_message_id: c.starter_message_id ?? null,
+    applied_tags: parseJsonList<string>(c.applied_tags),
+  };
+}
+
 function channelBase(c: ChannelRow, ows: PermissionOverwrite[]): Channel {
+  if (isThread(c)) return { ...channelCore(c, []), ...threadFields(c) };
+  if (c.type === ChannelType.GUILD_FORUM) return { ...channelCore(c, ows), available_tags: forumTags(c) };
+  return channelCore(c, ows);
+}
+
+function channelCore(c: ChannelRow, ows: PermissionOverwrite[]): Channel {
   return {
     id: c.id,
     type: c.type as ChannelType,
@@ -213,8 +257,20 @@ export function getChannelRow(db: Db, id: string): ChannelRow | undefined {
   return db.one<ChannelRow>('SELECT * FROM channels WHERE id = ?', id);
 }
 
+/** Non-archived threads of a guild (sent with the guild in READY / GUILD_CREATE). */
+export function activeThreadsOf(db: Db, guildId: string): Channel[] {
+  return db.all<ChannelRow>(
+    'SELECT * FROM channels WHERE guild_id = ? AND type = ? AND archived = 0 ORDER BY CAST(id AS INTEGER) ASC',
+    guildId, ChannelType.PUBLIC_THREAD,
+  ).map((c) => channelBase(c, []));
+}
+
+/** Guild channels, excluding threads (see activeThreadsOf). */
 export function guildChannels(db: Db, guildId: string): Channel[] {
-  const rows = db.all<ChannelRow>('SELECT * FROM channels WHERE guild_id = ? ORDER BY position ASC, CAST(id AS INTEGER) ASC', guildId);
+  const rows = db.all<ChannelRow>(
+    'SELECT * FROM channels WHERE guild_id = ? AND type != ? ORDER BY position ASC, CAST(id AS INTEGER) ASC',
+    guildId, ChannelType.PUBLIC_THREAD,
+  );
   const ows = db.all<OverwriteRow>(
     'SELECT o.* FROM permission_overwrites o JOIN channels c ON c.id = o.channel_id WHERE c.guild_id = ?', guildId,
   );
@@ -265,14 +321,14 @@ export function serializeMessages(db: Db, rows: MessageRow[], viewerId: string |
   }
 
   const atts = new Map<string, Attachment[]>();
+  const snapshotAtts = new Map<string, Attachment[]>(); // forwarded copies (shown inside MessageSnapshot)
   for (const a of db.raw.prepare(`SELECT * FROM attachments WHERE message_id IN (${ph}) ORDER BY rowid`).all(...ids) as any[]) {
-    let l = atts.get(a.message_id);
-    if (!l) atts.set(a.message_id, (l = []));
-    l.push({
-      id: a.id, filename: a.filename, size: a.size, content_type: a.content_type, url: a.url,
-      width: a.width ?? null, height: a.height ?? null,
-    });
+    const into = a.snapshot ? snapshotAtts : atts;
+    let l = into.get(a.message_id);
+    if (!l) into.set(a.message_id, (l = []));
+    l.push(attachment(a));
   }
+  const extras = messageExtras(db, rows, viewerId, snapshotAtts);
 
   const reacts = new Map<string, Map<string, Reaction>>();
   for (const r of db.raw.prepare(
@@ -313,8 +369,22 @@ export function serializeMessages(db: Db, rows: MessageRow[], viewerId: string |
     }
   }
 
+  // threads started from these messages, and the threads named by THREAD_CREATED system messages
+  const threads = new Map<string, Channel>();
+  const threadRows = db.raw.prepare(
+    `SELECT * FROM channels WHERE type = ${ChannelType.PUBLIC_THREAD} AND (starter_message_id IN (${ph}) OR id IN (${ph}))`,
+  ).all(...ids, ...rows.map((r) => (r.type === MessageType.THREAD_CREATED ? r.reference_channel_id ?? '' : ''))) as unknown as ChannelRow[];
+  const threadById = new Map(threadRows.map((t) => [t.id, channelBase(t, [])]));
+  for (const t of threadRows) if (t.starter_message_id) threads.set(t.starter_message_id, threadById.get(t.id)!);
+
   return rows.map((r): Message => {
     const author = authors.get(r.author_id);
+    const isThreadCreated = r.type === MessageType.THREAD_CREATED;
+    // a forum post's starter message lives inside its thread: no chip there
+    const started = threads.get(r.id);
+    const thread = isThreadCreated
+      ? threadById.get(r.reference_channel_id ?? '') ?? null
+      : started && started.id !== r.channel_id ? started : null;
     return {
       id: r.id,
       channel_id: r.channel_id,
@@ -333,6 +403,8 @@ export function serializeMessages(db: Db, rows: MessageRow[], viewerId: string |
       reactions: [...(reacts.get(r.id)?.values() ?? [])],
       message_reference: r.reference_id ? { message_id: r.reference_id, channel_id: r.reference_channel_id ?? r.channel_id } : null,
       referenced_message: r.reference_id ? referenced.get(r.reference_id) ?? null : null,
+      ...extras(r),
+      ...(thread ? { thread } : {}),
     };
   });
 }

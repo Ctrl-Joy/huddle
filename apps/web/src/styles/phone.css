@@ -48,6 +48,19 @@
   .emoji-picker .ep-cell .custom-emoji { width: 28px; height: 28px; }
 }
 @keyframes drawer-in-r { from { transform: translateX(100%); } to { transform: none; } }
+/* an open thread / forum post is a full screen of its own on phones (back button returns) */
+@media (max-width: 800px) {
+  .side-panel.thread-panel.phone-full {
+    left: 0; width: 100%; max-width: none; top: 0; z-index: 35; overflow: hidden; display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) 0 0; animation-name: drawer-in-r;
+  }
+  .thread-panel.phone-full .thread-head { height: var(--header-h); padding: 0 8px; }
+  .thread-panel.phone-full .composer-wrap { padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
+  .forum-inner { padding: 12px 10px 24px; }
+  .forum-toolbar .small-select { flex: 1 1 auto; }
+  .post-card { padding: 10px 12px; }
+  .threads-popover { position: fixed; left: 8px; right: 8px; width: auto; top: calc(var(--header-h) + 6px); }
+}
 @media (prefers-reduced-motion: reduce) {
   .nav-column, .mobile-scrim { transition: none !important; }
   .member-list, .dm-profile, .side-panel { animation: none !important; }
@@ -82,4 +95,21 @@
   .settings-content-inner { max-width: none; padding: 20px calc(16px + env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); }
   .settings-content-inner > div > .settings-title:first-child { display: none; } /* the top bar already shows the section name */
   .unsaved-bar { bottom: calc(12px + env(safe-area-inset-bottom)); }
+}
+
+/* ===== Phones: polls, link previews, voice messages, forward picker, new-messages bar ===== */
+@media (max-width: 800px) {
+  .new-messages-bar { left: 8px; right: 8px; font-size: 12.5px; }
+  .new-messages-jump, .new-messages-read { padding: 8px 10px; }
+  .poll, .embed { max-width: 100%; }
+  .poll { padding: 12px; }
+  .poll-answer { min-height: 46px; }
+  .poll-draft-options { flex-direction: column; align-items: stretch; gap: 8px; }
+  .poll-multi { justify-content: space-between; }
+  .embed-remove { opacity: 1; }
+  .voice-msg { width: 100%; max-width: 340px; }
+  .voice-rec-hint { display: none; }
+  .voice-rec { justify-content: space-between; }
+  .forward-list { max-height: 45dvh; }
+  .forward-foot input { font-size: 16px; } /* no zoom-on-focus in mobile Safari */
 }

@@ -5,10 +5,14 @@ import { Modal, Field, Toggle } from './Modal';
 import { useGuildStore } from '../../stores/guilds';
 import { createChannel, setOverwrite } from '../../lib/actions';
 import { errorMessage } from '../../api/client';
-import { IconHash, IconLock, IconSpeaker } from '../common/icons';
+import { IconForum, IconHash, IconLock, IconMegaphone, IconSpeaker } from '../common/icons';
+import { ChannelIcon } from '../common/ChannelIcon';
+
+/** Text-like channels get lowercase-dashed names. */
+const slugged = (type: number) => type === ChannelType.GUILD_TEXT || type === ChannelType.GUILD_ANNOUNCEMENT || type === ChannelType.GUILD_FORUM;
 
 function normalizeName(name: string, type: number) {
-  return type === ChannelType.GUILD_TEXT ? name.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, LIMITS.CHANNEL_NAME) : name.slice(0, LIMITS.CHANNEL_NAME);
+  return slugged(type) ? name.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, LIMITS.CHANNEL_NAME) : name.slice(0, LIMITS.CHANNEL_NAME);
 }
 
 export function CreateChannelModal({ close, guildId, parentId, channelType }: { close: () => void; guildId: string; parentId?: string; channelType?: number }) {
@@ -21,7 +25,7 @@ export function CreateChannelModal({ close, guildId, parentId, channelType }: { 
   const nav = useNavigate();
 
   const submit = async () => {
-    const n = type === ChannelType.GUILD_TEXT ? normalizeName(name, type).replace(/^-+|-+$/g, '') : name.trim();
+    const n = slugged(type) ? normalizeName(name, type).replace(/^-+|-+$/g, '') : name.trim();
     if (!n) { setError('Channel name is required.'); return; }
     setBusy(true); setError('');
     try {
@@ -47,6 +51,8 @@ export function CreateChannelModal({ close, guildId, parentId, channelType }: { 
           {[
             { t: ChannelType.GUILD_TEXT, icon: <IconHash size={22} />, label: 'Text', desc: 'Send messages, images, files, opinions and puns' },
             { t: ChannelType.GUILD_VOICE, icon: <IconSpeaker size={22} />, label: 'Voice', desc: 'Hang out with voice, video and screen share' },
+            { t: ChannelType.GUILD_FORUM, icon: <IconForum size={22} />, label: 'Forum', desc: 'Organised posts with titles and tags, each its own thread' },
+            { t: ChannelType.GUILD_ANNOUNCEMENT, icon: <IconMegaphone size={22} />, label: 'Announcement', desc: 'Updates from the team; only moderators can post' },
           ].map((o) => (
             <button type="button" key={o.t} className={'radio-card' + (type === o.t ? ' selected' : '')} onClick={() => setType(o.t)}>
               <span className="radio-card-icon">{o.icon}</span>
@@ -57,8 +63,8 @@ export function CreateChannelModal({ close, guildId, parentId, channelType }: { 
         </div>
         <Field label="Channel name" error={error}>
           <div className="input-with-icon">
-            {type === ChannelType.GUILD_TEXT ? <IconHash size={16} /> : <IconSpeaker size={16} />}
-            <input autoFocus value={name} placeholder={type === ChannelType.GUILD_TEXT ? 'new-channel' : 'Lounge'} onChange={(e) => setName(type === ChannelType.GUILD_TEXT ? normalizeName(e.target.value, type) : e.target.value)} />
+            <ChannelIcon type={type} size={16} />
+            <input autoFocus value={name} placeholder={type === ChannelType.GUILD_VOICE ? 'Lounge' : type === ChannelType.GUILD_FORUM ? 'help-desk' : type === ChannelType.GUILD_ANNOUNCEMENT ? 'announcements' : 'new-channel'} onChange={(e) => setName(slugged(type) ? normalizeName(e.target.value, type) : e.target.value)} />
           </div>
         </Field>
         <div className="setting-row">

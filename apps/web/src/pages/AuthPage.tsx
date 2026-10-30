@@ -1,7 +1,9 @@
 import { useState, type FormEvent, type ReactElement } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LIMITS } from '@huddle/shared';
-import { login, register, useAuthStore } from '../stores/auth';
+import { login, register, requestLogin, requestRegister, useAuthStore } from '../stores/auth';
+import { adoptSession } from '../lib/session';
+import { MAX_ACCOUNTS, listAccounts } from '../lib/accounts';
 import { ApiError, errorMessage } from '../api/client';
 import { LogoMark } from '../components/common/icons';
 
@@ -9,6 +11,8 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const token = useAuthStore((s) => s.token);
   const [params] = useSearchParams();
   const next = params.get('next') || '/channels/@me';
+  // "Add an account": sign in to another account without logging out of the current one
+  const adding = params.get('add') === '1' && !!token;
   const nav = useNavigate();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -18,7 +22,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (token) return <Navigate to={next} replace />;
+  if (token && !adding) return <Navigate to={next} replace />;
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -41,6 +45,11 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     if (!validate()) return;
     setBusy(true);
     try {
+      if (adding) {
+        const res = mode === 'login' ? await requestLogin(loginName.trim(), password) : await requestRegister(email.trim(), username.trim(), password);
+        adoptSession(res.token, res.user);
+        return;
+      }
       if (mode === 'login') await login(loginName.trim(), password);
       else await register(email.trim(), username.trim(), password);
       nav(next, { replace: true });
@@ -57,7 +66,8 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     </label>
   );
 
-  const suffix = next !== '/channels/@me' ? `?next=${encodeURIComponent(next)}` : '';
+  const suffix = adding ? '?add=1' : next !== '/channels/@me' ? `?next=${encodeURIComponent(next)}` : '';
+  const full = adding && listAccounts().length >= MAX_ACCOUNTS;
 
   return (
     <div className="auth-page">
@@ -66,8 +76,9 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       </div>
       <form className="auth-card" onSubmit={submit} noValidate>
         <div className="auth-brand"><span className="auth-logo"><LogoMark size={34} /></span><span>Huddle</span></div>
-        <h1>{mode === 'login' ? 'Good to see you again' : 'Create your account'}</h1>
-        <p className="auth-sub">{mode === 'login' ? 'Sign in to pick up where your huddles left off.' : 'Join your friends and communities in a few seconds.'}</p>
+        <h1>{adding ? 'Add an account' : mode === 'login' ? 'Good to see you again' : 'Create your account'}</h1>
+        <p className="auth-sub">{adding ? "Sign in to another account. You'll stay signed in to this one and can switch any time." : mode === 'login' ? 'Sign in to pick up where your huddles left off.' : 'Join your friends and communities in a few seconds.'}</p>
+        {full && <div className="form-error" role="alert">You can keep up to {MAX_ACCOUNTS} accounts on this device. Signing in to another one will forget the oldest.</div>}
         {formError && <div className="form-error" role="alert">{formError}</div>}
         {mode === 'register' ? (
           <>
@@ -83,6 +94,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {mode === 'login'
             ? <>New here? <Link to={`/register${suffix}`}>Create an account</Link></>
             : <>Already have an account? <Link to={`/login${suffix}`}>Log in</Link></>}
+          {adding && <div className="auth-back"><Link to="/channels/@me">Back to Huddle</Link></div>}
         </div>
       </form>
     </div>

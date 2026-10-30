@@ -1,5 +1,8 @@
 // Non-hook permission helpers built on the shared computePermissions.
-import { ALL_PERMISSIONS, ChannelType, Permissions, computeBasePermissions, computePermissions, has, highestRolePosition, type Channel } from '@huddle/shared';
+import {
+  ALL_PERMISSIONS, ChannelType, Permissions, applyChannelTypeRules, computeBasePermissions, computePermissions, has, highestRolePosition,
+  threadPermissions, type Channel,
+} from '@huddle/shared';
 import { useGuildStore } from '../stores/guilds';
 import { useAuthStore } from '../stores/auth';
 
@@ -25,6 +28,11 @@ export function channelPermissionsFor(channel: Channel | undefined, userId: stri
       | Permissions.VIDEO | Permissions.STREAM;
   }
   const s = useGuildStore.getState();
+  if (channel.type === ChannelType.PUBLIC_THREAD) {
+    // threads inherit the parent channel (SEND_MESSAGES comes from SEND_MESSAGES_IN_THREADS)
+    const parent = channel.parent_id ? s.channels[channel.parent_id] : undefined;
+    return parent && parent.type !== ChannelType.PUBLIC_THREAD ? threadPermissions(channelPermissionsFor(parent, userId)) : 0n;
+  }
   const g = s.guilds[channel.guild_id];
   if (!g) return 0n;
   const m = s.members[channel.guild_id]?.[userId];
@@ -41,7 +49,7 @@ export function channelPermissionsFor(channel: Channel | undefined, userId: stri
     perms &= ~(Permissions.SPEAK | Permissions.VIDEO | Permissions.STREAM | Permissions.MUTE_MEMBERS
       | Permissions.DEAFEN_MEMBERS | Permissions.MOVE_MEMBERS | Permissions.PRIORITY_SPEAKER);
   }
-  return perms;
+  return applyChannelTypeRules(channel.type, perms);
 }
 
 export function channelVisible(channel: Channel | undefined, userId: string): boolean {

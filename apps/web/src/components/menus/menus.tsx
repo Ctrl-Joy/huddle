@@ -1,6 +1,8 @@
 // Context-menu item builders for guilds, channels, messages and members.
-import { ChannelType, Permissions, RelationshipType, has, type Channel, type Message } from '@huddle/shared';
-import { useGuildStore, sortedRoles, intToHex, displayName } from '../../stores/guilds';
+import { ChannelType, MessageType, Permissions, RelationshipType, has, type Channel, type Message } from '@huddle/shared';
+import { useGuildStore, sortedRoles, intToHex, displayName, canHaveThreads } from '../../stores/guilds';
+import { useThreadStore } from '../../stores/threads';
+import { openThread } from '../../lib/threads';
 import { useAuthStore } from '../../stores/auth';
 import { useReadStateStore, getGuildSettings, isChannelMuted } from '../../stores/readStates';
 import { useRelationshipStore } from '../../stores/relationships';
@@ -14,8 +16,19 @@ import {
 import { copyText } from '../../lib/format';
 import { errorMessage } from '../../api/client';
 import { useMessageStore } from '../../stores/messages';
+import { MessageFlags } from '@huddle/shared';
+import { endPoll, suppressEmbeds } from '../../lib/actions';
+import { pollEnded } from '../chat/Poll';
 
 const me = () => useAuthStore.getState().user?.id ?? '';
+
+/** Plain user messages (not polls, not pending) with something to pass along. */
+export function canForward(m: Message & { _state?: string }): boolean {
+  if (m._state || m.poll) return false;
+  if (m.type !== MessageType.DEFAULT && m.type !== MessageType.REPLY) return false;
+  return !!(m.content || m.attachments.length || m.forward || m.embeds?.length);
+}
+
 const copyId = (id: string): MenuItem => ({ label: 'Copy ID', hint: 'ID', onClick: () => { void copyText(id); toast('Copied ID', 'success'); } });
 
 function guarded(fn: () => Promise<unknown>) {
@@ -63,7 +76,8 @@ export function buildChannelMenu(channel: Channel): MenuItem[] {
   const perms = channelPermissionsFor(channel, me());
   const items: MenuItem[] = [];
   const isCategory = channel.type === ChannelType.GUILD_CATEGORY;
-  if (channel.type === ChannelType.GUILD_TEXT || channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
+  if (channel.type === ChannelType.GUILD_TEXT || channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM
+    || channel.type === ChannelType.GUILD_ANNOUNCEMENT || channel.type === ChannelType.GUILD_FORUM) {
     items.push({ label: 'Mark As Read', disabled: !channel.last_message_id, onClick: () => ackChannel(channel.id, channel.last_message_id, true) });
     items.push({ separator: true });
   }
@@ -118,6 +132,17 @@ export function buildMessageMenu(m: Message, opts: { onReact?: () => void } = {}
     });
   }
   if (has(perms, Permissions.SEND_MESSAGES)) items.push({ label: 'Reply', onClick: () => useUIStore.getState().setReplyTo(m.channel_id, m.id) });
+  if (canForward(m)) items.push({ label: 'Forward', onClick: () => openModal('forwardMessage', { message: m }) });
+  if ((own || (canManage && !isDM)) && (m.embeds?.length || (m.flags ?? 0) & MessageFlags.SUPPRESS_EMBEDS)) {
+    const suppressed = !!((m.flags ?? 0) & MessageFlags.SUPPRESS_EMBEDS);
+    items.push({ label: suppressed ? 'Show Embeds' : 'Remove Embeds', onClick: () => void suppressEmbeds(m, !suppressed) });
+  }
+  if (own && m.poll && !pollEnded(m.poll)) items.push({ label: 'End Poll Now', onClick: () => void endPoll(m) });
+  if (canHaveThreads(channel) && (m.type === MessageType.DEFAULT || m.type === MessageType.REPLY)) {
+    const thread = m.thread ? useGuildStore.getState().channels[m.thread.id] ?? m.thread : null;
+    if (thread) items.push({ label: 'Open Thread', onClick: () => openThread(thread) });
+    else if (has(perms, Permissions.CREATE_THREADS)) items.push({ label: 'Create Thread', onClick: () => useThreadStore.getState().startNew(m.channel_id, m.id) });
+  }
   if (own && m.type !== 7) items.push({ label: 'Edit Message', onClick: () => useUIStore.getState().setEditing({ channelId: m.channel_id, messageId: m.id }) });
   if (canManage || isDM) items.push({ label: m.pinned ? 'Unpin Message' : 'Pin Message', onClick: () => void setPinned(m, !m.pinned) });
   if (m.content) items.push({ label: 'Copy Text', onClick: () => { void copyText(m.content); toast('Copied text', 'success'); } });

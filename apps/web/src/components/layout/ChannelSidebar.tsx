@@ -10,11 +10,13 @@ import { useCan, useGuildPermissions, channelPermissionsFor } from '../../lib/pe
 import { channelVisible } from '../../lib/permissionsCore';
 import { Avatar, Badge, Tooltip } from '../common/Avatar';
 import {
-  IconChevronDown, IconHash, IconHeadphonesOff, IconLock, IconMicOff, IconPlus, IconSettings,
-  IconSpeaker, IconUserPlus, IconVideo, IconClose, IconBellOff,
+  IconChevronDown, IconHeadphonesOff, IconLock, IconMicOff, IconPlus, IconSettings,
+  IconUserPlus, IconVideo, IconClose, IconBellOff,
 } from '../common/icons';
 import { buildChannelMenu, buildGuildMenu, buildMemberMenu, openUserPopoutAt } from '../menus/menus';
 import { toast } from '../../stores/ui';
+import { ChannelIcon } from '../common/ChannelIcon';
+import { useGuildBanner } from './GuildBanner';
 
 export function isPrivateChannel(c: Channel): boolean {
   return !!c.guild_id && c.permission_overwrites.some((o) => o.id === c.guild_id && (BigInt(o.deny) & Permissions.VIEW_CHANNEL) !== 0n);
@@ -28,13 +30,15 @@ export function ChannelSidebar({ guildId, activeChannelId }: { guildId: string; 
   useGuildStore((s) => s.roles[guildId]);
   const collapsed = useUIStore((s) => s.collapsedCategories);
   const headerRef = useRef<HTMLButtonElement>(null);
+  const gb = useGuildBanner(guildId);
   const perms = useGuildPermissions(guildId);
   const menuOpen = useUIStore((s) => s.contextMenu?.tag === 'guild-header:' + guildId);
 
   const tree = useMemo(() => {
     const all = Object.values(channels).filter((c) => c.guild_id === guildId);
     const categories = all.filter((c) => c.type === ChannelType.GUILD_CATEGORY).sort(sortChannels);
-    const visible = all.filter((c) => c.type !== ChannelType.GUILD_CATEGORY && channelVisible(c, me));
+    // threads aren't rows of their own: their unread / mentions roll up into the parent channel
+    const visible = all.filter((c) => c.type !== ChannelType.GUILD_CATEGORY && c.type !== ChannelType.PUBLIC_THREAD && channelVisible(c, me));
     const byParent = new Map<string | null, Channel[]>();
     for (const c of visible) {
       const p = c.parent_id && categories.some((x) => x.id === c.parent_id) ? c.parent_id : null;
@@ -60,12 +64,13 @@ export function ChannelSidebar({ guildId, activeChannelId }: { guildId: string; 
   };
 
   return (
-    <div className="channel-sidebar">
+    <div ref={gb.sidebarRef} className={'channel-sidebar' + gb.sidebarClass}>
       <button ref={headerRef} className={'sidebar-header guild-header' + (menuOpen ? ' open' : '')} onClick={openHeaderMenu}>
         <span className="truncate">{guild.name}</span>
         {menuOpen ? <IconClose size={18} /> : <IconChevronDown size={18} />}
       </button>
-      <div className="channel-list scroll-thin" onContextMenu={(e) => { if (e.target === e.currentTarget) useUIStore.getState().openContextMenu(e, buildGuildMenu(guildId)); }}>
+      <div ref={gb.listRef} onScroll={gb.onListScroll} className="channel-list scroll-thin" onContextMenu={(e) => { if (e.target === e.currentTarget) useUIStore.getState().openContextMenu(e, buildGuildMenu(guildId)); }}>
+        {gb.bannerEl}
         {tree.root.map((c) => <ChannelRow key={c.id} channel={c} active={c.id === activeChannelId} />)}
         {tree.categories.map(({ cat, children }) => {
           const isCollapsed = !!collapsed[cat.id];
@@ -121,7 +126,6 @@ function ChannelRow({ channel, active, hideParticipants }: { channel: Channel; a
     nav(`/channels/${channel.guild_id}/${channel.id}`);
   };
 
-  const Icon = voice ? IconSpeaker : IconHash;
   return (
     <>
       <div
@@ -131,7 +135,7 @@ function ChannelRow({ channel, active, hideParticipants }: { channel: Channel; a
         {unread && !muted && !active && <span className="unread-pill" />}
         <button className="channel-link" onClick={onClick} aria-current={active ? 'page' : undefined}>
           <span className="channel-icon">
-            <Icon size={18} />
+            <ChannelIcon type={channel.type} size={18} />
             {priv && <span className="channel-lock"><IconLock size={9} strokeWidth={3} /></span>}
           </span>
           <span className="channel-name truncate">{channel.name}</span>

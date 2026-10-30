@@ -40,6 +40,8 @@ interface MessageStore {
   update(m: Partial<Message> & { id: string; channel_id: string }): void;
   remove(channelId: string, id: string): void;
   reaction(channelId: string, messageId: string, emoji: string, userId: string, add: boolean, meId: string, custom?: CustomEmojiRef | null): void;
+  /** Applies a MESSAGE_POLL_VOTE_ADD / _REMOVE dispatch. */
+  pollVote(channelId: string, messageId: string, answerId: number, userId: string, add: boolean, meId: string): void;
   addPending(m: ClientMessage): void;
   setPendingState(channelId: string, nonce: string, p: Partial<ClientMessage>): void;
   removePending(channelId: string, nonce: string): void;
@@ -225,6 +227,17 @@ export const useMessageStore = create<MessageStore>()((set, get) => ({
       }
       return { ...m, reactions };
     });
+    return { channels: { ...s.channels, [channelId]: { ...cur, messages } } };
+  }),
+
+  pollVote: (channelId, messageId, answerId, userId, add, meId) => set((s) => {
+    const cur = s.channels[channelId];
+    const target = cur?.messages.find((m) => m.id === messageId);
+    if (!cur || !target?.poll) return {};
+    const answers = target.poll.answers.map((a) => (a.answer_id !== answerId ? a : {
+      ...a, count: Math.max(0, a.count + (add ? 1 : -1)), me: userId === meId ? add : a.me,
+    }));
+    const messages = cur.messages.map((m) => (m.id === messageId ? { ...m, poll: { ...target.poll!, answers } } : m));
     return { channels: { ...s.channels, [channelId]: { ...cur, messages } } };
   }),
 

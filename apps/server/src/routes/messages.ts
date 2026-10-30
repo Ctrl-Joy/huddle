@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  AuditLogAction, ChannelType, LIMITS, MessageType, Permissions, customReactionId, has, normalizeReactionKey,
+  AttachmentFlags, AuditLogAction, ChannelType, LIMITS, MessageFlags, MessageType, Permissions, customReactionId, has, normalizeReactionKey,
   type CustomEmojiRef,
 } from '@huddle/shared';
 import { now, type Ctx } from '../context';
@@ -12,9 +12,12 @@ import {
 import { requireChannel, requirePerm } from '../services/permissions';
 import { createMessage, dispatchMessageUpdate, resolveMentions, type NewAttachment } from '../services/messages';
 import { writeAudit } from '../services/audit';
+import { onThreadMessageDeleted } from '../services/threads';
 import { guessContentType, imageSize, removeUpload, safeName, saveUpload } from '../uploads';
 import { auditReason, body, isMultipart, isSnowflake, queryInt, queryStr, readMultipart, uid, type UploadedFile } from './util';
 import { isBlocked } from './users';
+import { parsePoll } from '../services/polls';
+import { parseVoiceMessage } from '../services/voiceMessages';
 
 const MAX_PINS = 50;
 
@@ -76,7 +79,7 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
   app.post('/channels/:id/messages', async (req) => {
     const me = uid(req);
     const { c, perms } = requireChannel(db, (req.params as { id: string }).id, me);
-    if (c.type === ChannelType.GUILD_CATEGORY || c.type === ChannelType.GUILD_VOICE) {
+    if (c.type === ChannelType.GUILD_CATEGORY || c.type === ChannelType.GUILD_VOICE || c.type === ChannelType.GUILD_FORUM) {
       throw badRequest('Cannot send messages in this channel');
     }
     requirePerm(perms, Permissions.SEND_MESSAGES);
@@ -104,8 +107,10 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     if (content.length > LIMITS.MESSAGE_LENGTH) {
       throw invalidField('content', `Message must be ${LIMITS.MESSAGE_LENGTH} characters or fewer`);
     }
-    if (!content.trim() && files.length === 0) throw invalidField('content', 'Cannot send an empty message');
+    const poll = payload.poll !== undefined && payload.poll !== null ? parsePoll(payload.poll) : undefined;
+    if (!content.trim() && files.length === 0 && !poll) throw invalidField('content', 'Cannot send an empty message');
     if (files.length) requirePerm(perms, Permissions.ATTACH_FILES);
+    const voice = parseVoiceMessage(payload.voice_message, files);
 
     let nonce: string | null = null;
     if (payload.nonce !== undefined && payload.nonce !== null) {
@@ -147,6 +152,8 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
         width: dims?.width ?? null, height: dims?.height ?? null,
       };
     });
+    if (voice) Object.assign(attachments[0], { flags: AttachmentFlags.IS_VOICE_MESSAGE, ...voice });
+    const flags = voice ? MessageFlags.IS_VOICE_MESSAGE : 0;
 
     return createMessage(ctx, {
       channel: c,
@@ -156,6 +163,8 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
       referenceId,
       attachments,
       nonce,
+      poll,
+      flags,
     });
   });
 
@@ -173,7 +182,8 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     if (b.content.length > LIMITS.MESSAGE_LENGTH) {
       throw invalidField('content', `Message must be ${LIMITS.MESSAGE_LENGTH} characters or fewer`);
     }
-    const hasAtt = !!db.one('SELECT 1 AS x FROM attachments WHERE message_id = ?', m.id);
+    const hasAtt = !!db.one('SELECT 1 AS x FROM attachments WHERE message_id = ?', m.id) || !!m.forward_json ||
+      !!db.one('SELECT 1 AS x FROM polls WHERE message_id = ?', m.id);
     if (!b.content.trim() && !hasAtt) throw invalidField('content', 'Cannot make a message empty');
     const replyAuthor = m.reference_id ? getMessageRow(db, c.id, m.reference_id)?.author_id ?? null : null;
     const mentions = resolveMentions(ctx, c, me, b.content, replyAuthor);
@@ -187,6 +197,7 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     });
     const row = getMessageRow(db, c.id, m.id)!;
     dispatchMessageUpdate(ctx, c, row);
+    ctx.previews.enqueue(c, m.id, b.content);
     return serializeMessage(db, row, me);
   });
 
@@ -199,7 +210,9 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     if (!own && (isPrivate(c) || !has(perms, Permissions.MANAGE_MESSAGES))) throw forbidden();
     const atts = db.all<{ url: string }>('SELECT url FROM attachments WHERE message_id = ?', m.id);
     db.run('DELETE FROM messages WHERE id = ?', m.id);
-    for (const a of atts) removeUpload(ctx.cfg.uploadsDir, a.url);
+    if (c.type === ChannelType.PUBLIC_THREAD) onThreadMessageDeleted(ctx, c, m.id, m.type);
+    // forwarded copies reuse the original file, so only remove files nothing else points at
+    for (const a of atts) if (!db.one('SELECT 1 AS x FROM attachments WHERE url = ?', a.url)) removeUpload(ctx.cfg.uploadsDir, a.url);
     if (!own && c.guild_id) {
       writeAudit(ctx, c.guild_id, me, AuditLogAction.MESSAGE_DELETE, m.author_id, [
         { key: 'channel_id', new_value: c.id }, { key: 'message_id', new_value: m.id },

@@ -3,8 +3,10 @@ import { AuditLogAction, ChannelType, LIMITS, MessageType, Permissions } from '@
 import type { Ctx } from '../context';
 import { ErrorCode, badRequest, forbidden, invalidField, notFound } from '../errors';
 import {
-  channel as serializeChannel, getChannelRow, getUserRow, guild, isPrivate, member, recipientIds,
+  channel as serializeChannel, getChannelRow, getUserRow, guild, isPrivate, isThread, member, recipientIds,
 } from '../serializers';
+import { parseAvailableTags } from '../services/threads';
+import { deleteThread, updateThread } from './threads';
 import { getGuildRow, requireChannel, requirePerm } from '../services/permissions';
 import { diff, writeAudit } from '../services/audit';
 import { createMessage } from '../services/messages';
@@ -43,12 +45,20 @@ export default function channelRoutes(app: FastifyInstance, ctx: Ctx) {
       return serializeChannel(db, getChannelRow(db, c.id)!, me);
     }
 
+    if (isThread(c)) {
+      const t = updateThread(ctx, c, me, perms, b);
+      return serializeChannel(db, t);
+    }
+
     requirePerm(perms, Permissions.MANAGE_CHANNELS);
     const g = getGuildRow(db, c.guild_id!)!;
     const next: Record<string, string | number | null> = {};
     const name = optStr(b, 'name', { min: 1, max: LIMITS.CHANNEL_NAME });
     if (name) next.name = normalizeChannelName(name, c.type);
-    if (c.type === ChannelType.GUILD_TEXT) {
+    if (c.type === ChannelType.GUILD_FORUM && b.available_tags !== undefined) {
+      next.available_tags = JSON.stringify(parseAvailableTags(ctx, b.available_tags));
+    }
+    if (c.type === ChannelType.GUILD_TEXT || c.type === ChannelType.GUILD_ANNOUNCEMENT || c.type === ChannelType.GUILD_FORUM) {
       const topic = optStr(b, 'topic', { max: 1024, nullable: true });
       if (topic !== undefined) next.topic = topic || null;
       const rl = optInt(b, 'rate_limit_per_user', 0, 21600);
@@ -114,6 +124,11 @@ export default function channelRoutes(app: FastifyInstance, ctx: Ctx) {
       return out;
     }
 
+    if (isThread(c)) {
+      deleteThread(ctx, c, me, perms);
+      return serializeChannel(db, c);
+    }
+
     requirePerm(perms, Permissions.MANAGE_CHANNELS);
     const g = getGuildRow(db, c.guild_id!)!;
     const out = serializeChannel(db, c);
@@ -122,6 +137,8 @@ export default function channelRoutes(app: FastifyInstance, ctx: Ctx) {
       ? db.all<{ id: string }>('SELECT id FROM channels WHERE parent_id = ?', c.id).map((r) => r.id)
       : [];
     db.tx(() => {
+      // threads go with their parent (clients drop them on CHANNEL_DELETE); category children are just ungrouped
+      db.run('DELETE FROM channels WHERE parent_id = ? AND type = ?', c.id, ChannelType.PUBLIC_THREAD);
       db.run('UPDATE channels SET parent_id = NULL WHERE parent_id = ?', c.id);
       db.run('DELETE FROM channels WHERE id = ?', c.id);
       if (g.system_channel_id === c.id) db.run('UPDATE guilds SET system_channel_id = NULL WHERE id = ?', g.id);

@@ -1,12 +1,13 @@
 // Loads permission context from the DB and delegates to the shared algorithm.
 import {
-  ChannelType, Permissions, computeBasePermissions, computePermissions, has, highestRolePosition,
+  ChannelType, Permissions, applyChannelTypeRules, computeBasePermissions, computePermissions, has, highestRolePosition,
+  threadPermissions,
   type PermOverwrite, type PermissionContext,
 } from '@huddle/shared';
 import type { Db } from '../db';
 import { forbidden, notFound, ErrorCode } from '../errors';
 import {
-  getChannelRow, isPrivate, rolesOf, type ChannelRow, type GuildRow, type MemberRow,
+  getChannelRow, isPrivate, isThread, rolesOf, type ChannelRow, type GuildRow, type MemberRow,
 } from '../serializers';
 
 /** What a DM / group DM recipient may do. */
@@ -46,7 +47,7 @@ function overwritesFor(db: Db, channelId: string): PermOverwrite[] {
 
 function finishChannelPerms(c: ChannelRow, perms: bigint): bigint {
   if (c.type === ChannelType.GUILD_VOICE && !has(perms, Permissions.CONNECT)) perms &= ~VOICE_ONLY;
-  return perms;
+  return applyChannelTypeRules(c.type, perms);
 }
 
 /** Guild-level permissions, or null if not a member. */
@@ -62,6 +63,10 @@ export function channelPerms(db: Db, c: ChannelRow, userId: string): bigint {
     return r ? DM_PERMISSIONS : 0n;
   }
   if (!c.guild_id) return 0n;
+  if (isThread(c)) {
+    const parent = c.parent_id ? getChannelRow(db, c.parent_id) : undefined;
+    return parent && !isThread(parent) ? threadPermissions(channelPerms(db, parent, userId)) : 0n;
+  }
   const g = getGuildRow(db, c.guild_id);
   if (!g) return 0n;
   const ctx = permContext(db, g, userId);
@@ -73,6 +78,12 @@ export function channelPerms(db: Db, c: ChannelRow, userId: string): bigint {
 export function channelPermsBulk(db: Db, c: ChannelRow, onlyUsers?: Set<string>): Map<string, bigint> {
   const out = new Map<string, bigint>();
   if (!c.guild_id) return out;
+  if (isThread(c)) {
+    const parent = c.parent_id ? getChannelRow(db, c.parent_id) : undefined;
+    if (!parent || isThread(parent)) return out;
+    for (const [u, p] of channelPermsBulk(db, parent, onlyUsers)) out.set(u, threadPermissions(p));
+    return out;
+  }
   const g = getGuildRow(db, c.guild_id);
   if (!g) return out;
   const roles = rolesOf(db, g.id).map((r) => ({ id: r.id, permissions: String(r.permissions) }));

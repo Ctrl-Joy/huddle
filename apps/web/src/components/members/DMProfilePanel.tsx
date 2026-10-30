@@ -5,9 +5,9 @@ import { useStatus, useCustomStatus } from '../../stores/presences';
 import { useUIStore } from '../../stores/ui';
 import { Avatar } from '../common/Avatar';
 import { Markdown } from '../../lib/markdown';
-import { formatShortDate, colorFor } from '../../lib/format';
+import { formatShortDate } from '../../lib/format';
 import { buildUserMenu, openUserPopoutAt } from '../menus/menus';
-import { LogoMark } from '../common/icons';
+import { ProfileBanner, Pronouns, accentProps } from './ProfileBanner';
 
 /** Right-hand panel in DMs: the other user's profile, or the member list for group DMs. */
 export function DMProfilePanel({ channel }: { channel: Channel }) {
@@ -40,14 +40,16 @@ function Profile({ userId }: { userId: string }) {
   const members = useGuildStore((s) => s.members);
   if (!user) return null;
   const mutual = Object.values(guilds).filter((g) => members[g.id]?.[userId]);
+  const accent = accentProps(user);
   return (
-    <aside className="dm-profile scroll-thin">
-      <div className="popout-banner" style={{ background: user.banner_color || colorFor(user.id) }}><span className="popout-banner-mark"><LogoMark size={46} /></span></div>
+    <aside className={'dm-profile scroll-thin' + accent.className} style={accent.style}>
+      <ProfileBanner user={user} />
       <div className="popout-avatar"><Avatar user={user} size={80} status={status} ring="var(--bg-sidebar)" /></div>
       <div className="popout-body">
         <div className="popout-names">
           <h3>{user.display_name || user.username}</h3>
           <div className="popout-username">{user.username}</div>
+          <Pronouns value={user.pronouns} />
           {custom && <div className="popout-custom">{custom}</div>}
         </div>
         <div className="popout-section card">

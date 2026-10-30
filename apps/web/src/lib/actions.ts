@@ -4,7 +4,7 @@ import type {
   Channel, DiscoveryResponse, FullGuild, Guild, GuildCategory, GuildTemplateId, Invite, Member, Message, Relationship, Role, User,
   UserGuildSettings,
 } from '@huddle/shared';
-import { normalizeReactionKey, type GuildEmoji } from '@huddle/shared';
+import { normalizeReactionKey, type GuildEmoji, type PollCreate } from '@huddle/shared';
 import { api, errorMessage, uploadWithProgress } from '../api/client';
 import { useGuildStore } from '../stores/guilds';
 import { useReadStateStore, getGuildSettings } from '../stores/readStates';
@@ -222,6 +222,53 @@ export async function setPinned(m: Message, pinned: boolean) {
   } catch (e) { toast(errorMessage(e), 'error'); }
 }
 
+// ---- polls / forwarding / embeds / voice messages ----
+// Vote counts arrive as MESSAGE_POLL_VOTE_* dispatches, so these don't touch the store themselves.
+export async function createPoll(channelId: string, poll: PollCreate) {
+  const m = await api.post<Message>(`/channels/${channelId}/messages`, { poll });
+  if (m?.id) { useMessageStore.getState().add(m); useGuildStore.getState().setLastMessageId(channelId, m.id); }
+  return m;
+}
+
+/** Replaces my vote set on a poll; an empty list removes my vote. */
+export async function votePoll(m: Message, answerIds: number[]) {
+  try {
+    if (answerIds.length) await api.put(`/channels/${m.channel_id}/polls/${m.id}/votes`, { answer_ids: answerIds });
+    else await api.del(`/channels/${m.channel_id}/polls/${m.id}/votes`);
+  } catch (e) { toast(errorMessage(e), 'error'); }
+}
+
+export async function endPoll(m: Message) {
+  try {
+    const res = await api.post<Message>(`/channels/${m.channel_id}/polls/${m.id}/expire`, {});
+    if (res?.id) useMessageStore.getState().update(res);
+  } catch (e) { toast(errorMessage(e), 'error'); }
+}
+
+export async function forwardMessage(m: Message, channelIds: string[], note: string) {
+  const out = await api.post<Message[]>(`/channels/${m.channel_id}/messages/${m.id}/forward`, { channel_ids: channelIds, content: note });
+  for (const f of out ?? []) { useMessageStore.getState().add(f); useGuildStore.getState().setLastMessageId(f.channel_id, f.id); }
+  return out;
+}
+
+export async function suppressEmbeds(m: Message, suppress = true) {
+  try {
+    const res = await api.post<Message>(`/channels/${m.channel_id}/messages/${m.id}/suppress-embeds`, { suppress });
+    if (res?.id) useMessageStore.getState().update(res);
+  } catch (e) { toast(errorMessage(e), 'error'); }
+}
+
+export function sendVoiceMessage(channelId: string, blob: Blob, durationSecs: number, waveform: string, onProgress?: (f: number) => void) {
+  const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm';
+  const form = new FormData();
+  form.append('payload_json', JSON.stringify({ voice_message: { duration_secs: durationSecs, waveform } }));
+  form.append('files[0]', blob, `voice-message.${ext}`);
+  return uploadWithProgress<Message>(`/channels/${channelId}/messages`, form, onProgress).promise.then((m) => {
+    if (m?.id) { useMessageStore.getState().add(m); useGuildStore.getState().setLastMessageId(channelId, m.id); }
+    return m;
+  });
+}
+
 let lastTyping = 0;
 let lastTypingChannel = '';
 export function sendTyping(channelId: string) {
@@ -290,7 +337,7 @@ export async function fetchMembers(guildId: string) {
 }
 
 // ---- user ----
-export async function updateMe(body: Partial<Pick<User, 'display_name' | 'username' | 'bio' | 'banner_color' | 'custom_status'>>) {
+export async function updateMe(body: Partial<Pick<User, 'display_name' | 'username' | 'bio' | 'banner_color' | 'custom_status' | 'accent_color' | 'pronouns'>> & { banner?: null }) {
   const u = await api.patch<User>('/users/@me', body);
   if (u?.id) { useAuthStore.getState().setUser(u); useGuildStore.getState().upsertUser(u); }
   return u;
@@ -300,6 +347,15 @@ export async function uploadAvatar(file: File) {
   const form = new FormData();
   form.append('file', file);
   const u = await uploadWithProgress<User>('/users/@me/avatar', form).promise;
+  if (u?.id) { useAuthStore.getState().setUser(u); useGuildStore.getState().upsertUser(u); }
+  return u;
+}
+
+/** Profile banner image (PNG/JPEG/WebP/GIF, ≤2 MB); remove it with updateMe({ banner: null }). */
+export async function uploadProfileBanner(file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  const u = await uploadWithProgress<User>('/users/@me/banner', form).promise;
   if (u?.id) { useAuthStore.getState().setUser(u); useGuildStore.getState().upsertUser(u); }
   return u;
 }

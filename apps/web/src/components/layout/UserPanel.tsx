@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { PresenceStatus } from '@huddle/shared';
 import { useAuthStore } from '../../stores/auth';
 import { useVoiceStore, voiceActions } from '../../stores/voice';
@@ -9,6 +9,9 @@ import { updateMe } from '../../lib/actions';
 import { copyText } from '../../lib/format';
 import { Avatar, StatusDot, Tooltip } from '../common/Avatar';
 import { IconHeadphones, IconHeadphonesOff, IconMic, IconMicOff, IconSettings } from '../common/icons';
+import { AccountSwitcherModal } from '../modals/AccountSwitcherModal';
+import { listAccounts, accountAsUser } from '../../lib/accounts';
+import { switchAccount } from '../../lib/session';
 
 export function setMyStatus(status: PresenceStatus) {
   const user = useAuthStore.getState().user;
@@ -38,6 +41,7 @@ export function UserPanel() {
   const selfMute = useVoiceStore((s) => s.selfMute);
   const selfDeaf = useVoiceStore((s) => s.selfDeaf);
   const ref = useRef<HTMLButtonElement>(null);
+  const [switcher, setSwitcher] = useState(false);
   const shownStatus: PresenceStatus = current === 'invisible' ? 'offline' : current;
 
   const openStatus = () => {
@@ -54,6 +58,19 @@ export function UserPanel() {
       ...(user.custom_status ? [{ label: 'Clear Custom Status', onClick: () => void setCustomStatus(null) }] : []),
       { separator: true },
       { label: 'Copy Username', onClick: () => void copyText(user.username) },
+      { separator: true },
+      {
+        label: 'Switch Accounts',
+        submenu: [
+          ...listAccounts().filter((a) => a.id !== user.id).map((a) => ({
+            label: a.display_name || a.username, hint: a.username,
+            icon: <Avatar user={accountAsUser(a)} size={20} />,
+            onClick: () => switchAccount(a.id),
+          })),
+          { separator: true },
+          { label: 'Manage Accounts', onClick: () => setSwitcher(true) },
+        ],
+      },
     ];
     useUIStore.getState().openContextMenu({ clientX: r.left, clientY: r.top - 8 }, items, { tag: 'status-picker', width: 240 });
   };
@@ -85,6 +102,7 @@ export function UserPanel() {
           <button className="icon-btn" aria-label="User Settings" onClick={() => openModal('userSettings')}><IconSettings size={19} /></button>
         </Tooltip>
       </div>
+      {switcher && <AccountSwitcherModal close={() => setSwitcher(false)} />}
     </div>
   );
 }

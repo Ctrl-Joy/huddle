@@ -10,11 +10,12 @@ import { api, errorMessage } from '../../api/client';
 import { useGuildPermissions } from '../../lib/permissions';
 import { myHighestPosition, canActOn } from '../../lib/permissionsCore';
 import { openDM, sendFriendRequest, updateMember, acceptFriend } from '../../lib/actions';
-import { formatShortDate, colorFor } from '../../lib/format';
+import { formatShortDate } from '../../lib/format';
 import { Markdown } from '../../lib/markdown';
 import { Avatar, Tooltip } from '../common/Avatar';
 import { IconClose, IconMessage, IconMoreVertical, IconPlus, IconUserPlus, IconCheck, LogoMark } from '../common/icons';
 import { buildMemberMenu, buildUserMenu } from '../menus/menus';
+import { ProfileBanner, Pronouns, accentProps } from './ProfileBanner';
 import { openModal } from '../../stores/ui';
 
 export function UserPopout() {
@@ -40,7 +41,8 @@ function PopoutCard() {
   const [fetched, setFetched] = useState<PublicUser | null>(null);
   const [roleMenu, setRoleMenu] = useState(false);
   const isMe = userId === meUser.id;
-  const user: PublicUser | undefined = isMe ? meUser : fetched ? { ...cached, ...fetched } : cached || member?.user;
+  // the store copy wins over the one-off fetch so USER_UPDATEs (profile edits) show while the card is open
+  const user: PublicUser | undefined = isMe ? meUser : fetched ? { ...fetched, ...cached } : cached || member?.user;
 
   useEffect(() => {
     if (isMe) return;
@@ -70,7 +72,7 @@ function PopoutCard() {
   }, []);
 
   if (!user) return null;
-  const banner = user.banner_color || colorFor(user.id);
+  const accent = accentProps(user);
   const name = member?.nick || user.display_name || user.username;
   const canManageRoles = !!guildId && has(perms, Permissions.MANAGE_ROLES) && (isMe || canActOn(guildId, userId) || myHighestPosition(guildId) === Number.MAX_SAFE_INTEGER);
   const myPos = guildId ? myHighestPosition(guildId) : 0;
@@ -85,19 +87,19 @@ function PopoutCard() {
   const shownStatus = isMe ? (myCurrent === 'invisible' ? 'offline' : myCurrent) : status;
 
   return createPortal(
-    <div ref={ref} className="user-popout" style={{ left: pos?.left ?? -9999, top: pos?.top ?? -9999 }} role="dialog" aria-label={`${name} profile`}>
-      <div className="popout-banner" style={{ background: banner }}>
-        <span className="popout-banner-mark"><LogoMark size={46} /></span>
+    <div ref={ref} className={'user-popout' + accent.className} style={{ ...accent.style, left: pos?.left ?? -9999, top: pos?.top ?? -9999 }} role="dialog" aria-label={`${name} profile`}>
+      <ProfileBanner user={user}>
         <button className="icon-btn popout-more" aria-label="More" onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           useUIStore.getState().openContextMenu({ clientX: r.left, clientY: r.bottom + 4 }, guildId ? buildMemberMenu(guildId, userId) : buildUserMenu(userId));
         }}><IconMoreVertical size={18} /></button>
-      </div>
+      </ProfileBanner>
       <div className="popout-avatar"><Avatar user={user} size={80} status={shownStatus} ring="var(--bg-elevated)" /></div>
       <div className="popout-body">
         <div className="popout-names">
           <h3>{name}</h3>
           <div className="popout-username">{user.username}{user.bot && <span className="bot-tag">BOT</span>}</div>
+          <Pronouns value={user.pronouns} />
           {custom && <div className="popout-custom">{custom}</div>}
           {!custom && <div className="popout-status muted small">{STATUS_LABEL[shownStatus]}</div>}
         </div>

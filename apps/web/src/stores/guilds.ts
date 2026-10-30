@@ -48,7 +48,8 @@ function saveOrder(o: string[]) { try { localStorage.setItem(ORDER_KEY, JSON.str
 function mergeUser(users: Record<string, PublicUser>, u: PublicUser): Record<string, PublicUser> {
   const prev = users[u.id];
   if (prev && prev.username === u.username && prev.display_name === u.display_name && prev.avatar === u.avatar
-    && prev.banner_color === u.banner_color && prev.bio === u.bio) return users;
+    && prev.banner_color === u.banner_color && prev.bio === u.bio && prev.banner === u.banner
+    && prev.accent_color === u.accent_color && prev.pronouns === u.pronouns) return users;
   return { ...users, [u.id]: { ...prev, ...u } };
 }
 
@@ -72,7 +73,8 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     const emojis: GuildState['emojis'] = {};
     let users = { ...get().users };
     for (const fg of list) {
-      const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, emojis: es, ...g } = fg;
+      const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, emojis: es, threads: ts, ...g } = fg;
+      for (const t of ts ?? []) channels[t.id] = t;
       guilds[g.id] = { ...g, member_count: fg.member_count };
       roles[g.id] = Object.fromEntries(rs.map((r) => [r.id, r]));
       members[g.id] = Object.fromEntries(ms.map((m) => [m.user.id, m]));
@@ -86,9 +88,10 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
   },
 
   addGuild: (fg) => {
-    const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, emojis: es, ...g } = fg;
+    const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, emojis: es, threads: ts, ...g } = fg;
     set((s) => {
       const channels = { ...s.channels };
+      for (const t of ts ?? []) channels[t.id] = t;
       for (const c of cs) channels[c.id] = { ...c, guild_id: c.guild_id ?? g.id };
       let users = s.users;
       for (const m of ms) users = mergeUser(users, m.user);
@@ -225,6 +228,15 @@ export function sortChannels(a: Channel, b: Channel): number {
 
 export function guildChannels(channels: Record<string, Channel>, guildId: string): Channel[] {
   return Object.values(channels).filter((c) => c.guild_id === guildId);
+}
+
+export function isThread(c: Channel | undefined): boolean {
+  return !!c && c.type === ChannelType.PUBLIC_THREAD;
+}
+
+/** Channels that can hold threads. */
+export function canHaveThreads(c: Channel | undefined): boolean {
+  return !!c && (c.type === ChannelType.GUILD_TEXT || c.type === ChannelType.GUILD_ANNOUNCEMENT || c.type === ChannelType.GUILD_FORUM);
 }
 
 export function isPrivateChannel(c: Channel | undefined): boolean {

@@ -11,6 +11,9 @@ import './styles/components.css';
 import './styles/modals.css';
 import './styles/voice.css';
 import './styles/discover.css';
+import './styles/messageFeatures.css';
+import './styles/threads.css';
+import './styles/navigation.css';
 import './styles/phone.css';
 
 // WebRTC media engine (voice / video / screen share) — hooks into stores/voice.ts

@@ -10,8 +10,11 @@ import { useReadStateStore, getGuildSettings, isChannelMuted } from './readState
 import { useTypingStore } from './typing';
 import { useVoiceStore, getVoiceEngine } from './voice';
 import { useViewStore } from './view';
+import { useThreadStore } from './threads';
 import { useBanStore } from './bans';
 import { usePinsStore } from './pins';
+import { useUserSettingsStore } from './userSettings';
+import { notifyUnauthorized } from '../api/client';
 import { mentionsMe } from '../lib/mentionUtil';
 import { navigate, channelPath } from '../lib/nav';
 import { playPing, showDesktopNotification } from '../lib/notifications';
@@ -31,7 +34,8 @@ function handleIncomingMessage(m: Message) {
     useReadStateStore.getState().markRead(m.channel_id, m.id);
     return;
   }
-  const viewing = view.channelId === m.channel_id && view.atBottom && !document.hidden;
+  const inThreadPanel = useThreadStore.getState().panel?.threadId === m.channel_id && view.channelId === channel?.parent_id;
+  const viewing = (view.channelId === m.channel_id || inThreadPanel) && view.atBottom && !document.hidden;
   if (viewing) return; // ChatView acks
   const isDM = !!channel && (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM);
   const mentioned = isDM || mentionsMe(m, { respectSuppress: true });
@@ -67,6 +71,7 @@ const handlers: Handlers = {
     auth.setUser(d.user);
     const gs = useGuildStore.getState();
     gs.loadGuilds(d.guilds);
+    if (d.user_settings) useUserSettingsStore.getState().apply(d.user_settings);
     gs.setPrivateChannels(d.private_channels);
     gs.upsertUsers(d.relationships.map((r) => r.user));
     useRelationshipStore.getState().set(d.relationships);
@@ -144,12 +149,29 @@ const handlers: Handlers = {
     if (view.channelId === c.id && c.guild_id && !channelVisible(c, me())) navigate(`/channels/${c.guild_id}`);
   },
   CHANNEL_DELETE: (c) => {
+    // its threads went with it
+    for (const t of Object.values(useGuildStore.getState().channels)) {
+      if (t.type === ChannelType.PUBLIC_THREAD && t.parent_id === c.id) useGuildStore.getState().removeChannel(t.id);
+    }
+    if (useThreadStore.getState().panel?.parentId === c.id) useThreadStore.getState().close();
     useGuildStore.getState().removeChannel(c.id);
     useMessageStore.getState().dropChannel(c.id);
     const view = useViewStore.getState();
     if (view.channelId === c.id) navigate(c.guild_id ? `/channels/${c.guild_id}` : '/channels/@me');
     const conn = useVoiceStore.getState().connection;
     if (conn?.channelId === c.id) useVoiceStore.setState({ connection: null });
+  },
+  THREAD_CREATE: (t) => {
+    useGuildStore.getState().upsertChannel(t);
+    // forum posts bump the forum itself (new posts show as unread)
+    const parent = t.parent_id ? useGuildStore.getState().channels[t.parent_id] : undefined;
+    if (parent?.type === ChannelType.GUILD_FORUM && t.starter_message_id) useGuildStore.getState().setLastMessageId(parent.id, t.starter_message_id);
+  },
+  THREAD_UPDATE: (t) => useGuildStore.getState().upsertChannel(t),
+  THREAD_DELETE: ({ id }) => {
+    useGuildStore.getState().removeChannel(id);
+    useMessageStore.getState().dropChannel(id);
+    if (useThreadStore.getState().panel?.threadId === id) useThreadStore.getState().close();
   },
   CHANNEL_PINS_UPDATE: ({ channel_id }) => usePinsStore.getState().invalidate(channel_id),
 
@@ -167,6 +189,8 @@ const handlers: Handlers = {
   MESSAGE_REACTION_ADD: (r) => useMessageStore.getState().reaction(r.channel_id, r.message_id, r.emoji, r.user_id, true, me(), r.custom_emoji),
   MESSAGE_REACTION_REMOVE: (r) => useMessageStore.getState().reaction(r.channel_id, r.message_id, r.emoji, r.user_id, false, me(), r.custom_emoji),
   MESSAGE_ACK: (rs) => useReadStateStore.getState().upsertReadState(rs),
+  MESSAGE_POLL_VOTE_ADD: (v) => useMessageStore.getState().pollVote(v.channel_id, v.message_id, v.answer_id, v.user_id, true, me()),
+  MESSAGE_POLL_VOTE_REMOVE: (v) => useMessageStore.getState().pollVote(v.channel_id, v.message_id, v.answer_id, v.user_id, false, me()),
 
   TYPING_START: (t) => {
     if (t.user_id === me()) return;
@@ -190,6 +214,7 @@ const handlers: Handlers = {
   RELATIONSHIP_REMOVE: ({ id }) => useRelationshipStore.getState().remove(id),
 
   USER_GUILD_SETTINGS_UPDATE: (s) => useReadStateStore.getState().upsertGuildSettings(s),
+  USER_SETTINGS_UPDATE: (s) => useUserSettingsStore.getState().apply(s),
 
   VOICE_STATE_UPDATE: (vs) => {
     const voice = useVoiceStore.getState();
@@ -221,9 +246,8 @@ export function bindGateway() {
   }
   gateway.onStatus((s, info) => {
     if (s === 'closed' && info?.code === 4004) {
-      // token rejected
-      useAuthStore.getState().clear();
-      navigate('/login');
+      // token rejected: log this account out (lib/session switches to another stored account if any)
+      notifyUnauthorized();
     }
   });
 }
@@ -237,4 +261,5 @@ export function resetAllStores() {
   useVoiceStore.getState().reset();
   useTypingStore.setState({ typing: {} });
   usePinsStore.setState({ pins: {} });
+  useUserSettingsStore.getState().reset();
 }

@@ -45,12 +45,23 @@ export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
     }
     const display = optStr(b, 'display_name', { max: 32, nullable: true });
     if (display !== undefined) set('display_name', display || null);
-    const bio = optStr(b, 'bio', { max: 190, nullable: true, trim: false });
+    const bio = optStr(b, 'bio', { max: LIMITS.BIO, nullable: true, trim: false });
     if (bio !== undefined) set('bio', bio || null);
     const banner = optStr(b, 'banner_color', { nullable: true });
     if (banner !== undefined) {
       if (banner && !/^#[0-9a-fA-F]{6}$/.test(banner)) throw invalidField('banner_color', 'banner_color must be #rrggbb');
       set('banner_color', banner || null);
+    }
+    const accent = optStr(b, 'accent_color', { nullable: true });
+    if (accent !== undefined) {
+      if (accent && !/^#[0-9a-fA-F]{6}$/.test(accent)) throw invalidField('accent_color', 'accent_color must be #rrggbb');
+      set('accent_color', accent || null);
+    }
+    const pronouns = optStr(b, 'pronouns', { max: LIMITS.PRONOUNS, nullable: true });
+    if (pronouns !== undefined) set('pronouns', pronouns || null);
+    if (b.banner === null) {
+      removeUpload(ctx.cfg.uploadsDir, u.banner);
+      set('banner', null);
     }
     const custom = optStr(b, 'custom_status', { max: 128, nullable: true });
     if (custom !== undefined) set('custom_status', custom || null);
@@ -97,6 +108,22 @@ export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
     const old = getUserRow(db, me)!.avatar;
     const { url } = saveUpload(ctx.cfg.uploadsDir, `avatars/${me}-${ctx.id()}.${IMAGE_EXT[kind]}`, f.data);
     db.run('UPDATE users SET avatar = ? WHERE id = ?', url, me);
+    removeUpload(ctx.cfg.uploadsDir, old);
+    ctx.gw.broadcastUserUpdate(me);
+    return privateUser(getUserRow(db, me)!);
+  });
+
+  // Profile banner image (≤2 MB; validated by content, not the declared type).
+  app.post('/users/@me/banner', async (req) => {
+    const me = uid(req);
+    const { files } = await readMultipart(req, { maxFiles: 1, maxFileBytes: LIMITS.USER_BANNER_BYTES });
+    const f = files[0];
+    if (!f) throw badRequest('No file uploaded');
+    const kind = sniffImage(f.data);
+    if (!kind) throw invalidField('file', 'Banner must be a PNG, JPEG, GIF or WebP image');
+    const old = getUserRow(db, me)!.banner;
+    const { url } = saveUpload(ctx.cfg.uploadsDir, `profile-banners/${me}-${ctx.id()}.${IMAGE_EXT[kind]}`, f.data);
+    db.run('UPDATE users SET banner = ? WHERE id = ?', url, me);
     removeUpload(ctx.cfg.uploadsDir, old);
     ctx.gw.broadcastUserUpdate(me);
     return privateUser(getUserRow(db, me)!);

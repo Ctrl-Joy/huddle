@@ -18,6 +18,8 @@ function usePermDeps(guildId: string | null | undefined) {
 
 export function usePermissions(channelId: string | null | undefined): bigint {
   const channel = useGuildStore((s) => (channelId ? s.channels[channelId] : undefined));
+  // threads compute from their parent's overwrites
+  useGuildStore((s) => (channel?.parent_id ? s.channels[channel.parent_id] : undefined));
   const me = usePermDeps(channel?.guild_id);
   if (!me || !channel) return 0n;
   return channelPermissionsFor(channel, me);

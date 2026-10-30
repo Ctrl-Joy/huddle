@@ -17,6 +17,9 @@ import { CustomEmojiImg } from './CustomEmoji';
 import { TypingIndicator } from './TypingIndicator';
 import { addFilesChecked } from './ChatView';
 import { ApiError } from '../../api/client';
+import { openModal, type MenuItem } from '../../stores/ui';
+import { IconPoll, IconUpload } from '../common/icons';
+import { MicButton, RecordingBar, useVoiceRecording } from './VoiceMessage';
 
 // Custom emoji picks show as ":name:" in the textarea; submit turns them into tokens.
 const pickedToText = (e: string) => { const t = parseEmojiToken(e); return t ? `:${t.name}: ` : e; };
@@ -79,6 +82,7 @@ export function Composer({ channel }: { channel: Channel }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const emojiBtn = useRef<HTMLButtonElement>(null);
+  const voice = useVoiceRecording(channelId);
 
   const canSend = has(perms, Permissions.SEND_MESSAGES);
   const canAttach = has(perms, Permissions.ATTACH_FILES);
@@ -266,10 +270,16 @@ export function Composer({ channel }: { channel: Channel }) {
             {files.map((f) => <FileChip key={f.id} channelId={channelId} id={f.id} file={f.file} spoiler={!!f.spoiler} />)}
           </div>
         )}
-        <div className="composer-row">
-          {canAttach && canSend && !timedOutUntil && (
-            <Tooltip label="Upload a File">
-              <button className="composer-btn" aria-label="Upload a file" onClick={() => fileRef.current?.click()}><IconPlusCircle size={22} /></button>
+        {voice.active ? <RecordingBar rec={voice} /> : <div className="composer-row">
+          {canSend && !timedOutUntil && (
+            <Tooltip label="Upload or create">
+              <button className="composer-btn" aria-label="Upload or create" aria-haspopup="menu" onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                const items: MenuItem[] = [];
+                if (canAttach) items.push({ label: 'Upload a File', icon: <IconUpload size={16} />, onClick: () => fileRef.current?.click() });
+                items.push({ label: 'Create Poll', icon: <IconPoll size={16} />, onClick: () => openModal('createPoll', { channelId }) });
+                useUIStore.getState().openContextMenu({ clientX: r.left, clientY: r.top - 8 - items.length * 36 }, items, { tag: 'composer-plus' });
+              }}><IconPlusCircle size={22} /></button>
             </Tooltip>
           )}
           <input ref={fileRef} type="file" multiple hidden onChange={(e) => { addFilesChecked(channelId, Array.from(e.target.files || [])); e.target.value = ''; }} />
@@ -297,7 +307,8 @@ export function Composer({ channel }: { channel: Channel }) {
               <button ref={emojiBtn} className={'composer-btn emoji-btn' + (pickerOpen ? ' active' : '')} aria-label="Select emoji" onClick={() => setPickerOpen((v) => !v)}><IconSmile size={22} /></button>
             </Tooltip>
           )}
-        </div>
+          {!disabledReason && canAttach && !text.trim() && !files.length && !replyToId && <MicButton rec={voice} />}
+        </div>}
         {text.length > LIMITS.MESSAGE_LENGTH - 200 && <div className={'char-count' + (text.length > LIMITS.MESSAGE_LENGTH ? ' over' : '')}>{LIMITS.MESSAGE_LENGTH - text.length}</div>}
       </div>
       <div className="composer-footer">

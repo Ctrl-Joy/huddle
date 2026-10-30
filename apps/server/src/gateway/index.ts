@@ -12,6 +12,7 @@ import {
 } from '../serializers';
 import { channelPermsBulk, getGuildRow, guildPerms } from '../services/permissions';
 import { fullGuild } from '../services/guilds';
+import { userSettingsOf } from '../services/userSettings';
 import { Session, SessionRegistry } from './sessions';
 import { guildMemberIds, presenceAudience, readyPresenceIds } from './dispatch';
 
@@ -161,6 +162,7 @@ export class Gateway {
       presences: readyPresenceIds(db, user.id).map((id) => this.presence(id)),
       read_states: db.all<any>('SELECT * FROM read_states WHERE user_id = ?', user.id).map(readState),
       user_guild_settings: guildIds.map((gid) => guildSettings(db, user.id, gid)),
+      user_settings: userSettingsOf(db, user.id),
       voice_states: this.ctx.voice.forDmUser(user.id),
     };
   }

@@ -3,7 +3,7 @@ import { LIMITS } from '@huddle/shared';
 import { SettingsLayout, UnsavedBar } from './SettingsLayout';
 import { useAuthStore } from '../../stores/auth';
 import { useUIStore, confirmDialog, toast } from '../../stores/ui';
-import { updateMe, uploadAvatar } from '../../lib/actions';
+import { updateMe, uploadAvatar, uploadProfileBanner } from '../../lib/actions';
 import { errorMessage } from '../../api/client';
 import { logout } from '../../lib/session';
 import { colorFor, formatShortDate } from '../../lib/format';
@@ -11,6 +11,7 @@ import { getNotifyPrefs, setNotifyPrefs, notificationPermission, requestNotifica
 import { Avatar } from '../common/Avatar';
 import { Field, Toggle } from '../modals/Modal';
 import { Markdown } from '../../lib/markdown';
+import { ProfileBanner, Pronouns, accentProps } from '../members/ProfileBanner';
 import { LogoMark, IconMoon, IconSun, IconCheck } from '../common/icons';
 import { VoiceVideoSettings } from './VoiceVideoSettings';
 import { AccessibilityTab, ChatTab, LanguageTab } from './PreferenceSettings';
@@ -32,7 +33,7 @@ export function UserSettings({ close, tab: initial }: { close: () => void; tab?:
       sections={[
         { header: 'User Settings', items: [
           { id: 'account', label: 'My Account', keywords: 'username display name email password member since' },
-          { id: 'profile', label: 'Profile', keywords: 'avatar picture banner colour color about me bio' },
+          { id: 'profile', label: 'Profile', keywords: 'avatar picture banner image colour color accent pronouns about me bio' },
         ] },
         { header: 'App Settings', items: [
           { id: 'appearance', label: 'Appearance', keywords: 'theme dark light mode' },
@@ -80,7 +81,7 @@ function MyAccount({ goProfile }: { goProfile: () => void }) {
     <div>
       <h1 className="settings-title">My Account</h1>
       <div className="account-card">
-        <div className="account-banner" style={{ background: user.banner_color || colorFor(user.id) }} />
+        <div className="account-banner" style={{ background: user.banner ? `center / cover no-repeat url(${user.banner}), ${user.banner_color || colorFor(user.id)}` : user.banner_color || colorFor(user.id) }} />
         <div className="account-head">
           <Avatar user={user} size={80} status="auto" ring="var(--bg-elevated)" />
           <div className="account-name">{user.display_name || user.username}<small>{user.username}</small></div>
@@ -120,23 +121,52 @@ function MyAccount({ goProfile }: { goProfile: () => void }) {
 }
 
 const BANNER_PRESETS = ['#0f766e', '#14b8a6', '#0369a1', '#7c3aed', '#be185d', '#c2410c', '#b45309', '#4d7c0f', '#334155'];
+const ACCENT_PRESETS = ['#14b8a6', '#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#fb7185', '#fb923c', '#facc15', '#4ade80'];
+
+function ColorSwatches({ value, presets, onChange, label }: { value: string; presets: string[]; onChange: (v: string) => void; label: string }) {
+  return (
+    <div className="swatches" role="group" aria-label={label}>
+      {presets.map((c) => (
+        <button key={c} type="button" className={'swatch' + (value === c ? ' selected' : '')} style={{ background: c }} aria-label={c} onClick={() => onChange(c)}>{value === c && <IconCheck size={14} strokeWidth={3} />}</button>
+      ))}
+      <label className="swatch custom" style={{ background: value || 'var(--bg-input)' }} title="Custom colour">
+        <input type="color" value={value || presets[0]} onChange={(e) => onChange(e.target.value)} />
+        +
+      </label>
+      {value && <button type="button" className="btn-link" onClick={() => onChange('')}>Default</button>}
+    </div>
+  );
+}
 
 function ProfileTab() {
   const user = useAuthStore((s) => s.user!);
   const [displayName, setDisplayName] = useState(user.display_name ?? '');
+  const [pronouns, setPronouns] = useState(user.pronouns ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
   const [banner, setBanner] = useState(user.banner_color ?? '');
+  const [accent, setAccent] = useState(user.accent_color ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [bannerBusy, setBannerBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const dirty = displayName !== (user.display_name ?? '') || bio !== (user.bio ?? '') || banner !== (user.banner_color ?? '');
+  const bannerRef = useRef<HTMLInputElement>(null);
+  const dirty = displayName !== (user.display_name ?? '') || bio !== (user.bio ?? '') || banner !== (user.banner_color ?? '')
+    || pronouns !== (user.pronouns ?? '') || accent !== (user.accent_color ?? '');
 
-  const reset = () => { setDisplayName(user.display_name ?? ''); setBio(user.bio ?? ''); setBanner(user.banner_color ?? ''); setError(''); };
+  const reset = () => {
+    setDisplayName(user.display_name ?? ''); setBio(user.bio ?? ''); setBanner(user.banner_color ?? '');
+    setPronouns(user.pronouns ?? ''); setAccent(user.accent_color ?? ''); setError('');
+  };
   const save = async () => {
     setBusy(true); setError('');
-    try { await updateMe({ display_name: displayName.trim() || null, bio: bio.trim() || null, banner_color: banner || null }); toast('Profile saved', 'success'); }
-    catch (e) { setError(errorMessage(e)); }
+    try {
+      await updateMe({
+        display_name: displayName.trim() || null, bio: bio.trim() || null, banner_color: banner || null,
+        pronouns: pronouns.trim() || null, accent_color: accent || null,
+      });
+      toast('Profile saved', 'success');
+    } catch (e) { setError(errorMessage(e)); }
     finally { setBusy(false); }
   };
   const onAvatar = async (f: File | undefined) => {
@@ -146,8 +176,26 @@ function ProfileTab() {
     try { await uploadAvatar(f); toast('Avatar updated', 'success'); } catch (e) { toast(errorMessage(e), 'error'); }
     finally { setAvatarBusy(false); }
   };
+  const onBanner = async (f: File | undefined) => {
+    if (!f) return;
+    if (!f.type.startsWith('image/')) { toast('Please choose an image file', 'error'); return; }
+    if (f.size > LIMITS.USER_BANNER_BYTES) { toast('Banner images must be 2 MB or smaller', 'error'); return; }
+    setBannerBusy(true);
+    try { await uploadProfileBanner(f); toast('Banner updated', 'success'); } catch (e) { toast(errorMessage(e), 'error'); }
+    finally { setBannerBusy(false); }
+  };
+  const dropBanner = async () => {
+    setBannerBusy(true);
+    try { await updateMe({ banner: null }); } catch (e) { toast(errorMessage(e), 'error'); }
+    finally { setBannerBusy(false); }
+  };
 
-  const preview = { ...user, display_name: displayName || null, bio: bio || null, banner_color: banner || null };
+  // the preview follows unsaved edits; the banner image itself uploads straight away (like the avatar)
+  const preview = {
+    ...user, display_name: displayName || null, bio: bio || null, banner_color: banner || null,
+    pronouns: pronouns.trim() || null, accent_color: accent || null,
+  };
+  const themed = accentProps(preview);
 
   return (
     <div>
@@ -155,6 +203,7 @@ function ProfileTab() {
       <div className="profile-editor">
         <div className="profile-form">
           <Field label="Display Name"><input value={displayName} maxLength={32} placeholder={user.username} onChange={(e) => setDisplayName(e.target.value)} /></Field>
+          <Field label="Pronouns"><input value={pronouns} maxLength={LIMITS.PRONOUNS} placeholder="Add your pronouns" onChange={(e) => setPronouns(e.target.value)} /></Field>
           <div className="divider" />
           <div className="field-label">Avatar</div>
           <div className="row">
@@ -162,29 +211,35 @@ function ProfileTab() {
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { void onAvatar(e.target.files?.[0]); e.target.value = ''; }} />
           </div>
           <div className="divider" />
-          <div className="field-label">Banner Color</div>
-          <div className="swatches">
-            {BANNER_PRESETS.map((c) => (
-              <button key={c} className={'swatch' + (banner === c ? ' selected' : '')} style={{ background: c }} aria-label={c} onClick={() => setBanner(c)}>{banner === c && <IconCheck size={14} strokeWidth={3} />}</button>
-            ))}
-            <label className="swatch custom" style={{ background: banner || 'var(--bg-input)' }} title="Custom colour">
-              <input type="color" value={banner || '#14b8a6'} onChange={(e) => setBanner(e.target.value)} />
-              +
-            </label>
-            {banner && <button className="btn-link" onClick={() => setBanner('')}>Default</button>}
+          <div className="field-label">Profile Banner</div>
+          <div className="row">
+            <button className="btn btn-primary btn-small" disabled={bannerBusy} onClick={() => bannerRef.current?.click()}>{bannerBusy ? 'Uploading…' : user.banner ? 'Change Banner' : 'Upload Banner'}</button>
+            {user.banner && <button className="btn btn-secondary btn-small" disabled={bannerBusy} onClick={() => void dropBanner()}>Remove Banner</button>}
+            <input ref={bannerRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={(e) => { void onBanner(e.target.files?.[0]); e.target.value = ''; }} />
           </div>
+          <p className="field-hint profile-hint">PNG, JPEG, GIF or WebP, up to 2 MB. Without an image, your banner uses this colour:</p>
+          <ColorSwatches label="Banner colour" value={banner} presets={BANNER_PRESETS} onChange={setBanner} />
           <div className="divider" />
-          <Field label="About Me" hint={`${190 - bio.length} characters left. You can use markdown and links.`}>
-            <textarea rows={4} maxLength={190} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell everyone a little about yourself" />
+          <div className="field-label">Accent Color</div>
+          <p className="field-hint profile-hint">Outlines your profile card and tints its headings.</p>
+          <ColorSwatches label="Accent colour" value={accent} presets={ACCENT_PRESETS} onChange={setAccent} />
+          <div className="divider" />
+          <Field label="About Me" hint={`${LIMITS.BIO - bio.length} characters left. You can use markdown and links.`}>
+            <textarea rows={4} maxLength={LIMITS.BIO} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell everyone a little about yourself" />
           </Field>
         </div>
         <div className="profile-preview">
           <div className="field-label">Preview</div>
-          <div className="user-popout static">
-            <div className="popout-banner" style={{ background: preview.banner_color || colorFor(user.id) }}><span className="popout-banner-mark"><LogoMark size={46} /></span></div>
+          <div className={'user-popout static' + themed.className} style={themed.style}>
+            <ProfileBanner user={preview} />
             <div className="popout-avatar"><Avatar user={preview} size={80} status="auto" ring="var(--bg-elevated)" /></div>
             <div className="popout-body">
-              <div className="popout-names"><h3>{preview.display_name || user.username}</h3><div className="popout-username">{user.username}</div>{user.custom_status && <div className="popout-custom">{user.custom_status}</div>}</div>
+              <div className="popout-names">
+                <h3>{preview.display_name || user.username}</h3>
+                <div className="popout-username">{user.username}</div>
+                <Pronouns value={preview.pronouns} />
+                {user.custom_status && <div className="popout-custom">{user.custom_status}</div>}
+              </div>
               <div className="popout-section">
                 {preview.bio && <><h4>About Me</h4><div className="popout-bio"><Markdown content={preview.bio} /></div></>}
                 <h4>Member Since</h4><div className="popout-since">{formatShortDate(user.created_at)}</div>

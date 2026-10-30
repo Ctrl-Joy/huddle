@@ -1,0 +1,92 @@
+/* Profiles (banner image, accent, pronouns), server banner header, server folders, inbox, account switcher. */
+
+/* ===== Profile cards ===== */
+.popout-banner.has-image { background-repeat: no-repeat; }
+.popout-pronouns { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+.user-popout.themed { box-shadow: 0 0 0 2px var(--profile-accent), var(--shadow-lg); }
+.user-popout.themed .popout-section h4, .dm-profile.themed .popout-section h4 { color: var(--profile-accent); }
+.user-popout.themed .popout-avatar { box-shadow: 0 0 0 4px var(--bg-elevated), 0 0 0 6px var(--profile-accent); }
+.dm-profile.themed { box-shadow: inset 0 3px 0 var(--profile-accent); }
+.dm-profile.themed .popout-avatar { box-shadow: 0 0 0 4px var(--bg-sidebar), 0 0 0 6px var(--profile-accent); }
+.profile-hint { margin: 6px 0 8px; }
+
+/* ===== Server banner behind the channel-list header ===== */
+.channel-sidebar.has-banner { position: relative; }
+.channel-sidebar.has-banner .guild-header {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 3; background: transparent; color: #fff; border-bottom-color: transparent;
+  box-shadow: none; text-shadow: 0 1px 4px rgba(0, 0, 0, .7); transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+.channel-sidebar.has-banner .guild-header:hover, .channel-sidebar.has-banner .guild-header.open { background: rgba(0, 0, 0, .25); }
+.channel-sidebar.has-banner.banner-scrolled .guild-header {
+  background: var(--bg-sidebar); color: var(--text); text-shadow: none; border-bottom-color: var(--border); box-shadow: 0 1px 0 rgba(0, 0, 0, .08);
+}
+.channel-sidebar.has-banner.banner-scrolled .guild-header:hover { background: var(--bg-hover); }
+.guild-banner {
+  height: 136px; margin: -8px -8px 8px; background: var(--bg-rail) center / cover no-repeat; position: relative;
+  opacity: calc(1 - var(--banner-fade, 0)); will-change: opacity;
+}
+/* darken the top so the server name stays readable on bright images */
+.guild-banner::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(0, 0, 0, .5), rgba(0, 0, 0, 0) 55%); }
+
+/* ===== Server folders ===== */
+.rail-drag.dragging { opacity: .4; }
+.rail-drag.drop-before::before, .rail-drag.drop-after::after {
+  content: ''; display: block; height: 3px; margin: 0 14px; border-radius: 2px; background: var(--accent);
+}
+.rail-drag.drop-before::before { margin-bottom: 4px; }
+.rail-drag.drop-after::after { margin-top: 4px; }
+.rail-drag.drop-into .rail-button { box-shadow: 0 0 0 3px var(--accent); border-radius: 30%; }
+.rail-folder { --folder-color: var(--accent); width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; border-radius: 16px; position: relative; }
+.rail-folder.open::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 56px; transform: translateX(-50%); border-radius: 16px;
+  background: color-mix(in srgb, var(--folder-color) 16%, var(--bg-rail)); pointer-events: none;
+}
+.rail-folder > * { position: relative; }
+.rail-folder.open > :last-child { margin-bottom: 4px; }
+.rail-folder-item .rail-button { background: color-mix(in srgb, var(--folder-color) 22%, var(--bg-elevated)); }
+.rail-folder.open .rail-folder-item .rail-button { background: transparent; }
+.rail-folder-item:hover .rail-button, .rail-folder-item.active .rail-button { background: color-mix(in srgb, var(--folder-color) 35%, var(--bg-elevated)); }
+.folder-open-icon { color: var(--folder-color); display: flex; }
+.folder-grid { display: grid; grid-template-columns: 18px 18px; grid-auto-rows: 18px; gap: 3px; padding: 4px; }
+.folder-grid .guild-icon { border-radius: 6px !important; font-size: 8px; }
+
+/* ===== Inbox ===== */
+.inbox-popover { width: 440px; height: min(640px, 75vh); }
+.inbox-head { flex-wrap: wrap; }
+.inbox-tabs { display: flex; gap: 4px; margin-left: auto; }
+.inbox-tabs .tab { padding: 3px 10px; border-radius: 6px; color: var(--text-muted); font-weight: 600; font-size: 13px; }
+.inbox-tabs .tab:hover { background: var(--bg-hover); color: var(--text); }
+.inbox-tabs .tab.active { background: var(--bg-active); color: var(--text); }
+.inbox-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 0 16px; min-height: 36px; }
+.inbox-body { flex: 1; }
+.inbox-item { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px 10px; margin-bottom: 8px; background: var(--bg-chat); }
+.inbox-item-where { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 6px; min-width: 0; }
+.inbox-item-where > .truncate { display: inline-flex; align-items: center; gap: 2px; min-width: 0; flex: 1; }
+.inbox-item-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.inbox-more { margin: 4px 0 8px; }
+.inbox-group { margin-bottom: 10px; }
+.inbox-group-head { display: flex; align-items: center; gap: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); padding: 6px 8px; }
+.inbox-unread-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; padding-right: 4px; }
+.inbox-unread-row:hover { background: var(--bg-hover); }
+.inbox-unread-link { flex: 1; display: flex; align-items: center; gap: 6px; padding: 8px; text-align: left; font-weight: 600; min-width: 0; color: var(--text); }
+.inbox-unread-link .badge { margin-left: auto; }
+
+/* ===== Account switcher ===== */
+.account-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.account-row { display: flex; align-items: center; gap: 8px; border-radius: 10px; padding: 4px 12px 4px 4px; background: var(--bg-chat); }
+.account-row.active { box-shadow: inset 0 0 0 1px var(--accent); }
+.account-pick { flex: 1; display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; text-align: left; min-width: 0; color: var(--text); }
+.account-pick:not(:disabled):hover { background: var(--bg-hover); }
+.account-pick:disabled { cursor: default; opacity: 1; }
+.account-names { display: flex; flex-direction: column; min-width: 0; font-weight: 600; }
+.account-names small { color: var(--text-muted); font-weight: 500; }
+.account-active { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-size: 12px; font-weight: 700; }
+.btn-link.danger { color: var(--danger); }
+.account-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.auth-back { margin-top: 8px; }
+
+@media (max-width: 800px) {
+  /* the inbox becomes a sheet under the header */
+  .inbox-popover { position: fixed; left: 8px; right: 8px; top: calc(var(--header-h) + 4px + env(safe-area-inset-top)); width: auto; height: auto; max-height: calc(100dvh - var(--header-h) - 24px); }
+  .inbox-item-actions .btn { padding: 6px 10px; }
+}

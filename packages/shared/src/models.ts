@@ -11,6 +11,12 @@ export enum ChannelType {
   GUILD_VOICE = 2,
   GROUP_DM = 3,
   GUILD_CATEGORY = 4,
+  /** Text channel where by default only members with MANAGE_MESSAGES can post. */
+  GUILD_ANNOUNCEMENT = 5,
+  /** A thread: child channel of a text / announcement / forum channel (parent_id = that channel). */
+  PUBLIC_THREAD = 11,
+  /** No messages of its own; every post is a thread with a title and a starter message. */
+  GUILD_FORUM = 15,
 }
 
 export enum MessageType {
@@ -21,7 +27,22 @@ export enum MessageType {
   CHANNEL_NAME_CHANGE = 4,
   CHANNEL_PINNED_MESSAGE = 6,
   GUILD_MEMBER_JOIN = 7,
+  /** Posted in the parent channel when a thread starts; content = thread name, `thread` = the thread. */
+  THREAD_CREATED = 18,
   REPLY = 19,
+  /** System line posted when a poll closes; message_reference points at the poll. */
+  POLL_RESULT = 46,
+}
+
+/** Bit flags on Message.flags. */
+export enum MessageFlags {
+  SUPPRESS_EMBEDS = 1 << 2,
+  IS_VOICE_MESSAGE = 1 << 13,
+}
+
+/** Bit flags on Attachment.flags. */
+export enum AttachmentFlags {
+  IS_VOICE_MESSAGE = 1 << 0,
 }
 
 export enum RelationshipType {
@@ -45,6 +66,11 @@ export interface PublicUser {
   avatar: string | null; // url path, e.g. /uploads/avatars/<file>
   banner_color: string | null;
   bio: string | null;
+  /** Uploaded profile banner image (/uploads/…); shown instead of banner_color. Always sent by the server. */
+  banner?: string | null;
+  /** #rrggbb profile theme colour (card outline + headings). */
+  accent_color?: string | null;
+  pronouns?: string | null;
   bot?: boolean;
   created_at: string;
 }
@@ -106,6 +132,33 @@ export interface Channel {
   recipients?: PublicUser[];
   owner_id?: string | null; // group DM owner
   icon?: string | null;
+  /** Threads only (owner_id above is the thread creator). */
+  thread_metadata?: ThreadMetadata;
+  /** Threads only: messages sent in the thread (a forum post's starter message isn't counted). */
+  message_count?: number;
+  /** Threads only. */
+  last_message_at?: string | null;
+  /** Threads only: the message the thread was started from (in the parent channel; for forum posts, the post's first message). */
+  starter_message_id?: string | null;
+  /** Forum posts only: ids from the parent forum's available_tags. */
+  applied_tags?: string[];
+  /** Forum posts only, on create / list payloads: the starter message (for post cards). */
+  starter_message?: Message | null;
+  /** Forum channels only. */
+  available_tags?: ForumTag[];
+}
+
+export interface ThreadMetadata {
+  archived: boolean;
+  archive_timestamp: string | null;
+  /** Minutes of inactivity after which the server archives the thread. */
+  auto_archive_duration: number;
+}
+
+export interface ForumTag {
+  id: string;
+  name: string;
+  emoji: string | null; // unicode emoji
 }
 
 export interface Guild {
@@ -137,6 +190,8 @@ export interface FullGuild extends Guild {
   member_count: number;
   /** Custom emoji uploaded to this server. */
   emojis?: GuildEmoji[];
+  /** Non-archived threads and forum posts (archived ones are fetched per channel). */
+  threads?: Channel[];
 }
 
 /** A custom emoji uploaded to a server (see emojis.ts for the message token format). */
@@ -158,6 +213,62 @@ export interface Attachment {
   url: string;
   width: number | null;
   height: number | null;
+  /** AttachmentFlags bits (voice message, …). */
+  flags?: number;
+  /** Voice messages: length in seconds. */
+  duration_secs?: number | null;
+  /** Voice messages: base64 of up to 256 amplitude bytes (0–255), computed by the sender. */
+  waveform?: string | null;
+}
+
+/** Link preview built from a page's OpenGraph / Twitter / meta tags. Images are hot-linked, never proxied. */
+export interface Embed {
+  url: string;
+  type: 'link';
+  title: string | null;
+  description: string | null;
+  site_name: string | null;
+  color: number | null; // from <meta name="theme-color">
+  image: { url: string; width: number | null; height: number | null } | null;
+}
+
+export interface PollAnswer {
+  answer_id: number; // 1-based, stable for the poll's lifetime
+  text: string;
+  emoji: string | null; // unicode emoji
+  count: number;
+  me: boolean; // the viewer voted for this answer
+}
+
+export interface Poll {
+  question: string;
+  answers: PollAnswer[];
+  allow_multiselect: boolean;
+  expires_at: string;
+  /** Set once the server has closed the poll (votes are refused after expires_at either way). */
+  ended: boolean;
+}
+
+/** Body field `poll` on POST /channels/:id/messages. */
+export interface PollCreate {
+  question: string;
+  answers: { text: string; emoji?: string | null }[];
+  /** Hours; one of LIMITS.POLL_DURATIONS_HOURS. */
+  duration: number;
+  allow_multiselect?: boolean;
+}
+
+/** Frozen copy of a forwarded message. Attachments point at the original files. */
+export interface MessageSnapshot {
+  message_id: string;
+  channel_id: string;
+  guild_id: string | null;
+  author: PublicUser;
+  content: string;
+  created_at: string;
+  edited_at: string | null;
+  attachments: Attachment[];
+  embeds: Embed[];
 }
 
 export interface Reaction {
@@ -192,6 +303,15 @@ export interface Message {
   message_reference: MessageReference | null;
   referenced_message: Message | null; // one level only
   nonce?: string | null;
+  /** MessageFlags bits. */
+  flags?: number;
+  /** Link previews (empty when SUPPRESS_EMBEDS is set). */
+  embeds?: Embed[];
+  poll?: Poll | null;
+  /** Set when this message forwards another one. */
+  forward?: MessageSnapshot | null;
+  /** The thread started from this message (for THREAD_CREATED system messages: the thread that was started). */
+  thread?: Channel | null;
 }
 
 export interface Relationship {
@@ -213,6 +333,21 @@ export interface UserGuildSettings {
   message_notifications: NotificationLevel;
   suppress_everyone: boolean;
   channel_overrides: { channel_id: string; muted: boolean }[];
+}
+
+/** A named, coloured group of servers in the server rail. */
+export interface GuildFolder {
+  id: string; // client-generated, [A-Za-z0-9_-]{1,32}
+  name: string | null;
+  color: string | null; // #rrggbb
+  guild_ids: string[];
+}
+
+/** Per-user settings document synced across devices (GET/PATCH /users/@me/settings). */
+export interface UserSettings {
+  guild_folders: GuildFolder[];
+  /** Rail order of every guild; a folder sits where its first guild is. */
+  guild_positions: string[];
 }
 
 export interface VoiceState {
@@ -303,4 +438,22 @@ export const LIMITS = {
   GROUP_DM_RECIPIENTS: 10,
   MESSAGES_PAGE: 50,
   GUILD_BANNER_BYTES: 2 * 1024 * 1024,
+  POLL_QUESTION: 300,
+  POLL_ANSWER: 55,
+  POLL_ANSWERS_MIN: 2,
+  POLL_ANSWERS_MAX: 10,
+  POLL_DURATIONS_HOURS: [1, 4, 8, 24, 72, 168],
+  FORWARD_TARGETS: 5,
+  EMBEDS_PER_MESSAGE: 3,
+  VOICE_MESSAGE_SECS: 180,
+  VOICE_WAVEFORM_BYTES: 256,
+  USER_BANNER_BYTES: 2 * 1024 * 1024,
+  PRONOUNS: 40,
+  BIO: 190,
+  GUILD_FOLDERS: 100,
+  FOLDER_NAME: 32,
+  THREAD_NAME: 100,
+  FORUM_TAGS: 10,
+  FORUM_TAG_NAME: 20,
+  TAGS_PER_POST: 5,
 } as const;

@@ -4,13 +4,14 @@ import { useMessageStore, type ClientMessage } from '../../stores/messages';
 import { useReadStateStore } from '../../stores/readStates';
 import { useAuthStore } from '../../stores/auth';
 import { useViewStore } from '../../stores/view';
-import { useGuildStore, channelDisplayName } from '../../stores/guilds';
+import { useGuildStore, channelDisplayName, displayName } from '../../stores/guilds';
 import { useCan } from '../../lib/permissions';
 import { ackChannel } from '../../lib/actions';
-import { formatDivider, isSameDay } from '../../lib/format';
+import { formatDivider, formatTime, formatTimestamp, isSameDay } from '../../lib/format';
+import { IconCheck } from '../common/icons';
 import { MessageItem } from './MessageItem';
 import { Avatar, Spinner } from '../common/Avatar';
-import { IconHash, IconAt } from '../common/icons';
+import { IconHash, IconAt, IconThread } from '../common/icons';
 
 const GROUP_MS = 7 * 60 * 1000;
 
@@ -135,9 +136,33 @@ export function MessageList({ channel }: { channel: Channel }) {
     setAtBottom(true);
   };
 
+  // "N new messages since …" bar: unread messages (by the snapshot above) that are loaded right now
+  const [newDismissed, setNewDismissed] = useState(false);
+  const unread = useMemo(() => {
+    if (!hadReadState || !mountLast || newDismissed) return null;
+    const isNew = (m: ClientMessage) => !m._state && m.author.id !== me && BigInt(m.id) <= BigInt(mountLast)
+      && (unreadMarker === null || BigInt(m.id) > BigInt(unreadMarker));
+    const list = messages.filter(isNew);
+    if (!list.length) return null;
+    const firstReal = messages.find((m) => !m._state);
+    // the first unread may be older than what's loaded: then the count is a lower bound
+    const partial = hasMoreBefore && firstReal?.id === list[0].id;
+    return { count: list.length, partial, first: list[0] };
+  }, [messages, hadReadState, mountLast, newDismissed, me, unreadMarker, hasMoreBefore]);
+  const markNewRead = () => {
+    setNewDismissed(true);
+    const last = lastMessageId || lastReal;
+    if (last) ackChannel(channelId, last, true);
+  };
+  const jumpToFirstUnread = () => {
+    if (!unread) return;
+    atBottomRef.current = false;
+    void useMessageStore.getState().jumpTo(channelId, unread.partial && unreadMarker ? unreadMarker : unread.first.id);
+  };
+
   const rows = useMemo(() => {
     const out: ReactElement[] = [];
-    let dividerPlaced = false;
+    let dividerPlaced = newDismissed;
     messages.forEach((m, i) => {
       const prev = messages[i - 1];
       if (!prev || !isSameDay(prev.created_at, m.created_at)) {
@@ -159,10 +184,18 @@ export function MessageList({ channel }: { channel: Channel }) {
       );
     });
     return out;
-  }, [messages, highlight, unreadMarker, hadReadState, me, mountLast]);
+  }, [messages, highlight, unreadMarker, hadReadState, me, mountLast, newDismissed]);
 
   return (
     <div className="message-list-wrap">
+      {unread && loaded && (
+        <div className="new-messages-bar" role="status">
+          <button className="new-messages-jump" onClick={jumpToFirstUnread}>
+            {unread.count}{unread.partial ? '+' : ''} new message{unread.count === 1 && !unread.partial ? '' : 's'} since {sinceLabel(unread.first.created_at)}
+          </button>
+          <button className="new-messages-read" onClick={markNewRead}>Mark as read <IconCheck size={14} strokeWidth={3} /></button>
+        </div>
+      )}
       <div className="message-list scroll-thin" ref={scrollRef} onScroll={onScroll} role="log" aria-live="polite">
         <div className="message-list-inner" ref={contentRef}>
           {!canRead ? (
@@ -187,6 +220,12 @@ export function MessageList({ channel }: { channel: Channel }) {
   );
 }
 
+/** "3:04 PM" today, otherwise "yesterday at 3:04 PM" / "03/02/2026 3:04 PM". */
+function sinceLabel(iso: string): string {
+  if (isSameDay(iso, new Date().toISOString())) return formatTime(iso);
+  return formatTimestamp(iso).replace(/^Yesterday/, 'yesterday');
+}
+
 function ChannelIntro({ channel }: { channel: Channel }) {
   const me = useAuthStore((s) => s.user!.id);
   if (channel.type === ChannelType.DM) {
@@ -206,6 +245,15 @@ function ChannelIntro({ channel }: { channel: Channel }) {
         <span className="intro-icon"><IconAt size={40} /></span>
         <h1>{channelDisplayName(channel, me)}</h1>
         <p>Welcome to the beginning of the <strong>{channelDisplayName(channel, me)}</strong> group.</p>
+      </div>
+    );
+  }
+  if (channel.type === ChannelType.PUBLIC_THREAD) {
+    return (
+      <div className="channel-intro">
+        <span className="intro-icon"><IconThread size={36} /></span>
+        <h1>{channel.name}</h1>
+        <p>Started by <strong>{displayName(channel.owner_id ?? '', channel.guild_id)}</strong>. Replies here stay out of the main channel.</p>
       </div>
     );
   }

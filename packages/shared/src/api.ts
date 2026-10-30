@@ -1,5 +1,5 @@
 // REST response envelopes that aren't plain model objects (added by the server; additive only).
-import type { AuditLogEntry, Message, PublicUser, User } from './models';
+import type { AuditLogEntry, Channel, Message, PublicUser, User } from './models';
 
 /** POST /auth/register, POST /auth/login */
 export interface AuthResponse {
@@ -31,4 +31,13 @@ export interface MessageSearchResponse {
 export interface CallRingResponse {
   channel_id: string;
   ringing: string[];
+}
+
+/**
+ * GET /channels/:id/threads?archived&q&tag&sort&limit — threads of a text / announcement / forum channel.
+ * Forum posts carry `starter_message`. sort: 'activity' (default) | 'created'.
+ */
+export interface ThreadListResponse {
+  threads: Channel[];
+  has_more: boolean;
 }

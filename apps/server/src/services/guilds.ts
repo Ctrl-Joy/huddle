@@ -5,7 +5,7 @@ import { now, type Ctx } from '../context';
 import { ApiErr, ErrorCode } from '../errors';
 import { DEFAULT_LAYOUT, TEMPLATE_LAYOUTS } from './templates';
 import {
-  emojisOf, getChannelRow, getUserRow, guild, guildChannels, member, membersOf, publicUser, role, rolesOf, type GuildRow,
+  activeThreadsOf, emojisOf, getChannelRow, getUserRow, guild, guildChannels, member, membersOf, publicUser, role, rolesOf, type GuildRow,
 } from '../serializers';
 import { getGuildRow } from './permissions';
 import { createMessage } from './messages';
@@ -22,6 +22,7 @@ export function fullGuild(ctx: Ctx, guildId: string): FullGuild | null {
     ...guild(g),
     roles: rolesOf(ctx.db, guildId).map(role),
     channels: guildChannels(ctx.db, guildId),
+    threads: activeThreadsOf(ctx.db, guildId),
     members,
     presences,
     voice_states: ctx.voice.inGuild(guildId),

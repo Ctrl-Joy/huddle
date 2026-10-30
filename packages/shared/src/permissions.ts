@@ -28,6 +28,9 @@ export const Permissions = {
   MANAGE_ROLES: 1n << 28n,
   MANAGE_EMOJIS: 1n << 30n,
   MODERATE_MEMBERS: 1n << 40n,
+  MANAGE_THREADS: 1n << 34n,
+  CREATE_THREADS: 1n << 35n,
+  SEND_MESSAGES_IN_THREADS: 1n << 38n,
   VIDEO: 1n << 41n,
 } as const;
 
@@ -49,12 +52,18 @@ export const DEFAULT_EVERYONE_PERMISSIONS: bigint =
   Permissions.CONNECT |
   Permissions.SPEAK |
   Permissions.VIDEO |
-  Permissions.CHANGE_NICKNAME;
+  Permissions.CHANGE_NICKNAME |
+  Permissions.CREATE_THREADS |
+  Permissions.SEND_MESSAGES_IN_THREADS;
+
+/** Added once to @everyone of servers created before threads existed (see the server's db migration). */
+export const THREAD_DEFAULT_PERMISSIONS: bigint = Permissions.CREATE_THREADS | Permissions.SEND_MESSAGES_IN_THREADS;
 
 /** Permissions that only make sense on text channels / voice channels (used by the overwrite editor). */
 export const TEXT_PERMISSIONS: PermissionName[] = [
   'VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS', 'ATTACH_FILES', 'ADD_REACTIONS',
-  'MENTION_EVERYONE', 'MANAGE_MESSAGES', 'READ_MESSAGE_HISTORY', 'CREATE_INVITE', 'MANAGE_CHANNELS', 'MANAGE_ROLES',
+  'MENTION_EVERYONE', 'MANAGE_MESSAGES', 'READ_MESSAGE_HISTORY', 'CREATE_THREADS', 'SEND_MESSAGES_IN_THREADS', 'MANAGE_THREADS',
+  'CREATE_INVITE', 'MANAGE_CHANNELS', 'MANAGE_ROLES',
 ];
 export const VOICE_PERMISSIONS: PermissionName[] = [
   'VIEW_CHANNEL', 'CONNECT', 'SPEAK', 'VIDEO', 'STREAM', 'PRIORITY_SPEAKER',
@@ -93,7 +102,10 @@ export const PERMISSION_INFO: { group: string; items: { key: PermissionName; lab
       { key: 'ATTACH_FILES', label: 'Attach Files', description: 'Upload files and media.' },
       { key: 'ADD_REACTIONS', label: 'Add Reactions', description: 'Add new emoji reactions to messages.' },
       { key: 'MENTION_EVERYONE', label: 'Mention @everyone', description: 'Use @everyone to notify all members.' },
-      { key: 'MANAGE_MESSAGES', label: 'Manage Messages', description: 'Delete and pin messages by other members.' },
+      { key: 'MANAGE_MESSAGES', label: 'Manage Messages', description: 'Delete and pin messages by other members, and post in announcement channels.' },
+      { key: 'CREATE_THREADS', label: 'Create Threads', description: 'Start threads from messages and in text channels.' },
+      { key: 'SEND_MESSAGES_IN_THREADS', label: 'Send Messages in Threads', description: 'Reply in threads and forum posts.' },
+      { key: 'MANAGE_THREADS', label: 'Manage Threads', description: 'Rename, archive, unarchive and delete threads started by others.' },
       { key: 'READ_MESSAGE_HISTORY', label: 'Read Message History', description: 'Read messages sent before they joined.' },
     ],
   },
@@ -170,6 +182,23 @@ export function computePermissions(ctx: PermissionContext, overwrites: PermOverw
 
   if (!has(perms, Permissions.VIEW_CHANNEL)) return 0n;
   return applyTimeout(perms, ctx);
+}
+
+// Channel type numbers (see ChannelType in models.ts; not imported to keep this module dependency-free).
+const ANNOUNCEMENT = 5, THREAD = 11;
+
+export const isThreadType = (type: number): boolean => type === THREAD;
+
+/** Channel-type rules applied after overwrites (server and client): announcement channels only let MANAGE_MESSAGES holders post. */
+export function applyChannelTypeRules(type: number, perms: bigint): bigint {
+  if (type === ANNOUNCEMENT && !has(perms, Permissions.MANAGE_MESSAGES)) return perms & ~Permissions.SEND_MESSAGES;
+  return perms;
+}
+
+/** A thread inherits its parent's permissions; posting in it is governed by SEND_MESSAGES_IN_THREADS. */
+export function threadPermissions(parentPerms: bigint): bigint {
+  const p = parentPerms & ~Permissions.SEND_MESSAGES;
+  return has(parentPerms, Permissions.SEND_MESSAGES_IN_THREADS) ? p | Permissions.SEND_MESSAGES : p;
 }
 
 function applyTimeout(perms: bigint, ctx: PermissionContext): bigint {

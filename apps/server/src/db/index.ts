@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DatabaseSync, SQLInputValue, StatementSync } from 'node:sqlite';
+import { THREAD_DEFAULT_PERMISSIONS } from '@huddle/shared';
 
 // node:sqlite still emits an ExperimentalWarning on load; silence just that one.
 const origEmitWarning = process.emitWarning;
@@ -45,6 +46,33 @@ export class Db {
       discoverable: 'INTEGER NOT NULL DEFAULT 0', category: 'TEXT', banner_color: 'TEXT', banner: 'TEXT', verified: 'INTEGER NOT NULL DEFAULT 0',
     });
     this.raw.exec('CREATE INDEX IF NOT EXISTS idx_guilds_discoverable ON guilds(discoverable)');
+    addColumns('users', { banner: 'TEXT', accent_color: 'TEXT', pronouns: 'TEXT' });
+    addColumns('channels', {
+      archived: 'INTEGER NOT NULL DEFAULT 0', archive_timestamp: 'TEXT', auto_archive_duration: 'INTEGER NOT NULL DEFAULT 4320',
+      message_count: 'INTEGER NOT NULL DEFAULT 0', last_message_at: 'TEXT', starter_message_id: 'TEXT',
+      applied_tags: "TEXT NOT NULL DEFAULT '[]'", available_tags: "TEXT NOT NULL DEFAULT '[]'",
+    });
+    this.raw.exec('CREATE INDEX IF NOT EXISTS idx_channels_parent ON channels(parent_id)');
+    this.raw.exec('CREATE INDEX IF NOT EXISTS idx_channels_starter ON channels(starter_message_id)');
+    // One-off data migrations, recorded by name so they never run twice.
+    this.raw.exec('CREATE TABLE IF NOT EXISTS data_migrations (name TEXT PRIMARY KEY)');
+    const once = (name: string, fn: () => void) => {
+      if (this.raw.prepare('SELECT 1 AS x FROM data_migrations WHERE name = ?').get(name)) return;
+      fn();
+      this.raw.prepare('INSERT INTO data_migrations (name) VALUES (?)').run(name);
+    };
+    // Servers created before threads existed: give @everyone the new default thread permissions.
+    once('everyone_thread_perms', () => {
+      this.raw.prepare('UPDATE roles SET permissions = CAST((CAST(permissions AS INTEGER) | ?) AS TEXT) WHERE id = guild_id')
+        .run(THREAD_DEFAULT_PERMISSIONS);
+    });
+    // message features: flags (suppress embeds / voice), link previews, forwarded snapshot
+    addColumns('messages', { flags: 'INTEGER NOT NULL DEFAULT 0', embeds: 'TEXT', forward_json: 'TEXT' });
+    // voice message metadata; snapshot = 1 marks a forwarded copy that reuses the original file
+    addColumns('attachments', {
+      flags: 'INTEGER NOT NULL DEFAULT 0', duration_secs: 'REAL', waveform: 'TEXT', snapshot: 'INTEGER NOT NULL DEFAULT 0',
+    });
+    this.raw.exec('CREATE INDEX IF NOT EXISTS idx_attachments_url ON attachments(url)');
   }
 
   private stmt(sql: string): StatementSync {

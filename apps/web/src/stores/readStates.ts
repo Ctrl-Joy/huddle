@@ -62,14 +62,42 @@ export function isUnread(channel: Channel | undefined, readStates: Record<string
   return BigInt(channel.last_message_id) > BigInt(rs.last_read_message_id);
 }
 
-/** Hook: unread + mention count for a single channel. */
+/**
+ * Threads of a channel as "id:last_message_id:archived" entries — a primitive, so it works as a stable selector.
+ * A thread counts towards its parent once you've opened, posted in or been mentioned in it (you have a read state there).
+ */
+function childThreadsKey(channels: Record<string, Channel>, parentId: string): string {
+  let key = '';
+  for (const c of Object.values(channels)) {
+    if (c.type !== ChannelType.PUBLIC_THREAD || c.parent_id !== parentId) continue;
+    key += `${c.id}:${c.last_message_id ?? ''}:${c.thread_metadata?.archived ? 1 : 0},`;
+  }
+  return key;
+}
+
+function threadsAggregate(key: string, readStates: Record<string, ReadState>): string {
+  let unread = false, mentions = 0;
+  for (const part of key.split(',')) {
+    if (!part) continue;
+    const [id, last, archived] = part.split(':');
+    const rs = readStates[id];
+    if (!rs) continue;
+    mentions += rs.mention_count;
+    if (!unread && archived !== '1' && last && (!rs.last_read_message_id || BigInt(last) > BigInt(rs.last_read_message_id))) unread = true;
+  }
+  return `${unread ? 1 : 0}:${mentions}`;
+}
+
+/** Hook: unread + mention count for a single channel (including its threads). */
 export function useChannelUnread(channelId: string): { unread: boolean; mentions: number; muted: boolean } {
   const channel = useGuildStore((s) => s.channels[channelId]);
   const rs = useReadStateStore((s) => s.readStates[channelId]);
   const gs = useReadStateStore((s) => (channel?.guild_id ? s.guildSettings[channel.guild_id] : undefined));
-  const unread = isUnread(channel, rs ? { [channelId]: rs } : {});
+  const threadsKey = useGuildStore((s) => childThreadsKey(s.channels, channelId));
+  const [tu, tm] = useReadStateStore((s) => (threadsKey ? threadsAggregate(threadsKey, s.readStates) : '0:0')).split(':');
+  const unread = isUnread(channel, rs ? { [channelId]: rs } : {}) || tu === '1';
   const muted = !!channel && isChannelMuted(channel, gs ? { [gs.guild_id]: gs } : {});
-  return { unread, mentions: rs?.mention_count ?? 0, muted };
+  return { unread, mentions: (rs?.mention_count ?? 0) + Number(tm), muted };
 }
 
 /** Aggregate for a guild: any unread visible, non-muted channel + total mentions. */
@@ -83,9 +111,12 @@ export function computeGuildUnread(guildId: string): { unread: boolean; mentions
   if (!me) return { unread, mentions };
   for (const c of Object.values(gstate.channels)) {
     if (c.guild_id !== guildId) continue;
-    if (c.type !== ChannelType.GUILD_TEXT) continue;
+    const thread = c.type === ChannelType.PUBLIC_THREAD;
+    if (!thread && c.type !== ChannelType.GUILD_TEXT && c.type !== ChannelType.GUILD_ANNOUNCEMENT && c.type !== ChannelType.GUILD_FORUM) continue;
     if (!channelVisible(c, me)) continue;
     mentions += readStates[c.id]?.mention_count ?? 0;
+    // threads only count once joined (read state exists) and while active
+    if (thread && (!readStates[c.id] || c.thread_metadata?.archived)) continue;
     if (!unread && !gs?.muted && gs?.message_notifications !== NotificationLevel.NOTHING && !isChannelMuted(c, guildSettings) && isUnread(c, readStates)) unread = true;
   }
   return { unread, mentions };

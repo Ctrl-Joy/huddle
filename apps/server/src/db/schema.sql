@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
   avatar        TEXT,
   banner_color  TEXT,
   bio           TEXT,
+  -- profile extras (older DBs get these via migrate() in db/index.ts)
+  banner        TEXT,
+  accent_color  TEXT,
+  pronouns      TEXT,
   custom_status TEXT,
   status        TEXT NOT NULL DEFAULT 'online',
   bot           INTEGER NOT NULL DEFAULT 0,
@@ -87,7 +91,16 @@ CREATE TABLE IF NOT EXISTS channels (
   last_message_id     TEXT,
   owner_id            TEXT,
   icon                TEXT,
-  created_at          TEXT NOT NULL
+  created_at          TEXT NOT NULL,
+  -- threads (type 11; parent_id = text/announcement/forum channel). Older DBs get these via migrate() in db/index.ts
+  archived              INTEGER NOT NULL DEFAULT 0,
+  archive_timestamp     TEXT,
+  auto_archive_duration INTEGER NOT NULL DEFAULT 4320,
+  message_count         INTEGER NOT NULL DEFAULT 0,
+  last_message_at       TEXT,
+  starter_message_id    TEXT,
+  applied_tags          TEXT NOT NULL DEFAULT '[]', -- forum posts: tag ids
+  available_tags        TEXT NOT NULL DEFAULT '[]'  -- forum channels: [{ id, name, emoji }]
 );
 CREATE INDEX IF NOT EXISTS idx_channels_guild ON channels(guild_id);
 
@@ -156,6 +169,25 @@ CREATE TABLE IF NOT EXISTS reactions (
   PRIMARY KEY (message_id, emoji, user_id)
 );
 
+-- A poll belongs to exactly one message. answers = JSON [{answer_id, text, emoji}].
+CREATE TABLE IF NOT EXISTS polls (
+  message_id        TEXT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+  question          TEXT NOT NULL,
+  answers           TEXT NOT NULL,
+  allow_multiselect INTEGER NOT NULL DEFAULT 0,
+  expires_at        TEXT NOT NULL,
+  ended             INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_polls_open ON polls(ended, expires_at);
+
+CREATE TABLE IF NOT EXISTS poll_votes (
+  message_id TEXT NOT NULL REFERENCES polls(message_id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  answer_id  INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (message_id, user_id, answer_id)
+);
+
 CREATE TABLE IF NOT EXISTS invites (
   code       TEXT PRIMARY KEY,
   guild_id   TEXT NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
@@ -218,3 +250,18 @@ CREATE TABLE IF NOT EXISTS emojis (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_emojis_guild ON emojis(guild_id);
+
+-- Per-user settings document (server folders + rail order), JSON-encoded.
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id         TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  guild_folders   TEXT NOT NULL DEFAULT '[]',
+  guild_positions TEXT NOT NULL DEFAULT '[]'
+);
+
+-- Mentions the user has dismissed from their inbox.
+CREATE INDEX IF NOT EXISTS idx_message_mentions_user ON message_mentions(user_id);
+CREATE TABLE IF NOT EXISTS mention_dismissals (
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message_id TEXT NOT NULL,
+  PRIMARY KEY (user_id, message_id)
+);

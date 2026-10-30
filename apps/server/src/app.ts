@@ -29,6 +29,12 @@ import auditRoutes from './routes/audit';
 import searchRoutes from './routes/search';
 import emojiRoutes from './routes/emojis';
 import discoveryRoutes from './routes/discovery';
+import threadRoutes from './routes/threads';
+import { archiveStaleThreads } from './services/threads';
+import userSettingsRoutes from './routes/userSettings';
+import messageFeatureRoutes from './routes/messageFeatures';
+import { finalizeExpiredPolls } from './services/polls';
+import { LinkPreviews, type PageFetcher } from './services/linkPreview';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SERVER_ROOT = path.resolve(here, '..');
@@ -45,6 +51,8 @@ export interface BuildOptions {
   /** Serve apps/web/dist with SPA fallback. Default: NODE_ENV === 'production'. */
   production?: boolean;
   webDist?: string;
+  /** Link-preview page fetcher; tests pass a stub so nothing touches the network. */
+  fetchPage?: PageFetcher;
 }
 
 export type HuddleApp = FastifyInstance & { huddle: Ctx };
@@ -75,6 +83,8 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
   } as unknown as Ctx;
   ctx.gw = new Gateway(ctx);
   ctx.voice = new VoiceManager(ctx);
+  ctx.previews = new LinkPreviews(ctx);
+  if (opts.fetchPage) ctx.previews.fetcher = opts.fetchPage;
   app.decorate('huddle', ctx);
   app.decorateRequest('userId', null);
 
@@ -174,15 +184,33 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
 
     for (const r of [
       authRoutes, userRoutes, relationshipRoutes, guildRoutes, channelRoutes, messageRoutes, roleRoutes, memberRoutes,
-      inviteRoutes, banRoutes, auditRoutes, searchRoutes, discoveryRoutes, emojiRoutes,
+      inviteRoutes, banRoutes, auditRoutes, searchRoutes, discoveryRoutes, emojiRoutes, threadRoutes, userSettingsRoutes,
     ]) {
       r(api, ctx);
     }
+    messageFeatureRoutes(api, ctx);
   }, { prefix: '/api' });
+
+  // Close polls whose time is up (votes are refused after expiry regardless; this posts the result line).
+  const pollTimer = setInterval(() => {
+    try { finalizeExpiredPolls(ctx); } catch (e) { console.error('[huddle] poll finalize failed', e); }
+  }, 15_000);
+  pollTimer.unref();
+  app.addHook('preClose', async () => {
+    clearInterval(pollTimer);
+    await ctx.previews.settle();
+  });
 
   ctx.gw.attach(app.server);
 
+  // Auto-archive idle threads.
+  const archiveTimer = setInterval(() => {
+    try { archiveStaleThreads(ctx); } catch (e) { console.error('[huddle] thread auto-archive failed', e); }
+  }, 60_000);
+  archiveTimer.unref();
+
   app.addHook('preClose', async () => {
+    clearInterval(archiveTimer);
     ctx.voice.clear();
     ctx.gw.close();
   });

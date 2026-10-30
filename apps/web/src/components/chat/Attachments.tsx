@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import type { Attachment } from '@huddle/shared';
+import { AttachmentFlags, type Attachment } from '@huddle/shared';
 import type { ClientMessage } from '../../stores/messages';
 import { openModal } from '../../stores/ui';
 import { usePrefs } from '../../stores/prefs';
 import { formatBytes } from '../../lib/format';
 import { IconDownload, IconFile } from '../common/icons';
+import { VoiceMessagePlayer } from './VoiceMessage';
 
 const MAX_W = 420;
 const MAX_H = 320;
@@ -15,11 +16,12 @@ function fit(w: number | null, h: number | null): { width?: number; height?: num
   return { width: Math.round(w * scale), height: Math.round(h * scale) };
 }
 
-export function Attachments({ message }: { message: ClientMessage }) {
+/** `list` overrides message.attachments (forwarded snapshots render their own). */
+export function Attachments({ message, list }: { message: ClientMessage; list?: Attachment[] }) {
   const pending = !!message._state;
   return (
     <div className="attachments">
-      {message.attachments.map((a) => <AttachmentView key={a.id} a={a} pending={pending} />)}
+      {(list ?? message.attachments).map((a) => <AttachmentView key={a.id} a={a} pending={pending} />)}
     </div>
   );
 }
@@ -39,6 +41,8 @@ function AttachmentView({ a, pending }: { a: Attachment; pending: boolean }) {
       </div>
     );
   }
+
+  if ((a.flags ?? 0) & AttachmentFlags.IS_VOICE_MESSAGE) return <VoiceMessagePlayer a={a} />;
 
   if (inline && type.startsWith('image/')) {
     const dims = fit(a.width, a.height);

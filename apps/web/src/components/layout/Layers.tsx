@@ -11,6 +11,8 @@ import { CreateGroupDMModal } from '../modals/CreateGroupDMModal';
 import { QuickSwitcher } from '../modals/QuickSwitcher';
 import { NicknameModal, TimeoutModal, BanModal, CustomStatusModal } from '../modals/MemberModals';
 import { Lightbox } from '../modals/Lightbox';
+import { CreatePollModal } from '../modals/CreatePollModal';
+import { ForwardModal } from '../modals/ForwardModal';
 import { UserSettings } from '../settings/UserSettings';
 import { ServerSettings } from '../settings/ServerSettings';
 import { ChannelSettings } from '../settings/ChannelSettings';
@@ -36,6 +38,8 @@ const REGISTRY: Record<ModalType, ComponentType<any>> = {
   ban: BanModal,
   lightbox: Lightbox,
   customStatus: CustomStatusModal,
+  createPoll: CreatePollModal,
+  forwardMessage: ForwardModal,
 };
 
 export function Layers() {

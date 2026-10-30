@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 export type ModalType =
   | 'createServer' | 'joinServer' | 'createChannel' | 'createCategory' | 'invite' | 'userSettings'
   | 'serverSettings' | 'channelSettings' | 'notificationSettings' | 'confirm' | 'createGroupDM'
-  | 'quickSwitcher' | 'nickname' | 'timeout' | 'ban' | 'lightbox' | 'customStatus';
+  | 'quickSwitcher' | 'nickname' | 'timeout' | 'ban' | 'lightbox' | 'customStatus'
+  | 'createPoll' | 'forwardMessage';
 
 export interface ModalEntry { key: number; type: ModalType; props: Record<string, any> }
 

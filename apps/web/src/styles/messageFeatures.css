@@ -1,0 +1,111 @@
+/* Polls, forwarded messages, link previews, voice messages and the "new messages" bar. Phone tweaks live in phone.css. */
+
+/* ===== "N new messages" bar ===== */
+.new-messages-bar {
+  position: absolute; top: 0; left: 16px; right: 16px; z-index: 4; display: flex; align-items: stretch;
+  background: var(--danger); color: #fff; border-radius: 0 0 10px 10px; box-shadow: var(--shadow-md); font-size: 13px; font-weight: 600;
+  animation: menuIn var(--dur) var(--ease-out);
+}
+.new-messages-jump { flex: 1; min-width: 0; text-align: left; padding: 6px 12px; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.new-messages-read { display: flex; align-items: center; gap: 6px; padding: 6px 12px; color: inherit; font-weight: 800; border-left: 1px solid rgba(255,255,255,.25); white-space: nowrap; }
+.new-messages-jump:hover, .new-messages-read:hover { background: rgba(0,0,0,.12); }
+
+/* ===== polls ===== */
+.poll { margin-top: 6px; max-width: 460px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.poll-question { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.poll-hint { font-size: 12px; color: var(--text-faint); margin: 2px 0 10px; }
+.poll-answers { display: flex; flex-direction: column; gap: 6px; }
+.poll-answer {
+  position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 8px 12px; overflow: hidden;
+  text-align: left; border-radius: 8px; background: var(--bg-input); border: 1px solid transparent; color: var(--text);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.poll-answer:not(.results):not(:disabled):hover { border-color: var(--border-strong); }
+.poll-answer.selected { border-color: var(--accent); }
+.poll-answer.results { cursor: default; }
+.poll-answer:disabled { opacity: 1; }
+.poll-answer.mine { border-color: var(--accent); }
+.poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); transition: width var(--dur-slow) var(--ease-out); }
+.poll-answer.mine .poll-bar { background: color-mix(in srgb, var(--accent) 26%, transparent); }
+.poll-answer > :not(.poll-bar) { position: relative; }
+.poll-answer-emoji { font-size: 18px; line-height: 1; }
+.poll-answer-text { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.poll-answer.winner .poll-answer-text { font-weight: 800; }
+.poll-answer-stats { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.poll-answer-stats svg { color: var(--accent); }
+.poll-answer-stats strong { color: var(--text); min-width: 36px; text-align: right; }
+.poll-radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border-strong); flex-shrink: 0; }
+.poll-radio.on { border-color: var(--accent); box-shadow: inset 0 0 0 3px var(--bg-input), inset 0 0 0 9px var(--accent); }
+.poll-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.poll-meta { font-size: 13px; color: var(--text-muted); }
+.poll-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.poll-actions .btn-link { font-size: 13px; }
+.btn-link.danger { color: var(--danger); }
+.system-icon.poll-ended { color: var(--accent); }
+.inline-icon { vertical-align: -2px; color: var(--accent); }
+
+/* create-poll modal */
+.poll-draft-answers { display: flex; flex-direction: column; gap: 8px; }
+.poll-draft-answer { display: flex; align-items: center; gap: 8px; }
+.poll-emoji-btn { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--bg-input); color: var(--text-muted); }
+.poll-emoji-btn:hover { color: var(--text); background: var(--bg-active); }
+.poll-emoji { font-size: 20px; line-height: 1; }
+.poll-add-answer { display: flex; align-items: center; gap: 6px; align-self: flex-start; color: var(--accent); font-weight: 600; padding: 6px 2px; }
+.poll-add-answer:hover { text-decoration: underline; }
+.poll-draft-options { display: flex; align-items: flex-end; gap: 16px; margin-top: 18px; }
+.poll-duration { flex: 1; margin-bottom: 0; }
+.poll-multi { display: flex; align-items: center; gap: 10px; height: 40px; font-weight: 600; }
+
+/* ===== link previews ===== */
+.embeds { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; align-items: flex-start; }
+.embed {
+  position: relative; max-width: min(460px, 100%); background: var(--bg-elevated); border: 1px solid var(--border); border-left: 4px solid var(--border-strong);
+  border-radius: 6px; padding: 10px 14px 12px 12px;
+}
+.embed-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-right: 18px; }
+.embed-site { font-size: 12px; color: var(--text-faint); }
+.embed-title { font-weight: 700; color: var(--accent); overflow-wrap: anywhere; }
+.embed-title:hover { text-decoration: underline; }
+.embed-desc { margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.4; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.embed-image { display: block; margin-top: 10px; }
+.embed-image img { display: block; max-width: 100%; max-height: 260px; width: auto; height: auto; border-radius: 6px; object-fit: contain; background: var(--bg-input); }
+.embed-image-link { display: inline-block; margin-top: 8px; font-size: 13px; color: var(--accent); }
+.embed-remove { position: absolute; top: 6px; right: 6px; opacity: 0; transition: opacity var(--dur-fast); }
+.embed:hover .embed-remove, .embed-remove:focus-visible { opacity: 1; }
+
+/* ===== forwarded ===== */
+.forwarded { margin-top: 4px; }
+.forwarded-head { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-faint); margin-bottom: 2px; }
+.forwarded-body { border-left: 3px solid var(--border-strong); padding: 2px 0 2px 12px; min-width: 0; }
+.forwarded-author { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 2px; }
+.forwarded-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--text-faint); margin-top: 4px; min-width: 0; }
+.forwarded-meta .btn-link { font-size: 12px; }
+
+.forward-preview { display: flex; align-items: center; gap: 8px; background: var(--bg-input); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; color: var(--text-muted); font-size: 14px; min-width: 0; }
+.forward-search { margin-bottom: 4px; }
+.forward-list { max-height: 320px; }
+.forward-list .pick-row.selected { background: var(--accent-soft); }
+.forward-icon { width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); border-radius: 50%; background: var(--bg-input); }
+.forward-foot { display: flex; gap: 8px; width: 100%; }
+.forward-foot input { flex: 1; min-width: 0; }
+
+/* ===== voice messages ===== */
+.voice-msg {
+  display: flex; align-items: center; gap: 10px; width: min(320px, 100%); padding: 6px 14px 6px 6px;
+  border-radius: 999px; background: var(--bg-elevated); border: 1px solid var(--border);
+}
+.voice-msg-play { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--accent-text); }
+.voice-msg-play:hover { background: var(--accent-strong); }
+.voice-msg-wave { flex: 1; height: 28px; display: flex; align-items: center; gap: 2px; cursor: pointer; min-width: 0; border-radius: 4px; }
+.voice-msg-wave i { flex: 1; min-width: 2px; border-radius: 2px; background: var(--text-faint); opacity: .55; transition: background var(--dur-fast); }
+.voice-msg-wave i.on { background: var(--accent); opacity: 1; }
+.voice-msg-time { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-muted); min-width: 34px; text-align: right; }
+
+.voice-rec { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px 0 6px; }
+.voice-rec .composer-btn.danger-hover:hover { color: var(--danger); }
+.voice-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); flex-shrink: 0; transition: transform 90ms linear; }
+.voice-rec-time { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
+.voice-rec-hint { flex: 1; min-width: 0; font-size: 13px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-rec-send { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--accent-text); }
+.voice-rec-send:disabled { opacity: .5; }
+.mic-btn:active { color: var(--danger); }

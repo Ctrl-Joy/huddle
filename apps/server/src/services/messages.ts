@@ -2,14 +2,20 @@ import { MessageType, Permissions, has, parseMentions, type Message } from '@hud
 import { now, type Ctx } from '../context';
 import { placeholders } from '../db';
 import {
-  channel as serializeChannel, getMessageRow, isPrivate, message as serializeMessage, recipientIds,
+  channel as serializeChannel, getMessageRow, isPrivate, isThread, message as serializeMessage, recipientIds,
   type ChannelRow, type MessageRow,
 } from '../serializers';
 import { channelPerms, channelPermsBulk, getGuildRow } from './permissions';
+import { onThreadMessage } from './threads';
+import { insertPoll, type PollInput } from './polls';
+import type { ForwardData } from '../messageExtras';
 
 export interface NewAttachment {
   id: string; filename: string; size: number; content_type: string; url: string; path: string;
   width: number | null; height: number | null;
+  flags?: number; duration_secs?: number | null; waveform?: string | null;
+  /** Forwarded copy: reuses another message's file (shown inside the snapshot). */
+  snapshot?: boolean;
 }
 
 export interface CreateMessageOpts {
@@ -21,6 +27,14 @@ export interface CreateMessageOpts {
   attachments?: NewAttachment[];
   nonce?: string | null;
   id?: string;
+  /** THREAD_CREATED system messages: the thread that was started (stored as reference_channel_id). */
+  referenceChannelId?: string | null;
+  /** A forum post's first message: doesn't count towards the thread's message_count / activity events. */
+  threadStarter?: boolean;
+  /** MessageFlags bits. */
+  flags?: number;
+  poll?: PollInput;
+  forward?: ForwardData;
 }
 
 export interface ResolvedMentions { users: string[]; roles: string[]; everyone: boolean }
@@ -110,16 +124,21 @@ export function createMessage(ctx: Ctx, o: CreateMessageOpts): Message {
                              mention_roles, reference_id, reference_channel_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id, c.id, c.guild_id, o.authorId, o.content, type, ts, mentions.everyone ? 1 : 0, JSON.stringify(mentions.users),
-      JSON.stringify(mentions.roles), o.referenceId ?? null, o.referenceId ? c.id : null,
+      JSON.stringify(mentions.roles), o.referenceId ?? null, o.referenceChannelId ?? (o.referenceId ? c.id : null),
     );
     for (const u of mentions.users) db.run('INSERT OR IGNORE INTO message_mentions (message_id, user_id) VALUES (?, ?)', id, u);
     for (const a of o.attachments ?? []) {
       db.run(
-        `INSERT INTO attachments (id, message_id, filename, size, content_type, url, path, width, height)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO attachments (id, message_id, filename, size, content_type, url, path, width, height, flags, duration_secs, waveform, snapshot)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         a.id, id, a.filename, a.size, a.content_type, a.url, a.path, a.width, a.height,
+        a.flags ?? 0, a.duration_secs ?? null, a.waveform ?? null, a.snapshot ? 1 : 0,
       );
     }
+    if (o.flags || o.forward) {
+      db.run('UPDATE messages SET flags = ?, forward_json = ? WHERE id = ?', o.flags ?? 0, o.forward ? JSON.stringify(o.forward) : null, id);
+    }
+    if (o.poll) insertPoll(ctx, id, o.poll);
     db.run('UPDATE channels SET last_message_id = ? WHERE id = ?', id, c.id);
     for (const u of targets) {
       db.run(
@@ -143,6 +162,8 @@ export function createMessage(ctx: Ctx, o: CreateMessageOpts): Message {
     }
   });
 
+  if (isThread(c) && isUserMessage && !o.threadStarter) onThreadMessage(ctx, c, id, ts);
+
   const row = getMessageRow(db, c.id, id)!;
   const msg = serializeMessage(db, row, o.authorId);
 
@@ -151,6 +172,7 @@ export function createMessage(ctx: Ctx, o: CreateMessageOpts): Message {
     ctx.gw.dispatchToUsers(reopened, 'CHANNEL_CREATE', (uid) => serializeChannel(db, fresh, uid));
   }
   ctx.gw.dispatchToUsers(audience, 'MESSAGE_CREATE', (uid) => (uid === o.authorId && o.nonce ? { ...msg, nonce: o.nonce } : msg));
+  if (isUserMessage && o.content) ctx.previews?.enqueue(c, id, o.content);
   return o.nonce ? { ...msg, nonce: o.nonce } : msg;
 }
 
