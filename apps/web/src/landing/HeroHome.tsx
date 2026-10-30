@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { POSTS, fmtDate, type Post } from './posts';
-import { Buddy, Cube, Huddy, Logo, Orb, Ring, Sparkle, type Hue } from './Buddies';
-import { AppMock, CallMock, DropInMock, MembersMock, PhoneMock, StatusMock, WatchMock } from './Mocks';
+import { Buddy, Cube, CubeBot, Huddy, Logo, Orb, Ring, Sparkle, type Hue } from './Buddies';
+import { AppMock, CallStory, DropInStory, FlairStory, MembersStory, PhoneMock, WatchStory } from './Mocks';
 import './hero.css';
 
 const SKY_VIDEO = 'https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/4b73c700-3112-4c07-bd48-0af2893dff7c.mp4';
@@ -41,7 +41,8 @@ const ICONS = {
   play: 'M8 5v14l11-7z',
   camera: 'M4 7h4l2-3h4l2 3h4v13H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
   at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-4 7.5',
-  rss: 'M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8M6 18h.01',
+  music: 'M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+  chev: 'M6 9l6 6 6-6',
   check: 'M5 12l5 5 9-10',
 };
 
@@ -85,31 +86,31 @@ const FEATURES: Feature[] = [
   {
     key: 'flair', hue: 312, lines: ['Say it with', 'a little', 'flair'],
     body: 'Set a custom status, react to anything and sprinkle emoji over the chat. Your group’s inside jokes finally have a home.',
-    mock: <StatusMock />,
+    mock: <FlairStory />,
     deco: <><Orb hue="pink" className="peek p-tr" /><Sparkle className="peek p-bl s-sm" color="#ffd1ec" /></>,
   },
   {
     key: 'faces', hue: 168, lines: ['Faces on,', 'screens up,', 'no installs'],
     body: 'Flip on your camera or share a tab, a window or your whole screen, right from the browser. Everyone sees it live.',
-    mock: <CallMock />,
+    mock: <CallStory />,
     deco: <><Cube className="peek p-tl" /><Buddy hue="mint" mood="wow" className="peek p-br b-peek" /></>,
   },
   {
     key: 'door', hue: 262, lines: ['The door’s', 'always', 'open'],
     body: 'Voice rooms never hang up. Click one to drop in, click away to leave. No ringing, no invites, no scheduling.',
-    mock: <DropInMock />,
+    mock: <DropInStory />,
     deco: <><Buddy hue="violet" mood="wink" topper="antenna" className="peek p-tl b-peek" /><Ring className="peek p-br" /></>,
   },
   {
     key: 'who', hue: 336, lines: ['Spot who’s', 'up for', 'something'],
     body: 'Status dots and voice badges show who’s free, who’s heads-down and who’s already hanging out, all at a glance.',
-    mock: <MembersMock />,
+    mock: <MembersStory />,
     deco: <><Orb hue="amber" className="peek p-tl" /><Sparkle className="peek p-br s-sm" color="#ffe08a" /></>,
   },
   {
     key: 'watch', hue: 145, lines: ['Movie night', 'from any', 'couch'],
     body: 'Stream something to the call and watch, react and heckle together, even when you’re miles apart.',
-    mock: <WatchMock />,
+    mock: <WatchStory />,
     deco: <><Buddy hue="amber" mood="grin" topper="sprout" className="peek p-tl b-peek" /><Cube className="peek p-br c-sm" /></>,
   },
 ];
@@ -171,13 +172,22 @@ const STARS = Array.from({ length: 34 }, (_, i) => {
 
 const MARQUEE = ['Talk', 'Play', 'Share', 'Hang out', 'Huddle'];
 
-const CREW: { hue: Hue; mood: 'happy' | 'grin' | 'wow' | 'wink' | 'sleepy'; topper: 'none' | 'headset' | 'sprout' | 'antenna' | 'bow' | 'beanie'; wave?: boolean }[] = [
+/** Buddies standing on the footer horizon; m2 sits in the middle, over the line. */
+const LINEUP: { hue: Hue; mood: 'happy' | 'grin' | 'wow' | 'wink' | 'sleepy'; topper: 'none' | 'headset' | 'sprout' | 'antenna' | 'bow' | 'beanie'; wave?: boolean }[] = [
+  { hue: 'sky', mood: 'sleepy', topper: 'beanie' },
   { hue: 'coral', mood: 'grin', topper: 'bow' },
-  { hue: 'violet', mood: 'wink', topper: 'antenna' },
   { hue: 'teal', mood: 'happy', topper: 'headset', wave: true },
   { hue: 'amber', mood: 'wow', topper: 'sprout' },
-  { hue: 'sky', mood: 'sleepy', topper: 'beanie' },
+  { hue: 'violet', mood: 'wink', topper: 'none' },
   { hue: 'mint', mood: 'grin', topper: 'none', wave: true },
+];
+
+const SOCIAL = [
+  { label: 'Community chat', icon: ICONS.chat },
+  { label: 'Photos', icon: ICONS.camera },
+  { label: 'Videos', icon: ICONS.play },
+  { label: 'Music', icon: ICONS.music },
+  { label: 'Mentions', icon: ICONS.at },
 ];
 
 /** Scrolling home: hero, feature cards, marquee, Download / Safety / Support / Blog, closing CTA, footer. */
@@ -307,6 +317,33 @@ export default function HeroHome() {
     };
   }, []);
 
+  // Scroll-linked parallax: each card's mock lags its card slightly (transform only, one rAF per scroll burst).
+  useEffect(() => {
+    const root = rootRef.current!;
+    if (reducedMotion()) return;
+    const pairs = Array.from(root.querySelectorAll<HTMLElement>('.fcard-wrap')).flatMap((w) => {
+      const m = w.querySelector<HTMLElement>('.f-mock');
+      return m ? [{ w, m }] : [];
+    });
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const vh = root.clientHeight;
+      for (const { w, m } of pairs) {
+        const r = w.getBoundingClientRect();
+        if (r.bottom < -200 || r.top > vh + 200) continue;
+        const d = r.top + r.height / 2 - vh / 2;
+        const y = Math.max(-16, Math.min(16, -d * 0.045));
+        m.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+      }
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    root.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    update();
+    return () => { cancelAnimationFrame(raf); root.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
+  }, []);
+
   // Mobile menu: close on outside click and Escape.
   useEffect(() => {
     const onDoc = (e: MouseEvent) => { if (!barRef.current?.contains(e.target as Node)) setOpen(false); };
@@ -407,6 +444,13 @@ export default function HeroHome() {
             ))}
           </div>
         </div>
+        <div className="ambient" aria-hidden="true">
+          <div className="amb-bob">
+            <CubeBot hue="amber" />
+            <CubeBot hue="teal" className="l2" />
+            <CubeBot hue="pink" className="l3" />
+          </div>
+        </div>
         <div className="hero-in">
           <div className="hero-copy">
             <h1 className="disp" id="h-hero">
@@ -427,7 +471,7 @@ export default function HeroHome() {
               <div className="px px-huddy"><div className="bob"><Huddy wave mood="grin" className="hb-huddy" /></div></div>
               <div className="px px-coral"><div className="bob b3"><Buddy hue="coral" mood="wink" topper="bow" className="hb-coral" /></div></div>
               <div className="px px-amber"><div className="bob b4"><Buddy hue="amber" mood="wow" topper="sprout" className="hb-amber" /></div></div>
-              <div className="px px-d1"><div className="bob b2"><Cube /></div></div>
+              <div className="px px-d1"><div className="bob b2"><Orb hue="teal" /></div></div>
               <div className="px px-d2"><div className="bob b3"><Orb hue="pink" /></div></div>
               <div className="px px-d3"><div className="bob b4"><Ring /></div></div>
               <div className="px px-d4"><div className="spin"><Sparkle color="#ffe08a" /></div></div>
@@ -582,28 +626,40 @@ export default function HeroHome() {
             <div className="rv closing-cta" style={{ transitionDelay: '.08s' }}>
               <Link className="btn big white" to={startLink}>{loggedIn ? 'Open Huddle' : 'Get started'}<I d={ICONS.arrow} /></Link>
             </div>
-            <div className="crew rv" style={{ transitionDelay: '.16s' }} aria-hidden="true">
-              <div className="floor" />
-              {CREW.map((c, i) => (
-                <div key={c.hue} className={'mate m' + i}>
-                  <Buddy hue={c.hue} mood={c.mood} topper={c.topper} wave={c.wave} />
-                </div>
-              ))}
-            </div>
           </div>
         </section>
       </main>
 
       <footer className="foot">
-        <div className="wrap">
-          <div className="foot-top">
-            <div className="foot-brand">
-              <a className="brand-lg" href="/" onClick={goTo('top')}><span className="brand-mark"><Logo /></span><span className="disp">Huddle</span></a>
-              <p>A home for your groups: channels, drop-in voice, video and screen share.</p>
-              <label className="lang">
+        <div className="horizon" aria-hidden="true">
+          <div className="lineup">
+            {[[0, 1], [2], [3, 4, 5]].map((group, g) => (
+              <div key={g} className={g === 1 ? 'lu-mid' : 'lu-side ' + (g ? 'r' : 'l')}>
+                {group.map((i) => {
+                  const c = LINEUP[i];
+                  return (
+                    <div key={c.hue} className={'mate m' + i}>
+                      <Buddy hue={c.hue} mood={c.mood} topper={c.topper} wave={c.wave} />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="hover-mate"><Buddy hue="pink" mood="wink" topper="antenna" wave /></div>
+        </div>
+        <div className="foot-band">
+          <div className="wrap foot-grid">
+            <div className="foot-left">
+              <a className="foot-mark" href="/" onClick={goTo('top')} aria-label="Huddle — home">
+                <span className="brand-mark"><Logo /></span>
+                <span className="word-pill">Huddle</span>
+              </a>
+              <p className="foot-tag">A home for your groups: channels, drop-in voice, video and screen share.</p>
+              <label className="f-label" htmlFor="foot-lang">Language</label>
+              <div className="lang">
                 <I d={ICONS.globe} />
-                <span className="sr">Language</span>
-                <select value={lang} onChange={(e) => setLang(e.target.value)}>
+                <select id="foot-lang" value={lang} onChange={(e) => setLang(e.target.value)}>
                   <option value="en">English</option>
                   <option value="es">Español</option>
                   <option value="fr">Français</option>
@@ -611,24 +667,52 @@ export default function HeroHome() {
                   <option value="pt">Português</option>
                   <option value="hi">हिन्दी</option>
                 </select>
-              </label>
+                <I d={ICONS.chev} />
+              </div>
+              <span className="f-label">Social</span>
               <div className="social">
-                {[ICONS.chat, ICONS.play, ICONS.camera, ICONS.at, ICONS.rss].map((ic, i) => (
-                  <a key={i} href="#" aria-label={['Community', 'Videos', 'Photos', 'Mentions', 'Feed'][i]} onClick={(e) => e.preventDefault()}><I d={ic} /></a>
+                {SOCIAL.map((s) => (
+                  <a key={s.label} href="#" aria-label={s.label} onClick={(e) => e.preventDefault()}><I d={s.icon} /></a>
                 ))}
               </div>
             </div>
-            <nav className="foot-cols" aria-label="Footer">
-              <div><h4>Product</h4><a href="#features" onClick={goTo('features')}>Features</a><a href="#download" onClick={goTo('download')}>Download</a><Link to={appLink}>Open Huddle</Link></div>
-              <div><h4>Company</h4><a href="#blog" onClick={goTo('blog')}>Blog</a><a href="#safety" onClick={goTo('safety')}>Safety</a></div>
-              <div><h4>Resources</h4><a href="#support" onClick={goTo('support')}>Support</a><Link to={startLink}>Get started</Link></div>
-              <div><h4>Policies</h4><a href="#">Terms</a><a href="#">Privacy</a></div>
-            </nav>
+            <div className="foot-right">
+              <div className="foot-cta"><Link className="btn pill-w" to={appLink}>Open Huddle</Link></div>
+              <nav className="foot-cols" aria-label="Footer">
+                <div>
+                  <h4>Product</h4>
+                  <a href="#download" onClick={goTo('download')}>Download</a>
+                  <a href="#features" onClick={goTo('features')}>Features</a>
+                  <a href="#">Status</a>
+                  <Link to={appLink}>Web app</Link>
+                </div>
+                <div>
+                  <h4>Company</h4>
+                  <a href="#">About</a>
+                  <a href="#blog" onClick={goTo('blog')}>Blog</a>
+                  <a href="#">Brand</a>
+                  <a href="#">Careers</a>
+                </div>
+                <div>
+                  <h4>Resources</h4>
+                  <a href="#support" onClick={goTo('support')}>Support</a>
+                  <a href="#safety" onClick={goTo('safety')}>Safety</a>
+                  <a href="#">Community guidelines</a>
+                  <a href="#">Developers</a>
+                  <a href="#">Feedback</a>
+                </div>
+                <div>
+                  <h4>Policies</h4>
+                  <a href="#">Terms</a>
+                  <a href="#">Privacy</a>
+                  <a href="#">Cookies</a>
+                  <a href="#">Licenses</a>
+                </div>
+              </nav>
+            </div>
           </div>
-          <div className="foot-bottom">
-            <a className="brand-sm" href="/" onClick={goTo('top')}><Logo /><span>Huddle</span></a>
-            <small>© {new Date().getFullYear()} Huddle. Made for people who like each other.</small>
-          </div>
+          <div className="wrap foot-legal"><small>© {new Date().getFullYear()} Huddle. Made for people who like each other.</small></div>
+          <div className="foot-word" aria-hidden="true"><span>Huddle</span></div>
         </div>
       </footer>
 

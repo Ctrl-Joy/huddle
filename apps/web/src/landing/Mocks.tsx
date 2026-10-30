@@ -2,36 +2,45 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { FaceAvatar, Logo, type Hue } from './Buddies';
 
 /* Live mini-mocks of Huddle's own UI, built from styled divs. Everything is sized in em,
-   so each mock scales with the font-size its container gives it. */
+   so each mock scales with the font-size its container gives it. Feature-card mocks are
+   small scripted "stories": a step index advanced by timers drives which parts are shown. */
 
 const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** True while the element is on screen (animations only run then). */
-function useInView<T extends Element>(ref: RefObject<T | null>) {
+/** True while the element is on screen and the tab is visible. */
+function useLive<T extends Element>(ref: RefObject<T | null>) {
   const [inView, setInView] = useState(false);
+  const [shown, setShown] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.15 });
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.1 });
     io.observe(el);
-    return () => io.disconnect();
+    const onVis = () => setShown(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onVis);
+    return () => { io.disconnect(); document.removeEventListener('visibilitychange', onVis); };
   }, [ref]);
-  return inView;
+  return inView && shown;
 }
 
-/** Steps through `durations` in a loop while visible. Returns the current step. */
-function useSequence<T extends Element>(ref: RefObject<T | null>, durations: number[], still = 0) {
-  const inView = useInView(ref);
-  const [step, setStep] = useState(still);
+/**
+ * Loops through `durations` (ms per step) while live. `n` counts up forever, `step` is n mod length.
+ * With reduced motion the loop freezes on `still`.
+ */
+function useLoop<T extends Element>(ref: RefObject<T | null>, durations: number[], still = 0) {
+  const live = useLive(ref);
+  const [n, setN] = useState(() => (reduced() ? still : 0));
   const key = durations.join(',');
   useEffect(() => {
-    if (!inView || reduced()) return;
-    const t = window.setTimeout(() => setStep((s) => s + 1), durations[step % durations.length]);
+    if (!live || reduced()) return;
+    const t = window.setTimeout(() => setN((s) => s + 1), durations[n % durations.length]);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inView, step, key]);
-  return step;
+  }, [live, n, key]);
+  return { n, step: n % durations.length, live };
 }
+
+const on = (cond: boolean, base: string) => base + (cond ? ' on' : '');
 
 // ---------- tiny icons ----------
 const P = {
@@ -141,88 +150,95 @@ export function PhoneMock() {
   );
 }
 
-// ---------- (a) status, reactions, emoji picker ----------
-const PICK = ['🎉', '😂', '🔥', '👀', '💜', '✨', '🙌', '😎', '🍕', '🎮', '👍', '😴'];
+// ---------- (a) flair: chat, emoji upload, reactions, stickers, toast ----------
+// steps: 0 blank · 1-3 messages · 4 upload pill · 5 reactions fly out · 6-7 counts tick · 8 stickers · 9 toast · 10 fade
+const FLAIR = [700, 650, 650, 800, 900, 1100, 700, 700, 1500, 2200, 800];
+const STICKERS: { hue: Hue; mood: 'grin' | 'wink' | 'wow' | 'happy' }[] = [
+  { hue: 'coral', mood: 'grin' }, { hue: 'amber', mood: 'wow' }, { hue: 'violet', mood: 'wink' }, { hue: 'mint', mood: 'happy' },
+];
 
-export function StatusMock() {
+export function FlairStory() {
   const ref = useRef<HTMLDivElement>(null);
-  const step = useSequence(ref, [1100]);
-  const s = [12, 7, 4].map((b, i) => b + Math.floor((step + 3 - i) / 3));
+  const { step, live } = useLoop(ref, FLAIR, 9);
+  const shown = step > 0 && step < 10;
+  const bump = step >= 6 && step < 10 ? Math.min(step - 5, 3) : 0;
   return (
-    <div className="mock m-status" ref={ref}>
-      <div className="prof">
-        <div className="prof-banner" />
-        <Av hue="pink" status="on" mood="wink" />
-        <b>pixelpip</b>
-        <span className="cstatus">🎧 lo-fi + level design</span>
-      </div>
-      <div className="m-side">
-        <div className="msg">
-          <Av hue="violet" />
-          <div>
-            <p className="who c-violet">Pip <small>just now</small></p>
-            <p>I FINALLY beat the boss!!!</p>
-            <div className="reacts">
-              {['🎉', '😂', '🫶'].map((e, i) => (
-                <span key={e} className={(step % 3 === i ? 'bump ' : '') + (i === 0 ? 'mine' : '')}>
-                  {e} <b key={s[i]}>{s[i]}</b>
-                </span>
-              ))}
-              <span className="add"><Ic d="smile" /></span>
+    <div className="story s-flair" ref={ref} data-live={live} data-step={step}>
+      <div className="st-phone">
+        <div className="sp-head"><Ic d="hash" /><b>memes</b><span className="sp-count">5 online</span></div>
+        <div className="chatwin">
+          <div className={on(step >= 8 && step < 10, 'chat-track')}>
+            <div className={on(shown && step >= 1, 'msg st-msg')}><Av hue="violet" /><div><p className="who c-violet">Pip</p><p>I FINALLY beat the boss!!!</p></div></div>
+            <div className={on(shown && step >= 2, 'msg st-msg')}><Av hue="coral" /><div><p className="who c-coral">Mira</p><p>no way 😱 screenshot or it didn’t happen</p></div></div>
+            <div className={on(shown && step >= 3, 'msg st-msg')}><Av hue="amber" /><div><p className="who c-amber">Juno</p><p>this calls for a custom emoji</p></div></div>
+            <div className={on(step >= 8 && step < 10, 'stickers')}>
+              {STICKERS.map((s, i) => <span key={s.hue} style={{ transitionDelay: `${0.08 * i}s` }}><FaceAvatar hue={s.hue} mood={s.mood} /></span>)}
             </div>
           </div>
         </div>
-        <div className="picker">
-          <div className="picker-head"><Ic d="smile" />Pick a reaction</div>
-          <div className="picker-grid">
-            {PICK.map((e, i) => <span key={e} className={i === (step * 5) % PICK.length ? 'hot' : ''}>{e}</span>)}
-          </div>
-        </div>
+        <div className="sp-comp">Message #memes<Ic d="smile" /></div>
       </div>
-    </div>
-  );
-}
-
-// ---------- (b) video call + screen share ----------
-export function CallMock() {
-  const ref = useRef<HTMLDivElement>(null);
-  const step = useSequence(ref, [1600]);
-  const who = step % 3;
-  return (
-    <div className="mock m-call" ref={ref}>
-      <div className="share">
-        <div className="share-screen">
-          <div className="sc-side"><i /><i /><i /><i /></div>
-          <div className="sc-main">
-            <div className="sc-title" />
-            <div className="sc-cards"><i /><i /><i /></div>
-            <div className="sc-cursor" />
-          </div>
-        </div>
-        <span className="live">LIVE</span>
-        <span className="tile-name"><Ic d="screen" />Juno’s screen</span>
-      </div>
-      <div className="cams">
-        {(['coral', 'sky', 'mint'] as Hue[]).map((h, i) => (
-          <div key={h} className={'cam h-' + h + (who === i ? ' talking' : '')}>
-            <Av hue={h} mood={i === 2 ? 'grin' : 'happy'} speaking={who === i} />
-            <span className="tile-name">{['Mira', 'Kit', 'Bo'][i]}</span>
-          </div>
+      <span className={on(step >= 4 && step < 10, 'st-pill st-upload')}><Ic d="plus" />Upload emoji</span>
+      <div className="st-reacts">
+        {['🔥', '😂', '🎉'].map((e, i) => (
+          <span key={e} className={on(step >= 5 && step < 10, 'st-react r' + i)}>
+            <i>{e}</i><b key={bump}>{[12, 8, 5][i] + bump}</b>
+          </span>
         ))}
       </div>
-      <div className="ctl">
-        <span><Ic d="mic" /></span><span className="on"><Ic d="cam" /></span><span className="on"><Ic d="screen" /></span><span className="red"><Ic d="leave" /></span>
+      <div className={on(step === 9, 'st-toast')}>
+        <Av hue="amber" mood="grin" />
+        <div><b>Juno reacted 🔥</b><small>to your message in #memes</small></div>
       </div>
     </div>
   );
 }
 
-// ---------- (c) drop into a voice channel ----------
-export function DropInMock() {
+// ---------- (b) call: tiles cross-fade between buddies, watch-together chip, invite pill ----------
+const TILE_SETS: Hue[][] = [['coral', 'mint', 'violet'], ['amber', 'pink', 'sky'], ['sky', 'teal', 'pink'], ['violet', 'amber', 'mint']];
+const NAMES: Record<Hue, string> = { coral: 'Mira', amber: 'Juno', violet: 'Pip', mint: 'Bo', sky: 'Kit', teal: 'Tam', pink: 'Lu' };
+
+export function CallStory() {
   const ref = useRef<HTMLDivElement>(null);
-  const step = useSequence(ref, [900, 1000, 350, 2800], 3) % 4;
+  const { n, live } = useLoop(ref, [425], 6);
+  const idx = TILE_SETS.map((_, k) => Math.floor((n + 4 - k) / 4) % 3);
+  const talking = Math.floor(n / 6) % 4;
+  const invite = n % 16 >= 4 && n % 16 < 11;
   return (
-    <div className="mock m-drop" data-s={step} ref={ref}>
+    <div className="story s-call" ref={ref} data-live={live}>
+      <div className="st-phone call-phone">
+        <div className="sp-head"><Ic d="speaker" /><b>Lounge</b><span className="sp-count">4 here</span></div>
+        <div className="sp-grid">
+          {TILE_SETS.map((set, k) => (
+            <div key={k} className={'sp-tile' + (talking === k ? ' talking' : '')}>
+              {set.map((h, j) => (
+                <div key={h} className={on(idx[k] === j, 'sp-face h-' + h)}>
+                  <Av hue={h} mood={j === 1 ? 'grin' : 'happy'} />
+                  <small>{NAMES[h]}</small>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="ph-ctl"><span><Ic d="mic" /></span><span><Ic d="cam" /></span><span><Ic d="screen" /></span><span className="red"><Ic d="leave" /></span></div>
+      </div>
+      <div className="st-media">
+        <span className="sm-play"><Ic d="play" /></span>
+        <div><b>Watch together</b><small>Space Otters · Ep. 4</small><span className="sm-bar"><i /></span></div>
+      </div>
+      <span className={on(invite, 'st-pill st-invite')}><Ic d="plus" />Invite a friend</span>
+    </div>
+  );
+}
+
+// ---------- (c) drop in: hover → click → join → talk → leave ----------
+const DROP = [900, 1000, 320, 900, 2400, 1100];
+
+export function DropInStory() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { step, live } = useLoop(ref, DROP, 4);
+  return (
+    <div className="mock m-drop" data-s={step} data-live={live} ref={ref}>
       <div className="side-head">Night Owls <Ic d="chev" /></div>
       <div className="cat">Voice channels</div>
       <div className="ch"><Ic d="speaker" />Lounge</div>
@@ -233,69 +249,81 @@ export function DropInMock() {
       <div className="ch target"><Ic d="speaker" />Study Hall
         <svg className="cursor" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2l16 10-7 1.5L9.5 21z" fill="#fff" stroke="#1b1440" strokeWidth="1.6" strokeLinejoin="round" /></svg>
       </div>
-      <div className="vu you"><Av hue="teal" speaking={step === 3} />you</div>
+      <div className="vu you"><Av hue="teal" speaking={step === 4} />you</div>
       <div className="connected">
         <span className="sig"><i /><i /><i /></span>
-        <div><b>Voice connected</b><small>Study Hall / Night Owls</small></div>
+        <div><b>{step === 5 ? 'Disconnected' : step >= 3 ? 'Voice connected' : 'Not in voice'}</b><small>Study Hall / Night Owls</small></div>
         <Ic d="leave" />
       </div>
     </div>
   );
 }
 
-// ---------- (d) members list with live statuses ----------
-type St = 'on' | 'idle' | 'dnd' | 'off';
-const PEOPLE: { name: string; hue: Hue; role: string }[] = [
-  { name: 'Mira', hue: 'coral', role: 'c-coral' },
-  { name: 'Juno', hue: 'amber', role: 'c-amber' },
-  { name: 'Pip', hue: 'violet', role: 'c-violet' },
-  { name: 'Bo', hue: 'mint', role: 'c-mint' },
-  { name: 'Kit', hue: 'sky', role: 'c-sky' },
+// ---------- (d) members: cursor visits members, profile popout ----------
+const MEMBERS: { name: string; hue: Hue; role: string; st: 'on' | 'idle' | 'dnd'; line: string; voice?: string; cta: string }[] = [
+  { name: 'Mira', hue: 'coral', role: 'c-coral', st: 'on', line: 'In Lounge', voice: 'Lounge', cta: 'Join Lounge' },
+  { name: 'Juno', hue: 'amber', role: 'c-amber', st: 'idle', line: 'brb, snack run', cta: 'Say hi' },
+  { name: 'Pip', hue: 'violet', role: 'c-violet', st: 'dnd', line: 'focus mode until 6', cta: 'Leave a note' },
+  { name: 'Bo', hue: 'mint', role: 'c-mint', st: 'on', line: 'In Game Night', voice: 'Game Night', cta: 'Join Game Night' },
+  { name: 'Kit', hue: 'sky', role: 'c-sky', st: 'on', line: 'up for anything', cta: 'Say hi' },
 ];
-const SCRIPT: { st: St[]; voice: (string | null)[] }[] = [
-  { st: ['on', 'idle', 'dnd', 'off', 'on'], voice: ['Lounge', null, null, null, null] },
-  { st: ['on', 'on', 'dnd', 'off', 'on'], voice: ['Lounge', 'Lounge', null, null, null] },
-  { st: ['on', 'on', 'dnd', 'on', 'on'], voice: ['Lounge', 'Lounge', null, null, null] },
-  { st: ['on', 'on', 'dnd', 'on', 'idle'], voice: ['Lounge', 'Lounge', null, 'Lounge', null] },
-  { st: ['on', 'on', 'on', 'on', 'idle'], voice: ['Lounge', 'Lounge', 'Game Night', 'Lounge', null] },
-  { st: ['idle', 'on', 'on', 'off', 'on'], voice: [null, 'Lounge', 'Game Night', null, null] },
-];
-const SUB: Record<St, string> = { on: 'up for anything', idle: 'away for a bit', dnd: 'focus mode', off: '' };
+const STOPS = [0, 3, 1, 4];
+const BANNER: Record<Hue, string> = {
+  coral: 'linear-gradient(120deg,#ff9a8a,#ff5f8f)', amber: 'linear-gradient(120deg,#ffe08a,#f39b2f)',
+  violet: 'linear-gradient(120deg,#c4b1ff,#7a55f2)', mint: 'linear-gradient(120deg,#a6f7b4,#14b8a6)',
+  sky: 'linear-gradient(120deg,#9ed8ff,#3a86f0)', teal: '', pink: '',
+};
 
-export function MembersMock() {
+export function MembersStory() {
   const ref = useRef<HTMLDivElement>(null);
-  const step = useSequence(ref, [1500]);
-  const now = SCRIPT[step % SCRIPT.length];
-  const rows = PEOPLE.map((p, i) => ({ ...p, st: now.st[i], voice: now.voice[i] }));
-  const online = rows.filter((r) => r.st !== 'off');
-  const offline = rows.filter((r) => r.st === 'off');
-  const row = (r: (typeof rows)[number]) => (
-    <div key={r.name} className={'mem-row' + (r.st === 'off' ? ' off' : '')}>
-      <Av hue={r.hue} status={r.st} speaking={!!r.voice && r.name === 'Mira'} />
-      <div>
-        <b className={r.role}>{r.name}</b>
-        {r.voice ? (
-          <small key={r.voice} className="in-voice"><Ic d="speaker" />In {r.voice}</small>
-        ) : (
-          <small key={r.st}>{SUB[r.st]}</small>
-        )}
-      </div>
-    </div>
-  );
+  const { n, live } = useLoop(ref, [650, 1500], 1);
+  const step = n % (STOPS.length * 2);
+  const stopI = Math.floor(step / 2) % STOPS.length;
+  const showing = step % 2 === 1;
+  const row = STOPS[stopI];
+  const shownRow = showing ? row : STOPS[(stopI + STOPS.length - 1) % STOPS.length];
+  const m = MEMBERS[shownRow];
   return (
-    <div className="mock m-members" ref={ref}>
-      <div className="cat">Online — {online.length}</div>
-      {online.map(row)}
-      {offline.length > 0 && <div className="cat">Offline — {offline.length}</div>}
-      {offline.map(row)}
+    <div className="story s-members" ref={ref} data-live={live}>
+      <div className="mock mem-list">
+        <div className="cat">Online — 5</div>
+        {MEMBERS.map((p, i) => (
+          <div key={p.name} className={'mem-row' + (showing && i === row ? ' hot' : '')}>
+            <Av hue={p.hue} status={p.st} speaking={!!p.voice} />
+            <div>
+              <b className={p.role}>{p.name}</b>
+              <small className={p.voice ? 'in-voice' : ''}>{p.voice && <Ic d="speaker" />}{p.line}</small>
+            </div>
+          </div>
+        ))}
+        <svg className="cursor" style={{ transform: `translate3d(0, ${row * 3.3}em, 0)` }} viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 2l16 10-7 1.5L9.5 21z" fill="#fff" stroke="#1b1440" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <div className={on(showing, 'popout')} style={{ top: `${Math.min(1.2 + shownRow * 3.3, 8.6)}em` }}>
+        <div className="po-banner" style={{ background: BANNER[m.hue] }} />
+        <Av hue={m.hue} status={m.st} />
+        <b>{m.name}</b>
+        <small className={m.voice ? 'in-voice' : ''}>{m.voice && <Ic d="speaker" />}{m.line}</small>
+        <span className="po-btn">{m.cta}</span>
+      </div>
     </div>
   );
 }
 
-// ---------- (e) watch together in a call ----------
-export function WatchMock() {
+// ---------- (e) watch together: progress, rising reactions, chat bubbles ----------
+const BUBBLES: { hue: Hue; name: string; text: string }[] = [
+  { hue: 'coral', name: 'Mira', text: 'the otter is SO smug 😂' },
+  { hue: 'mint', name: 'Bo', text: 'pause! snack break' },
+  { hue: 'violet', name: 'Pip', text: 'best episode yet 💜' },
+];
+
+export function WatchStory() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { step, live } = useLoop(ref, [2600, 2600, 2600], 0);
+  const b = BUBBLES[step];
   return (
-    <div className="mock m-watch">
+    <div className="mock m-watch" ref={ref} data-live={live}>
       <div className="screen-tile">
         <svg className="scene" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <defs>
@@ -307,8 +335,8 @@ export function WatchMock() {
           <rect width="320" height="180" fill="url(#wsky)" />
           <circle cx="236" cy="56" r="22" fill="#ffe08a" />
           <circle cx="60" cy="30" r="1.6" fill="#fff" /><circle cx="120" cy="18" r="1.2" fill="#fff" /><circle cx="170" cy="44" r="1.4" fill="#fff" />
-          <path className="hill-b" d="M0 130 Q80 90 160 124 T320 112 V180 H0Z" fill="#6d3fd0" />
-          <path className="hill-f" d="M0 150 Q90 118 190 148 T320 140 V180 H0Z" fill="#3a1c8a" />
+          <path d="M0 130 Q80 90 160 124 T320 112 V180 H0Z" fill="#6d3fd0" />
+          <path d="M0 150 Q90 118 190 148 T320 140 V180 H0Z" fill="#3a1c8a" />
           <g className="otter">
             <ellipse cx="0" cy="0" rx="16" ry="12" fill="#c48a5a" />
             <circle cx="-6" cy="-3" r="2" fill="#1b1440" /><circle cx="6" cy="-3" r="2" fill="#1b1440" />
@@ -322,12 +350,16 @@ export function WatchMock() {
           <small>Space Otters · Ep. 4</small>
         </div>
         <div className="floaters" aria-hidden="true">
-          {['😂', '💜', '🔥', '😱', '🍿', '😂'].map((e, i) => <span key={i} style={{ left: `${12 + i * 15}%`, animationDelay: `${i * 0.9}s` }}>{e}</span>)}
+          {['😂', '💜', '🔥', '😱', '🍿', '😂'].map((e, i) => <span key={i} style={{ left: `${10 + i * 14}%`, animationDelay: `${i * 0.9}s` }}>{e}</span>)}
+        </div>
+        <div className="w-bubble" key={step}>
+          <Av hue={b.hue} />
+          <div><b className={'c-' + b.hue}>{b.name}</b><p>{b.text}</p></div>
         </div>
       </div>
       <div className="watchers">
         {(['coral', 'amber', 'violet', 'mint', 'teal'] as Hue[]).map((h, i) => (
-          <div key={h} className="w-tile"><Av hue={h} mood={i === 1 ? 'wow' : i === 3 ? 'grin' : 'happy'} speaking={i === 1} /></div>
+          <div key={h} className="w-tile"><Av hue={h} mood={i === 1 ? 'wow' : i === 3 ? 'grin' : 'happy'} speaking={h === b.hue} /></div>
         ))}
       </div>
     </div>

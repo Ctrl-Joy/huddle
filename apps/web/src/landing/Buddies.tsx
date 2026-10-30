@@ -200,6 +200,25 @@ export function Cube({ className, style }: { className?: string; style?: CSSProp
   );
 }
 
+/** A little cube robot with a face, used as an ambient floater. */
+export function CubeBot({ hue = 'amber', className }: { hue?: Hue; className?: string }) {
+  const [light, dark] = HUES[hue];
+  return (
+    <svg className={'cubebot' + (className ? ' ' + className : '')} viewBox="0 -14 100 114" aria-hidden="true">
+      <path d="M50 10 L50 -4" stroke={dark} strokeWidth="3.5" strokeLinecap="round" />
+      <circle cx="50" cy="-7" r="5" fill="#fff" opacity=".9" />
+      <path d="M50 10 88 30 50 50 12 30Z" fill={light} />
+      <path d="M12 30 50 50v44L12 74Z" fill={dark} />
+      <path d="M88 30 50 50v44l38-20Z" fill={dark} />
+      <path d="M88 30 50 50v44l38-20Z" fill="#000" opacity=".22" />
+      <path d="M50 10 88 30 50 50 12 30Z" fill="#fff" opacity=".2" />
+      <ellipse className="cb-eye" cx="25" cy="46" rx="3.4" ry="5" fill={INK} transform="skewY(28)" />
+      <ellipse className="cb-eye" cx="39" cy="46" rx="3.4" ry="5" fill={INK} transform="skewY(28)" />
+      <path d="M23 73 q8 6 15 8" stroke={INK} strokeWidth="3" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
 export function Orb({ hue = 'violet', className, style }: { hue?: Hue; className?: string; style?: CSSProperties }) {
   const [light, dark] = HUES[hue];
   return (
