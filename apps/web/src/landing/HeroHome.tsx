@@ -1,7 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { POSTS, fmtDate, type Post } from './posts';
+import { Buddy, Cube, Huddy, Logo, Orb, Ring, Sparkle, type Hue } from './Buddies';
+import { AppMock, CallMock, DropInMock, MembersMock, PhoneMock, StatusMock, WatchMock } from './Mocks';
 import './hero.css';
 
 const SKY_VIDEO = 'https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/4b73c700-3112-4c07-bd48-0af2893dff7c.mp4';
@@ -19,40 +21,35 @@ const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('
 
 // ---------- icons (stroke, 24×24) ----------
 const I = ({ d }: { d: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
 );
 const ICONS = {
-  hash: 'M5 9h14M4 15h14M10 4 8 20M16 4l-2 16',
-  voice: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',
-  video: 'M15 10l5-3v10l-5-3M3 7h12v10H3z',
-  shield: 'M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z',
-  chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z',
-  bell: 'M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16zM10 21h4',
   block: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8',
   lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
   gavel: 'M14 4l6 6M11 7l6 6M4 20l7-7M9 9l6-6 6 6-6 6z',
   server: 'M4 4h16v7H4zM4 13h16v7H4zM8 8h.01M8 17h.01',
   monitor: 'M3 4h18v12H3zM8 20h8M12 16v4',
+  laptop: 'M5 5h14v10H5zM2 19h20',
   phone: 'M7 2h10v20H7zM11 18h2',
+  tablet: 'M5 3h14v18H5zM11 18h2',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
   plus: 'M12 5v14M5 12h14',
   close: 'M18 6 6 18M6 6l12 12',
+  arrow: 'M5 12h14M13 6l6 6-6 6',
+  globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18',
+  chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z',
+  play: 'M8 5v14l11-7z',
+  camera: 'M4 7h4l2-3h4l2 3h4v13H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
+  at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-4 7.5',
+  rss: 'M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8M6 18h.01',
+  check: 'M5 12l5 5 9-10',
 };
 
-const FEATURES = [
-  { icon: ICONS.hash, title: 'Servers & channels', text: 'Give every topic a home. Text channels, categories and invites in a click.' },
-  { icon: ICONS.voice, title: 'Drop-in voice', text: 'Voice rooms stay open, so you can wander in whenever your crew is around.' },
-  { icon: ICONS.video, title: 'Video & screen share', text: 'Turn on your camera or share a screen, a window or a tab — no installs.' },
-  { icon: ICONS.shield, title: 'Roles & permissions', text: 'Decide who sees what and who can do what, down to a single channel.' },
-  { icon: ICONS.chat, title: 'DMs & friends', text: 'Private chats and group DMs with the people you care about most.' },
-  { icon: ICONS.bell, title: 'Files & notifications', text: 'Share files up to 25 MB, and choose exactly what is allowed to ping you.' },
-];
-
 const SAFETY = [
-  { icon: ICONS.block, title: 'You choose who reaches you', text: 'Friend requests, blocking and DMs only from people you share a space with.' },
-  { icon: ICONS.lock, title: 'Private when you want it', text: 'Lock channels to the roles or members that should be there. Everyone else never sees them.' },
-  { icon: ICONS.gavel, title: 'Moderation built in', text: 'Timeouts, kicks, bans and a full audit log for every change.' },
-  { icon: ICONS.server, title: 'Your server, your data', text: 'Huddle is self-hostable. No ads, and nothing is sold to anyone.' },
+  { icon: ICONS.block, title: 'You choose who reaches you', text: 'Friend requests, blocking and DMs only from people you share a space with.', hue: 'coral' as Hue },
+  { icon: ICONS.lock, title: 'Private when you want it', text: 'Lock channels to the roles or members that should be there. Everyone else never sees them.', hue: 'violet' as Hue },
+  { icon: ICONS.gavel, title: 'Moderation built in', text: 'Timeouts, kicks, bans and a full audit log for every change.', hue: 'amber' as Hue },
+  { icon: ICONS.server, title: 'Your server, your data', text: 'Huddle is self-hostable. No ads, and nothing is sold to anyone.', hue: 'mint' as Hue },
 ];
 
 const FAQ = [
@@ -66,10 +63,10 @@ const FAQ = [
 
 const PLATFORMS = [
   { id: 'windows', name: 'Windows', icon: ICONS.monitor },
-  { id: 'mac', name: 'macOS', icon: ICONS.monitor },
+  { id: 'mac', name: 'macOS', icon: ICONS.laptop },
   { id: 'linux', name: 'Linux', icon: ICONS.monitor },
   { id: 'ios', name: 'iOS', icon: ICONS.phone },
-  { id: 'android', name: 'Android', icon: ICONS.phone },
+  { id: 'android', name: 'Android', icon: ICONS.tablet },
 ];
 
 function detectPlatform(): string {
@@ -82,34 +79,56 @@ function detectPlatform(): string {
   return '';
 }
 
-function Logo() {
-  return (
-    <svg viewBox="0 0 48 48" aria-hidden="true">
-      <circle cx="18" cy="20" r="10" fill="currentColor" opacity="0.95" />
-      <circle cx="30" cy="20" r="10" fill="currentColor" opacity="0.6" />
-      <circle cx="24" cy="30" r="10" fill="currentColor" opacity="0.35" />
-      <path d="M12 30 9 38l8-4" fill="currentColor" opacity="0.95" />
-    </svg>
-  );
-}
+// ---------- feature cards ----------
+interface Feature { key: string; hue: number; lines: string[]; body: string; mock: ReactNode; deco: ReactNode }
+const FEATURES: Feature[] = [
+  {
+    key: 'flair', hue: 312, lines: ['Say it with', 'a little', 'flair'],
+    body: 'Set a custom status, react to anything and sprinkle emoji over the chat. Your group’s inside jokes finally have a home.',
+    mock: <StatusMock />,
+    deco: <><Orb hue="pink" className="peek p-tr" /><Sparkle className="peek p-bl s-sm" color="#ffd1ec" /></>,
+  },
+  {
+    key: 'faces', hue: 168, lines: ['Faces on,', 'screens up,', 'no installs'],
+    body: 'Flip on your camera or share a tab, a window or your whole screen, right from the browser. Everyone sees it live.',
+    mock: <CallMock />,
+    deco: <><Cube className="peek p-tl" /><Buddy hue="mint" mood="wow" className="peek p-br b-peek" /></>,
+  },
+  {
+    key: 'door', hue: 262, lines: ['The door’s', 'always', 'open'],
+    body: 'Voice rooms never hang up. Click one to drop in, click away to leave. No ringing, no invites, no scheduling.',
+    mock: <DropInMock />,
+    deco: <><Buddy hue="violet" mood="wink" topper="antenna" className="peek p-tl b-peek" /><Ring className="peek p-br" /></>,
+  },
+  {
+    key: 'who', hue: 336, lines: ['Spot who’s', 'up for', 'something'],
+    body: 'Status dots and voice badges show who’s free, who’s heads-down and who’s already hanging out, all at a glance.',
+    mock: <MembersMock />,
+    deco: <><Orb hue="amber" className="peek p-tl" /><Sparkle className="peek p-br s-sm" color="#ffe08a" /></>,
+  },
+  {
+    key: 'watch', hue: 145, lines: ['Movie night', 'from any', 'couch'],
+    body: 'Stream something to the call and watch, react and heckle together, even when you’re miles apart.',
+    mock: <WatchMock />,
+    deco: <><Buddy hue="amber" mood="grin" topper="sprout" className="peek p-tl b-peek" /><Cube className="peek p-br c-sm" /></>,
+  },
+];
 
-function SectionHead({ tag, title, lead }: { tag: string; title: ReactNode; lead: string }) {
+function FeatureCard({ f, i }: { f: Feature; i: number }) {
+  const flip = i % 2 === 1;
   return (
-    <div className="sec-head">
-      <span className="tag rv">{tag}</span>
-      <h2 className="rv" style={{ transitionDelay: '.06s' }}>{title}</h2>
-      <p className="lead rv" style={{ transitionDelay: '.12s' }}>{lead}</p>
-    </div>
-  );
-}
-
-function Card({ icon, title, text, i }: { icon: string; title: string; text: string; i: number }) {
-  return (
-    <div className="card rv" style={{ transitionDelay: `${0.05 * i}s` }}>
-      <div className="ic"><I d={icon} /></div>
-      <h3>{title}</h3>
-      <p>{text}</p>
-    </div>
+    <article className={'fcard-wrap rv' + (flip ? ' flip' : '')} style={{ '--h': f.hue } as CSSProperties} aria-labelledby={`f-${f.key}`}>
+      <div className="fcard tilt">
+        <div className="f-text">
+          <h3 className="disp" id={`f-${f.key}`}>{f.lines.map((l) => <span key={l}>{l}</span>)}</h3>
+          <p>{f.body}</p>
+        </div>
+        <div className={'f-panel rv ' + (flip ? 'from-l' : 'from-r')}>
+          <div className="f-mock">{f.mock}</div>
+        </div>
+      </div>
+      {f.deco}
+    </article>
   );
 }
 
@@ -122,34 +141,60 @@ function Reader({ post, onClose }: { post: Post; onClose: () => void }) {
   return (
     <div className="reader" role="dialog" aria-modal="true" aria-label={post.title} onClick={onClose}>
       <article className="reader-box" onClick={(e) => e.stopPropagation()}>
+        <div className="reader-cover" style={coverStyle(post)} />
         <button className="reader-close" aria-label="Close article" onClick={onClose}><I d={ICONS.close} /></button>
-        <div className="post-meta"><span>{post.tag}</span> · {fmtDate(post.date)} · {post.minutes} min read</div>
-        <h3>{post.title}</h3>
-        {post.body.map((b, i) =>
-          b.t === 'p' ? <p key={i}>{b.text}</p>
-          : b.t === 'h2' ? <h4 key={i}>{b.text}</h4>
-          : b.t === 'quote' ? <blockquote key={i}>{b.text}</blockquote>
-          : <ul key={i}>{b.items.map((it) => <li key={it}>{it}</li>)}</ul>,
-        )}
-        <div className="post-author">— {post.author}</div>
+        <div className="reader-body">
+          <div className="post-meta"><span>{post.tag}</span> · {fmtDate(post.date)} · {post.minutes} min read</div>
+          <h3>{post.title}</h3>
+          {post.body.map((b, i) =>
+            b.t === 'p' ? <p key={i}>{b.text}</p>
+            : b.t === 'h2' ? <h4 key={i}>{b.text}</h4>
+            : b.t === 'quote' ? <blockquote key={i}>{b.text}</blockquote>
+            : <ul key={i}>{b.items.map((it) => <li key={it}>{it}</li>)}</ul>,
+          )}
+          <div className="post-author">— {post.author}</div>
+        </div>
       </article>
     </div>
   );
 }
 
-/** Scrolling home: full-screen hero, then Features / Download / Safety / Support / Blog. */
+const coverStyle = (p: Post): CSSProperties => ({
+  background: `radial-gradient(90% 110% at 15% 10%, ${p.cover[0]}, transparent 62%), radial-gradient(90% 100% at 95% 95%, ${p.cover[2]}, transparent 60%), ${p.cover[1]}`,
+});
+
+/** Twinkling stars at fixed, deterministic spots. */
+const STARS = Array.from({ length: 34 }, (_, i) => {
+  const r = (n: number) => ((Math.sin(i * 127.1 + n * 311.7) * 43758.5453) % 1 + 1) % 1;
+  return { left: `${(r(1) * 100).toFixed(2)}%`, top: `${(r(2) * 100).toFixed(2)}%`, size: 2 + Math.round(r(3) * 3), delay: `${(r(4) * 4).toFixed(2)}s`, dur: `${(2.6 + r(5) * 3).toFixed(2)}s` };
+});
+
+const MARQUEE = ['Talk', 'Play', 'Share', 'Hang out', 'Huddle'];
+
+const CREW: { hue: Hue; mood: 'happy' | 'grin' | 'wow' | 'wink' | 'sleepy'; topper: 'none' | 'headset' | 'sprout' | 'antenna' | 'bow' | 'beanie'; wave?: boolean }[] = [
+  { hue: 'coral', mood: 'grin', topper: 'bow' },
+  { hue: 'violet', mood: 'wink', topper: 'antenna' },
+  { hue: 'teal', mood: 'happy', topper: 'headset', wave: true },
+  { hue: 'amber', mood: 'wow', topper: 'sprout' },
+  { hue: 'sky', mood: 'sleepy', topper: 'beanie' },
+  { hue: 'mint', mood: 'grin', topper: 'none', wave: true },
+];
+
+/** Scrolling home: hero, feature cards, marquee, Download / Safety / Support / Blog, closing CTA, footer. */
 export default function HeroHome() {
   const loggedIn = useAuthStore((s) => !!s.token);
   const rootRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const lastCtaRef = useRef<HTMLAnchorElement>(null);
+  const lastCtaRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState('');
   const [query, setQuery] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [post, setPost] = useState<Post | null>(null);
+  const [lang, setLang] = useState('en');
   const platform = useMemo(detectPlatform, []);
 
   useEffect(() => {
@@ -167,19 +212,20 @@ export default function HeroHome() {
     const failsafe = window.setTimeout(clear, 5000);
     let started = false;
     let endTimer = 0;
-    const onEnd = (e: AnimationEvent) => { if (e.target === lastCtaRef.current) clear(); };
+    const last = lastCtaRef.current;
+    const onEnd = (e: AnimationEvent) => { if (e.target === last) clear(); };
     const start = () => {
       if (started) return;
       started = true;
       root.classList.add('intro-play');
-      lastCtaRef.current?.addEventListener('animationend', onEnd);
-      endTimer = window.setTimeout(clear, 3000);
+      last?.addEventListener('animationend', onEnd);
+      endTimer = window.setTimeout(clear, 3200);
     };
     const fontTimer = window.setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(start)), 700);
     document.fonts.ready.then(() => requestAnimationFrame(() => requestAnimationFrame(start)));
     return () => {
       window.clearTimeout(failsafe); window.clearTimeout(fontTimer); window.clearTimeout(endTimer);
-      lastCtaRef.current?.removeEventListener('animationend', onEnd);
+      last?.removeEventListener('animationend', onEnd);
     };
   }, []);
 
@@ -205,13 +251,60 @@ export default function HeroHome() {
       for (const e of entries) if (e.isIntersecting) setActive(e.target.id);
     }, { root, rootMargin: '-45% 0px -50% 0px' });
     root.querySelectorAll('section[id]').forEach((s) => spy.observe(s));
+    // clear the highlight when back in the hero
+    const top = new IntersectionObserver(([e]) => { if (e.isIntersecting) setActive(''); }, { root, rootMargin: '-45% 0px -50% 0px' });
+    if (heroRef.current) top.observe(heroRef.current);
 
     const reveal = new IntersectionObserver((entries) => {
       for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); reveal.unobserve(e.target); }
     }, { root, rootMargin: '0px 0px -8% 0px' });
     root.querySelectorAll('.rv').forEach((el) => reveal.observe(el));
 
-    return () => { root.removeEventListener('scroll', onScroll); spy.disconnect(); reveal.disconnect(); };
+    return () => { root.removeEventListener('scroll', onScroll); spy.disconnect(); top.disconnect(); reveal.disconnect(); };
+  }, []);
+
+  // Pointer effects: hero parallax and card tilt (fine pointers only, never with reduced motion).
+  useEffect(() => {
+    const root = rootRef.current!;
+    const hero = heroRef.current;
+    if (reducedMotion() || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    let raf = 0;
+    let mx = 0, my = 0;
+    const onHero = (e: PointerEvent) => {
+      if (!hero) return;
+      const r = hero.getBoundingClientRect();
+      mx = ((e.clientX - r.left) / r.width) * 2 - 1;
+      my = ((e.clientY - r.top) / r.height) * 2 - 1;
+      if (!raf) raf = requestAnimationFrame(() => {
+        raf = 0;
+        hero.style.setProperty('--mx', mx.toFixed(3));
+        hero.style.setProperty('--my', my.toFixed(3));
+      });
+    };
+    hero?.addEventListener('pointermove', onHero);
+
+    const cards = Array.from(root.querySelectorAll<HTMLElement>('.tilt'));
+    const move = (e: PointerEvent) => {
+      const el = e.currentTarget as HTMLElement;
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      el.style.setProperty('--ry', `${(x * 4).toFixed(2)}deg`);
+      el.style.setProperty('--rx', `${(-y * 4).toFixed(2)}deg`);
+      el.style.setProperty('--gx', `${((x + 0.5) * 100).toFixed(1)}%`);
+      el.style.setProperty('--gy', `${((y + 0.5) * 100).toFixed(1)}%`);
+    };
+    const leave = (e: PointerEvent) => {
+      const el = e.currentTarget as HTMLElement;
+      el.style.setProperty('--rx', '0deg');
+      el.style.setProperty('--ry', '0deg');
+    };
+    cards.forEach((c) => { c.addEventListener('pointermove', move); c.addEventListener('pointerleave', leave); });
+    return () => {
+      cancelAnimationFrame(raf);
+      hero?.removeEventListener('pointermove', onHero);
+      cards.forEach((c) => { c.removeEventListener('pointermove', move); c.removeEventListener('pointerleave', leave); });
+    };
   }, []);
 
   // Mobile menu: close on outside click and Escape.
@@ -265,159 +358,277 @@ export default function HeroHome() {
   const appLink = loggedIn ? '/channels/@me' : '/login';
   const startLink = loggedIn ? '/channels/@me' : '/register';
   const faq = FAQ.map((f, i) => ({ ...f, i })).filter((f) => !query || (f.q + ' ' + f.a).toLowerCase().includes(query.toLowerCase()));
+  const d = (s: number) => ({ '--d': `${s}s` }) as CSSProperties;
 
   return (
     <div className="hx" ref={rootRef}>
-      <div className="shade" data-on={scrolled ? 'true' : 'false'} />
+      <div className="starfield" aria-hidden="true" />
 
-      <header className="bar" ref={barRef} data-open={open ? 'true' : 'false'}>
-        <a className="brand" href="/" onClick={goTo('top')} aria-label="Huddle — home">
-          <Logo />
-          <span>Huddle</span>
-        </a>
-        <nav className="links" aria-label="Primary">
-          {SECTIONS.map((s) => (
-            <a key={s.id} href={`#${s.id}`} onClick={goTo(s.id)} aria-current={active === s.id ? 'true' : undefined}>{s.label}</a>
-          ))}
-        </nav>
-        <div className="actions">
-          <Link className="btn ghost" to={appLink}>{loggedIn ? 'Open Huddle' : 'Log in'}</Link>
-          {!loggedIn && <Link className="btn solid" to="/register">Sign up</Link>}
-          <button
-            className="menu" aria-label={open ? 'Close menu' : 'Menu'} aria-expanded={open} aria-controls="menu-sheet"
-            onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-          >
-            <svg viewBox="0 0 20 14" aria-hidden="true">
-              <path d="M0 1h20M0 7h20M0 13h20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </button>
-          <nav className="sheet" id="menu-sheet" aria-label="Menu">
-            {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} onClick={goTo(s.id)}>{s.label}</a>)}
-            <Link className="btn solid" to={startLink}>{loggedIn ? 'Open Huddle' : 'Sign up'}</Link>
+      <header className="bar" ref={barRef} data-open={open ? 'true' : 'false'} data-scrolled={scrolled ? 'true' : 'false'}>
+        <div className="bar-in">
+          <a className="brand in-el" style={d(0)} href="/" onClick={goTo('top')} aria-label="Huddle — home">
+            <span className="brand-mark"><Logo /></span>
+            <span className="brand-word">Huddle</span>
+          </a>
+          <nav className="links" aria-label="Primary">
+            {SECTIONS.map((s, i) => (
+              <a key={s.id} className="in-el" style={d(0.06 + i * 0.04)} href={`#${s.id}`} onClick={goTo(s.id)} aria-current={active === s.id ? 'true' : undefined}>{s.label}</a>
+            ))}
           </nav>
+          <div className="actions in-el" style={d(0.24)}>
+            {!loggedIn && <Link className="nav-ghost" to="/register">Sign up</Link>}
+            <Link className="btn pill-w" to={appLink}>{loggedIn ? 'Open Huddle' : 'Log in'}</Link>
+            <button
+              className="menu" aria-label={open ? 'Close menu' : 'Menu'} aria-expanded={open} aria-controls="menu-sheet"
+              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+            >
+              <svg viewBox="0 0 20 14" aria-hidden="true">
+                <path d={open ? 'M3 1l14 12M3 13 17 1' : 'M0 1h20M0 7h20M0 13h20'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
         </div>
+        <nav className="sheet" id="menu-sheet" aria-label="Menu">
+          {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} onClick={goTo(s.id)} aria-current={active === s.id ? 'true' : undefined}>{s.label}<I d={ICONS.arrow} /></a>)}
+          <div className="sheet-cta">
+            {!loggedIn && <Link className="btn ghost-w" to={appLink}>Log in</Link>}
+            <Link className="btn pill-w" to={startLink}>{loggedIn ? 'Open Huddle' : 'Sign up'}</Link>
+          </div>
+        </nav>
       </header>
 
-      <div className="stage">
-        <video
-          ref={videoRef} className="sky" aria-hidden="true" autoPlay muted loop playsInline preload="auto"
-          poster={SKY_POSTER} src={SKY_VIDEO}
-        />
-        <div className="veil" />
-        <div className="screen">
-          <main className="hero">
-            <a className="pill" href="#features" onClick={goTo('features')}>
-              <span className="chip">New</span>
-              <span className="pill-label">Screen sharing is here</span>
-              <svg viewBox="0 0 9.5 8" fill="none" aria-hidden="true">
-                <path d="M0.7 4H8.8M5.6 0.75 8.85 4 5.6 7.25" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </a>
-            <h1>
-              <span className="ln"><span className="ln-i">Your people. Your space.</span></span>
-              <span className="ln"><span className="ln-i">Let’s huddle.</span></span>
-            </h1>
-            <p>Servers, channels, voice and video for the communities you care about.</p>
-            <div className="cta">
-              <Link className="btn ghost" to={appLink}>Open in browser</Link>
-              <Link className="btn solid" to={startLink} ref={lastCtaRef}>Get started</Link>
-            </div>
-          </main>
+      <section className="hero" ref={heroRef} aria-labelledby="h-hero">
+        <div className="hero-bg" aria-hidden="true">
+          <video ref={videoRef} className="sky" autoPlay muted loop playsInline preload="auto" poster={SKY_POSTER} src={SKY_VIDEO} />
+          <div className="veil" />
+          <div className="stars">
+            {STARS.map((s, i) => (
+              <i key={i} style={{ left: s.left, top: s.top, width: s.size, height: s.size, animationDelay: s.delay, animationDuration: s.dur }} />
+            ))}
+          </div>
         </div>
-      </div>
-
-      <section className="sec" id="features" aria-labelledby="h-features">
-        <div className="wrap">
-          <SectionHead tag="Features" title={<span id="h-features">Everything your crew needs</span>} lead="One place to talk, plan and hang out — in text, voice or video." />
-          <div className="grid g3">{FEATURES.map((f, i) => <Card key={f.title} {...f} i={i} />)}</div>
+        <div className="hero-in">
+          <div className="hero-copy">
+            <h1 className="disp" id="h-hero">
+              <span className="ln"><span className="ln-i in-el" style={d(0.2)}>Your people.</span></span>
+              <span className="ln"><span className="ln-i in-el" style={d(0.3)}>Your space.</span></span>
+              <span className="ln"><span className="ln-i in-el grad" style={d(0.4)}>Let’s huddle.</span></span>
+            </h1>
+            <p className="in-el" style={d(0.6)}>Servers, channels, drop-in voice, video and screen share for the groups you love. Right in your browser, free to start.</p>
+            <div className="cta in-el" style={d(0.72)} ref={lastCtaRef}>
+              <Link className="btn big white" to={startLink}>{loggedIn ? 'Open Huddle' : 'Get started'}<I d={ICONS.arrow} /></Link>
+              <Link className="btn big accent" to={appLink}>Open Huddle in your browser</Link>
+            </div>
+          </div>
+          <div className="hero-art in-el" style={d(0.35)} aria-hidden="true">
+            <div className="ha">
+              <div className="px px-lap"><div className="lap-tilt"><AppMock /></div></div>
+              <div className="px px-phone"><div className="bob b2"><PhoneMock /></div></div>
+              <div className="px px-huddy"><div className="bob"><Huddy wave mood="grin" className="hb-huddy" /></div></div>
+              <div className="px px-coral"><div className="bob b3"><Buddy hue="coral" mood="wink" topper="bow" className="hb-coral" /></div></div>
+              <div className="px px-amber"><div className="bob b4"><Buddy hue="amber" mood="wow" topper="sprout" className="hb-amber" /></div></div>
+              <div className="px px-d1"><div className="bob b2"><Cube /></div></div>
+              <div className="px px-d2"><div className="bob b3"><Orb hue="pink" /></div></div>
+              <div className="px px-d3"><div className="bob b4"><Ring /></div></div>
+              <div className="px px-d4"><div className="spin"><Sparkle color="#ffe08a" /></div></div>
+              <div className="px px-d5"><div className="spin s2"><Sparkle color="#9ed8ff" /></div></div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="sec glow-violet" id="download" aria-labelledby="h-download">
-        <div className="wrap">
-          <SectionHead tag="Download" title={<span id="h-download">Huddle, wherever you are</span>} lead="Huddle runs in any modern browser. Install it as an app from your browser’s menu for a window of its own." />
-          <div className="panel rv">
-            <div className="platforms">
-              {PLATFORMS.map((p) => (
-                <div key={p.id} className={'platform' + (p.id === platform ? ' current' : '')}>
-                  <div className="ic"><I d={p.icon} /></div>
-                  <strong>{p.name}</strong>
-                  <small>{p.id === platform ? 'Your device' : 'Browser'}</small>
+      <main>
+        <section className="sec feats" id="features" aria-label="Features">
+          <div className="wrap">
+            {FEATURES.map((f, i) => <FeatureCard key={f.key} f={f} i={i} />)}
+          </div>
+        </section>
+
+        <div className="marquee" aria-hidden="true">
+          {[0, 1].map((row) => (
+            <div key={row} className={'mq-row' + (row ? ' rev' : '')}>
+              <div className="mq-track">
+                {[0, 1].map((copy) => (
+                  <div key={copy} className="mq-set">
+                    {MARQUEE.map((w, i) => (
+                      <span key={w} className="mq-item">
+                        <span className={'disp ' + ((i + row) % 2 ? 'outline' : 'solid')}>{w}</span>
+                        <Sparkle className="mq-star" color={['#5df2d6', '#ff9bd2', '#ffe08a', '#c4b1ff', '#a6f7b4'][(i + row * 2) % 5]} />
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <section className="sec" id="download" aria-labelledby="h-download">
+          <div className="wrap">
+            <div className="fcard-wrap rv solo" style={{ '--h': 200 } as CSSProperties}>
+              <div className="fcard tilt dl">
+                <div className="f-text center">
+                  <h2 className="disp" id="h-download"><span>Wherever you are,</span><span>Huddle’s there</span></h2>
+                  <p>Huddle runs in any modern browser on any device. Want a window of its own? Install it as an app from your browser’s menu in two clicks.</p>
+                </div>
+                <div className="platforms">
+                  {PLATFORMS.map((p, i) => (
+                    <div key={p.id} className={'platform rv' + (p.id === platform ? ' current' : '')} style={{ transitionDelay: `${0.06 * i}s` }}>
+                      <div className="pl-ic"><I d={p.icon} /></div>
+                      <strong>{p.name}</strong>
+                      <small>{p.id === platform ? 'Your device' : 'In the browser'}</small>
+                    </div>
+                  ))}
+                </div>
+                <div className="panel-cta">
+                  <Link className="btn big white" to={appLink}>Open Huddle in your browser</Link>
+                  <span className="note"><i />Native apps are on the way.</span>
+                </div>
+              </div>
+              <Buddy hue="sky" mood="happy" topper="beanie" wave className="peek p-tl b-peek" />
+              <Orb hue="teal" className="peek p-bl" />
+            </div>
+          </div>
+        </section>
+
+        <section className="sec" id="safety" aria-labelledby="h-safety">
+          <div className="wrap">
+            <div className="fcard-wrap rv solo" style={{ '--h': 280 } as CSSProperties}>
+              <div className="fcard tilt">
+                <div className="f-text center">
+                  <h2 className="disp" id="h-safety"><span>Your space.</span><span>Your rules.</span></h2>
+                  <p>Tools that keep you and your community in control, from who can message you to who can see each channel.</p>
+                </div>
+                <div className="safety">
+                  {SAFETY.map((s, i) => (
+                    <div key={s.title} className={'safe rv h-' + s.hue} style={{ transitionDelay: `${0.07 * i}s` }}>
+                      <div className="safe-ic"><I d={s.icon} /></div>
+                      <h3>{s.title}</h3>
+                      <p>{s.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Buddy hue="violet" mood="happy" topper="headset" className="peek p-tr b-peek" />
+            </div>
+          </div>
+        </section>
+
+        <section className="sec" id="support" aria-labelledby="h-support">
+          <div className="wrap">
+            <div className="fcard-wrap rv solo" style={{ '--h': 165 } as CSSProperties}>
+              <div className="fcard tilt support">
+                <div className="f-text">
+                  <h2 className="disp" id="h-support"><span>Stuck?</span><span>We’ve got</span><span>your back.</span></h2>
+                  <p>Quick answers to the questions we hear most. Type a word or two to narrow them down.</p>
+                  <div className="help-buddy" aria-hidden="true"><Huddy wave mood="happy" /></div>
+                </div>
+                <div className="help">
+                  <label className="search">
+                    <I d={ICONS.search} />
+                    <span className="sr">Search help</span>
+                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search help articles" />
+                  </label>
+                  <div className="faq">
+                    {faq.map((f) => (
+                      <div key={f.q} className={'faq-item' + (openFaq === f.i ? ' open' : '')}>
+                        <button aria-expanded={openFaq === f.i} onClick={() => setOpenFaq(openFaq === f.i ? null : f.i)}>
+                          <span>{f.q}</span><I d={ICONS.plus} />
+                        </button>
+                        <div className="faq-a"><div><p>{f.a}</p></div></div>
+                      </div>
+                    ))}
+                    {faq.length === 0 && <p className="faq-empty">No articles match “{query}”.</p>}
+                  </div>
+                </div>
+              </div>
+              <Cube className="peek p-tr" />
+            </div>
+          </div>
+        </section>
+
+        <section className="sec" id="blog" aria-labelledby="h-blog">
+          <div className="wrap">
+            <div className="fcard-wrap rv solo" style={{ '--h': 330 } as CSSProperties}>
+              <div className="fcard">
+                <div className="f-text center">
+                  <h2 className="disp" id="h-blog"><span>Fresh from</span><span>the Huddle</span></h2>
+                  <p>Notes on what we’re building, why, and how to get the most out of your server.</p>
+                </div>
+                <div className="posts">
+                  {POSTS.map((p, i) => (
+                    <button key={p.slug} className="post rv" style={{ transitionDelay: `${0.06 * i}s` }} onClick={() => setPost(p)}>
+                      <div className="post-cover" style={coverStyle(p)}>
+                        <span className={'shape ' + p.shape}><i /><i /><i /></span>
+                      </div>
+                      <div className="post-body">
+                        <div className="post-meta"><span>{p.tag}</span> · {fmtDate(p.date)}</div>
+                        <h3>{p.title}</h3>
+                        <p>{p.excerpt}</p>
+                        <span className="read">Read <I d={ICONS.arrow} /></span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Sparkle className="peek p-tl s-sm" color="#ffd1ec" />
+            </div>
+          </div>
+        </section>
+
+        <section className="closing" aria-labelledby="h-closing">
+          <div className="wrap">
+            <h2 className="disp rv" id="h-closing"><span>Your crew’s online.</span><span className="grad">Come say hi.</span></h2>
+            <div className="rv closing-cta" style={{ transitionDelay: '.08s' }}>
+              <Link className="btn big white" to={startLink}>{loggedIn ? 'Open Huddle' : 'Get started'}<I d={ICONS.arrow} /></Link>
+            </div>
+            <div className="crew rv" style={{ transitionDelay: '.16s' }} aria-hidden="true">
+              <div className="floor" />
+              {CREW.map((c, i) => (
+                <div key={c.hue} className={'mate m' + i}>
+                  <Buddy hue={c.hue} mood={c.mood} topper={c.topper} wave={c.wave} />
                 </div>
               ))}
             </div>
-            <div className="panel-cta">
-              <Link className="btn solid" to={appLink}>Open Huddle in your browser</Link>
-              <span>Native apps are on the way.</span>
-            </div>
           </div>
-        </div>
-      </section>
-
-      <section className="sec" id="safety" aria-labelledby="h-safety">
-        <div className="wrap">
-          <SectionHead tag="Safety" title={<span id="h-safety">Safe by design</span>} lead="Tools that put you and your community in control." />
-          <div className="grid g4">{SAFETY.map((f, i) => <Card key={f.title} {...f} i={i} />)}</div>
-        </div>
-      </section>
-
-      <section className="sec glow-mint" id="support" aria-labelledby="h-support">
-        <div className="wrap narrow">
-          <SectionHead tag="Support" title={<span id="h-support">How can we help?</span>} lead="Quick answers to the questions we hear most." />
-          <label className="search rv">
-            <I d={ICONS.search} />
-            <span className="sr">Search help</span>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search help articles" />
-          </label>
-          <div className="faq">
-            {faq.map((f) => (
-              <div key={f.q} className={'faq-item rv' + (openFaq === f.i ? ' open' : '')}>
-                <button aria-expanded={openFaq === f.i} onClick={() => setOpenFaq(openFaq === f.i ? null : f.i)}>
-                  <span>{f.q}</span><I d={ICONS.plus} />
-                </button>
-                <div className="faq-a"><div><p>{f.a}</p></div></div>
-              </div>
-            ))}
-            {faq.length === 0 && <p className="faq-empty">No articles match “{query}”.</p>}
-          </div>
-        </div>
-      </section>
-
-      <section className="sec" id="blog" aria-labelledby="h-blog">
-        <div className="wrap">
-          <SectionHead tag="Blog" title={<span id="h-blog">From the Huddle</span>} lead="Notes on what we’re building and why." />
-          <div className="grid g4 posts">
-            {POSTS.map((p, i) => (
-              <button key={p.slug} className="post rv" style={{ transitionDelay: `${0.05 * i}s` }} onClick={() => setPost(p)}>
-                <div className="post-cover" style={{ background: `radial-gradient(120% 90% at 20% 10%, ${p.cover[0]}66, transparent 60%), radial-gradient(100% 80% at 90% 90%, ${p.cover[2]}55, transparent 60%), ${p.cover[1]}` }} />
-                <div className="post-body">
-                  <div className="post-meta"><span>{p.tag}</span> · {fmtDate(p.date)}</div>
-                  <h3>{p.title}</h3>
-                  <p>{p.excerpt}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="sec closing" aria-label="Get started">
-        <div className="wrap">
-          <h2 className="rv">Your people are waiting.</h2>
-          <div className="closing-cta rv" style={{ transitionDelay: '.08s' }}>
-            <Link className="btn ghost" to={appLink}>Open in browser</Link>
-            <Link className="btn solid" to={startLink}>Get started</Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <footer className="foot">
-        <div className="wrap foot-row">
-          <a className="brand-sm" href="/" onClick={goTo('top')}><Logo /><span>Huddle</span></a>
-          <nav aria-label="Footer">
-            {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} onClick={goTo(s.id)}>{s.label}</a>)}
-          </nav>
-          <small>© {new Date().getFullYear()} Huddle</small>
+        <div className="wrap">
+          <div className="foot-top">
+            <div className="foot-brand">
+              <a className="brand-lg" href="/" onClick={goTo('top')}><span className="brand-mark"><Logo /></span><span className="disp">Huddle</span></a>
+              <p>A home for your groups: channels, drop-in voice, video and screen share.</p>
+              <label className="lang">
+                <I d={ICONS.globe} />
+                <span className="sr">Language</span>
+                <select value={lang} onChange={(e) => setLang(e.target.value)}>
+                  <option value="en">English</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
+                  <option value="de">Deutsch</option>
+                  <option value="pt">Português</option>
+                  <option value="hi">हिन्दी</option>
+                </select>
+              </label>
+              <div className="social">
+                {[ICONS.chat, ICONS.play, ICONS.camera, ICONS.at, ICONS.rss].map((ic, i) => (
+                  <a key={i} href="#" aria-label={['Community', 'Videos', 'Photos', 'Mentions', 'Feed'][i]} onClick={(e) => e.preventDefault()}><I d={ic} /></a>
+                ))}
+              </div>
+            </div>
+            <nav className="foot-cols" aria-label="Footer">
+              <div><h4>Product</h4><a href="#features" onClick={goTo('features')}>Features</a><a href="#download" onClick={goTo('download')}>Download</a><Link to={appLink}>Open Huddle</Link></div>
+              <div><h4>Company</h4><a href="#blog" onClick={goTo('blog')}>Blog</a><a href="#safety" onClick={goTo('safety')}>Safety</a></div>
+              <div><h4>Resources</h4><a href="#support" onClick={goTo('support')}>Support</a><Link to={startLink}>Get started</Link></div>
+              <div><h4>Policies</h4><a href="#">Terms</a><a href="#">Privacy</a></div>
+            </nav>
+          </div>
+          <div className="foot-bottom">
+            <a className="brand-sm" href="/" onClick={goTo('top')}><Logo /><span>Huddle</span></a>
+            <small>© {new Date().getFullYear()} Huddle. Made for people who like each other.</small>
+          </div>
         </div>
       </footer>
 
