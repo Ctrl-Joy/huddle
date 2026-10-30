@@ -132,6 +132,19 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
   await app.register(async (api) => {
     api.get('/health', async () => ({ ok: true }));
 
+    // WebRTC relay config, read at runtime so a deploy can set it without rebuilding the web app.
+    api.get('/ice', async () => {
+      const urls = (process.env.HUDDLE_TURN_URL ?? '').split(',').map((u) => u.trim()).filter(Boolean);
+      if (!urls.length) return { iceServers: [] };
+      return {
+        iceServers: [{
+          urls,
+          username: process.env.HUDDLE_TURN_USERNAME || undefined,
+          credential: process.env.HUDDLE_TURN_CREDENTIAL || undefined,
+        }],
+      };
+    });
+
     // Resolve the bearer token (if any) for every API request.
     api.addHook('onRequest', async (req) => {
       const token = bearer(req.headers.authorization);

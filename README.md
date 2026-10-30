@@ -39,5 +39,30 @@ Production: `npm run build && NODE_ENV=production npm start` serves the API and 
 ## Voice & video across networks
 
 Calls are peer-to-peer (WebRTC mesh, best for ≤ 8 people) and use public STUN. For users behind
-strict NATs, configure a TURN server in `apps/web/.env` (see `apps/web/.env.example`).
+strict NATs, set a TURN relay on the server with `HUDDLE_TURN_URL`, `HUDDLE_TURN_USERNAME` and
+`HUDDLE_TURN_CREDENTIAL` (served to clients at `/api/ice`, no rebuild needed). Build-time
+`VITE_TURN_*` in `apps/web/.env` still works as a fallback.
 Camera, microphone and screen share require `localhost` or HTTPS.
+
+## Deploy
+
+The `Dockerfile` builds one container that serves everything on port 8080. The host needs:
+
+- **WebSockets** (the gateway at `/gateway`) and **HTTPS** (browsers block mic, camera and screen share otherwise).
+- **A persistent volume at `/data`** for the SQLite database, uploads and the JWT secret.
+  Without it every redeploy wipes all accounts and messages.
+- One instance only: the realtime gateway keeps state in memory.
+
+| Variable | Needed | Purpose |
+|---|---|---|
+| `HUDDLE_JWT_SECRET` | recommended | Login token signing key; otherwise generated into `/data` on first boot |
+| `HUDDLE_TURN_URL` | for calls across networks | e.g. `turn:relay.example.com:3478,turns:relay.example.com:5349` |
+| `HUDDLE_TURN_USERNAME`, `HUDDLE_TURN_CREDENTIAL` | with TURN | Relay login |
+
+**Railway or Fly.io** (both support volumes and WebSockets): create an app from this repo, let it
+build the Dockerfile, attach a volume mounted at `/data`, set the variables above, and open the
+generated `https://` address. **A VPS**: `docker build -t huddle . && docker run -d -p 8080:8080
+-v huddle-data:/data --env-file .env huddle`, behind Caddy or nginx for HTTPS.
+
+For TURN, a managed relay (Metered, Twilio, Cloudflare Calls) is quickest; self-hosting means
+running coturn on a VPS with UDP 3478 and a relay port range open.
