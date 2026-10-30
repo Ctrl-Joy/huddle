@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { AuditLogAction, ChannelType, LIMITS, Permissions, has } from '@huddle/shared';
+import { AuditLogAction, ChannelType, LIMITS, Permissions, has, isGuildCategory } from '@huddle/shared';
 import { now, type Ctx } from '../context';
 import { badRequest, forbidden, invalidField } from '../errors';
 import {
@@ -7,9 +7,10 @@ import {
 } from '../serializers';
 import { getGuildRow, requireGuild, requireGuildPerm } from '../services/permissions';
 import { createGuild, deleteGuild, fullGuild } from '../services/guilds';
+import { isTemplateId } from '../services/templates';
 import { diff, writeAudit } from '../services/audit';
 import { IMAGE_EXT, removeUpload, saveUpload, sniffImage } from '../uploads';
-import { arrayBody, auditReason, body, isSnowflake, optInt, optStr, readMultipart, reqStr, uid } from './util';
+import { arrayBody, auditReason, body, isSnowflake, optBool, optInt, optStr, readMultipart, reqStr, uid } from './util';
 import { AVATAR_BYTES } from './users';
 
 export function normalizeChannelName(name: string, type: number): string {
@@ -54,7 +55,9 @@ export default function guildRoutes(app: FastifyInstance, ctx: Ctx) {
     const me = uid(req);
     const b = body(req);
     const name = reqStr(b, 'name', { min: 2, max: LIMITS.GUILD_NAME });
-    const id = createGuild(ctx, me, name);
+    const template = optStr(b, 'template', { nullable: true }) || undefined;
+    if (template !== undefined && !isTemplateId(template)) throw invalidField('template', 'Unknown server template');
+    const id = createGuild(ctx, me, name, template);
     return fullGuild(ctx, id);
   });
 
@@ -88,6 +91,26 @@ export default function guildRoutes(app: FastifyInstance, ctx: Ctx) {
       }
     }
     if (b.icon === null) next.icon = null;
+    // directory listing
+    const discoverable = optBool(b, 'discoverable');
+    if (discoverable !== undefined) next.discoverable = discoverable ? 1 : 0;
+    if (b.category !== undefined) {
+      if (b.category !== null && !isGuildCategory(b.category)) throw invalidField('category', 'Unknown category');
+      next.category = b.category;
+    }
+    const banner = optStr(b, 'banner_color', { nullable: true });
+    if (banner !== undefined) {
+      if (banner && !/^#[0-9a-fA-F]{6}$/.test(banner)) throw invalidField('banner_color', 'banner_color must be #rrggbb');
+      next.banner_color = banner || null;
+    }
+    if ((next.discoverable ?? g.discoverable)) {
+      if (!(next.category !== undefined ? next.category : g.category)) {
+        throw invalidField('category', 'Pick a category before listing your server in Discover');
+      }
+      if (!(next.description !== undefined ? next.description : g.description)) {
+        throw invalidField('description', 'Add a description before listing your server in Discover');
+      }
+    }
     if (b.owner_id !== undefined) {
       if (g.owner_id !== me) throw forbidden('Only the owner can transfer ownership');
       if (!db.one('SELECT 1 AS x FROM members WHERE guild_id = ? AND user_id = ?', g.id, String(b.owner_id))) {
@@ -97,7 +120,7 @@ export default function guildRoutes(app: FastifyInstance, ctx: Ctx) {
     }
     const keys = Object.keys(next) as (keyof GuildRow)[];
     if (keys.length) {
-      db.run(`UPDATE guilds SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, ...keys.map((k) => next[k] as string | null), g.id);
+      db.run(`UPDATE guilds SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, ...keys.map((k) => next[k] as string | number | null), g.id);
       if (next.icon === null) removeUpload(ctx.cfg.uploadsDir, g.icon);
       writeAudit(ctx, g.id, me, AuditLogAction.GUILD_UPDATE, g.id, diff(g as any, next as any, keys), auditReason(req));
     }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LIMITS, type Message } from '@huddle/shared';
 import { useUIStore, toast } from '../../stores/ui';
 import { editMessage } from '../../lib/actions';
+import { encodeCustomEmoji } from '../../lib/emoji';
 import { errorMessage } from '../../api/client';
 import { confirmDeleteMessage } from '../menus/menus';
 
@@ -25,7 +26,7 @@ export function EditBox({ message }: { message: Message }) {
 
   const cancel = () => useUIStore.getState().setEditing(null);
   const save = async () => {
-    const t = text.trim();
+    const t = encodeCustomEmoji(text.trim(), message.guild_id);
     if (!t && !message.attachments.length) { cancel(); confirmDeleteMessage(message); return; }
     if (t === message.content) { cancel(); return; }
     setBusy(true);

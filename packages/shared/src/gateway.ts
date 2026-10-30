@@ -1,7 +1,8 @@
 import type {
-  Channel, FullGuild, Guild, Member, Message, Presence, PresenceStatus, PublicUser, ReadState,
+  Channel, FullGuild, Guild, GuildEmoji, Member, Message, Presence, PresenceStatus, PublicUser, ReadState,
   Relationship, Role, User, UserGuildSettings, VoiceState,
 } from './models';
+import type { CustomEmojiRef } from './emojis';
 
 export enum GatewayOp {
   DISPATCH = 0,
@@ -83,6 +84,8 @@ export interface DispatchEvents {
   GUILD_ROLE_CREATE: { guild_id: string; role: Role };
   GUILD_ROLE_UPDATE: { guild_id: string; role: Role };
   GUILD_ROLE_DELETE: { guild_id: string; role_id: string };
+  /** Full replacement list after any emoji create / rename / delete. */
+  GUILD_EMOJIS_UPDATE: { guild_id: string; emojis: GuildEmoji[] };
 
   CHANNEL_CREATE: Channel;
   CHANNEL_UPDATE: Channel;
@@ -92,8 +95,8 @@ export interface DispatchEvents {
   MESSAGE_CREATE: Message;
   MESSAGE_UPDATE: Message;
   MESSAGE_DELETE: { id: string; channel_id: string; guild_id: string | null };
-  MESSAGE_REACTION_ADD: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; emoji: string };
-  MESSAGE_REACTION_REMOVE: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; emoji: string };
+  MESSAGE_REACTION_ADD: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; emoji: string; custom_emoji?: CustomEmojiRef | null };
+  MESSAGE_REACTION_REMOVE: { user_id: string; channel_id: string; message_id: string; guild_id: string | null; emoji: string; custom_emoji?: CustomEmojiRef | null };
   MESSAGE_ACK: ReadState;
 
   TYPING_START: { channel_id: string; guild_id: string | null; user_id: string; timestamp: number; member?: Member };

@@ -1,6 +1,6 @@
 // Entity store: guilds, channels (guild + private), roles, members and a public-user cache.
 import { create } from 'zustand';
-import { ChannelType, type Channel, type FullGuild, type Guild, type Member, type PublicUser, type Role } from '@huddle/shared';
+import { ChannelType, type Channel, type FullGuild, type Guild, type GuildEmoji, type Member, type PublicUser, type Role } from '@huddle/shared';
 
 export interface GuildEntry extends Guild { member_count: number }
 
@@ -12,6 +12,7 @@ interface GuildState {
   members: Record<string, Record<string, Member>>; // guildId → userId → Member
   membersFetched: Record<string, boolean>;
   users: Record<string, PublicUser>;
+  emojis: Record<string, GuildEmoji[]>; // guildId → custom emoji
 
   reset(): void;
   loadGuilds(guilds: FullGuild[]): void;
@@ -32,6 +33,7 @@ interface GuildState {
   upsertMembers(guildId: string, ms: Member[]): void;
   removeMember(guildId: string, userId: string): void;
   setMembersFetched(guildId: string): void;
+  setEmojis(guildId: string, emojis: GuildEmoji[]): void;
 
   upsertUser(u: PublicUser): void;
   upsertUsers(us: PublicUser[]): void;
@@ -58,30 +60,33 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
   members: {},
   membersFetched: {},
   users: {},
+  emojis: {},
 
-  reset: () => set({ guilds: {}, guildOrder: [], channels: {}, roles: {}, members: {}, membersFetched: {}, users: {} }),
+  reset: () => set({ guilds: {}, guildOrder: [], channels: {}, roles: {}, members: {}, membersFetched: {}, users: {}, emojis: {} }),
 
   loadGuilds: (list) => {
     const guilds: Record<string, GuildEntry> = {};
     const channels: Record<string, Channel> = { ...get().channels };
     const roles: GuildState['roles'] = {};
     const members: GuildState['members'] = {};
+    const emojis: GuildState['emojis'] = {};
     let users = { ...get().users };
     for (const fg of list) {
-      const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, ...g } = fg;
+      const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, emojis: es, ...g } = fg;
       guilds[g.id] = { ...g, member_count: fg.member_count };
       roles[g.id] = Object.fromEntries(rs.map((r) => [r.id, r]));
       members[g.id] = Object.fromEntries(ms.map((m) => [m.user.id, m]));
+      emojis[g.id] = es ?? [];
       for (const c of cs) channels[c.id] = { ...c, guild_id: c.guild_id ?? g.id };
       for (const m of ms) users[m.user.id] = m.user;
     }
     const saved = loadOrder().filter((id) => guilds[id]);
     const order = [...saved, ...list.map((g) => g.id).filter((id) => !saved.includes(id))];
-    set({ guilds, roles, members, channels, users, guildOrder: order });
+    set({ guilds, roles, members, channels, users, emojis, guildOrder: order });
   },
 
   addGuild: (fg) => {
-    const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, ...g } = fg;
+    const { roles: rs, channels: cs, members: ms, presences: _p, voice_states: _v, emojis: es, ...g } = fg;
     set((s) => {
       const channels = { ...s.channels };
       for (const c of cs) channels[c.id] = { ...c, guild_id: c.guild_id ?? g.id };
@@ -95,6 +100,7 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
         members: { ...s.members, [g.id]: { ...(s.members[g.id] || {}), ...Object.fromEntries(ms.map((m) => [m.user.id, m])) } },
         channels,
         users,
+        emojis: { ...s.emojis, [g.id]: es ?? [] },
         guildOrder: order,
       };
     });
@@ -106,11 +112,12 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     const guilds = { ...s.guilds }; delete guilds[id];
     const roles = { ...s.roles }; delete roles[id];
     const members = { ...s.members }; delete members[id];
+    const emojis = { ...s.emojis }; delete emojis[id];
     const channels: Record<string, Channel> = {};
     for (const [cid, c] of Object.entries(s.channels)) if (c.guild_id !== id) channels[cid] = c;
     const order = s.guildOrder.filter((x) => x !== id);
     saveOrder(order);
-    return { guilds, roles, members, channels, guildOrder: order };
+    return { guilds, roles, members, channels, emojis, guildOrder: order };
   }),
 
   setGuildOrder: (order) => { saveOrder(order); set({ guildOrder: order }); },
@@ -175,6 +182,8 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
   }),
 
   setMembersFetched: (guildId) => set((s) => ({ membersFetched: { ...s.membersFetched, [guildId]: true } })),
+
+  setEmojis: (guildId, list) => set((s) => (s.guilds[guildId] ? { emojis: { ...s.emojis, [guildId]: list } } : {})),
 
   upsertUser: (u) => set((s) => {
     const users = mergeUser(s.users, u);

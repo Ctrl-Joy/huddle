@@ -1,10 +1,13 @@
 import type { FastifyInstance } from 'fastify';
-import { AuditLogAction, ChannelType, LIMITS, MessageType, Permissions, has } from '@huddle/shared';
+import {
+  AuditLogAction, ChannelType, LIMITS, MessageType, Permissions, customReactionId, has, normalizeReactionKey,
+  type CustomEmojiRef,
+} from '@huddle/shared';
 import { now, type Ctx } from '../context';
 import { ErrorCode, badRequest, forbidden, invalidField, notFound, tooMany, ApiErr } from '../errors';
 import {
-  getMessageRow, getUserRow, isPrivate, message as serializeMessage, publicUser, readState, recipientIds,
-  serializeMessages, type ChannelRow, type MessageRow,
+  emojiRef, getMessageRow, getUserRow, isPrivate, message as serializeMessage, publicUser, readState, recipientIds,
+  serializeMessages, type ChannelRow, type EmojiRow, type MessageRow,
 } from '../serializers';
 import { requireChannel, requirePerm } from '../services/permissions';
 import { createMessage, dispatchMessageUpdate, resolveMentions, type NewAttachment } from '../services/messages';
@@ -213,7 +216,20 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     let e = raw;
     try { e = decodeURIComponent(raw); } catch { /* already decoded */ }
     if (!e || e.length > 64 || /\s/.test(e)) throw invalidField('emoji', 'Invalid emoji');
-    return e;
+    return normalizeReactionKey(e);
+  };
+
+  /** Custom emoji info for a "c:<id>" key (null for unicode). Adding requires an emoji of this channel's server. */
+  const customFor = (c: ChannelRow, key: string, adding: boolean): CustomEmojiRef | null => {
+    const id = customReactionId(key);
+    if (!id) return null;
+    const e = db.one<EmojiRow>('SELECT * FROM emojis WHERE id = ?', id);
+    if (!e) {
+      if (adding) throw notFound('Emoji', ErrorCode.UNKNOWN_EMOJI);
+      return null;
+    }
+    if (adding && e.guild_id !== c.guild_id) throw invalidField('emoji', 'Custom emoji can only be used in their own server');
+    return emojiRef(e);
   };
 
   app.put('/channels/:id/messages/:mid/reactions/:emoji/@me', async (req, reply) => {
@@ -223,6 +239,7 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     requirePerm(perms, Permissions.READ_MESSAGE_HISTORY);
     const m = loadMessage(c, p.mid);
     const emoji = parseEmoji(p.emoji);
+    const custom = customFor(c, emoji, true);
     const exists = db.one('SELECT 1 AS x FROM reactions WHERE message_id = ? AND emoji = ?', m.id, emoji);
     if (!exists) {
       requirePerm(perms, Permissions.ADD_REACTIONS);
@@ -231,7 +248,7 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     }
     const r = db.run('INSERT OR IGNORE INTO reactions (message_id, user_id, emoji, created_at) VALUES (?, ?, ?, ?)', m.id, me, emoji, now());
     if (r.changes) {
-      gw.dispatchToChannel(c, 'MESSAGE_REACTION_ADD', { user_id: me, channel_id: c.id, message_id: m.id, guild_id: c.guild_id, emoji });
+      gw.dispatchToChannel(c, 'MESSAGE_REACTION_ADD', { user_id: me, channel_id: c.id, message_id: m.id, guild_id: c.guild_id, emoji, custom_emoji: custom });
     }
     return reply.status(204).send();
   });
@@ -239,7 +256,9 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
   const removeReaction = (c: ChannelRow, m: MessageRow, userId: string, emoji: string) => {
     const r = db.run('DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?', m.id, userId, emoji);
     if (r.changes) {
-      gw.dispatchToChannel(c, 'MESSAGE_REACTION_REMOVE', { user_id: userId, channel_id: c.id, message_id: m.id, guild_id: c.guild_id, emoji });
+      gw.dispatchToChannel(c, 'MESSAGE_REACTION_REMOVE', {
+        user_id: userId, channel_id: c.id, message_id: m.id, guild_id: c.guild_id, emoji, custom_emoji: customFor(c, emoji, false),
+      });
     }
   };
 

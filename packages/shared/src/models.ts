@@ -1,5 +1,7 @@
 // API object shapes. All ids are snowflake strings, all timestamps ISO-8601 strings,
 // all permission values decimal bigint strings.
+import type { GuildCategory } from './discovery';
+import type { CustomEmojiRef } from './emojis';
 
 export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline';
 
@@ -114,6 +116,11 @@ export interface Guild {
   owner_id: string;
   system_channel_id: string | null;
   created_at: string;
+  /** Listed in the public server directory (see discovery.ts). */
+  discoverable: boolean;
+  category: GuildCategory | null;
+  /** #rrggbb used for the directory card banner. */
+  banner_color: string | null;
 }
 
 /** Guild as delivered in READY / GUILD_CREATE — includes nested collections. */
@@ -124,6 +131,19 @@ export interface FullGuild extends Guild {
   presences: Presence[];
   voice_states: VoiceState[];
   member_count: number;
+  /** Custom emoji uploaded to this server. */
+  emojis?: GuildEmoji[];
+}
+
+/** A custom emoji uploaded to a server (see emojis.ts for the message token format). */
+export interface GuildEmoji {
+  id: string;
+  guild_id: string;
+  name: string;
+  url: string; // /uploads/emojis/<id>.<ext>
+  animated: boolean; // GIF
+  creator_id: string | null;
+  created_at: string;
 }
 
 export interface Attachment {
@@ -137,7 +157,8 @@ export interface Attachment {
 }
 
 export interface Reaction {
-  emoji: string; // unicode emoji
+  emoji: string; // unicode emoji, or "c:<id>" for a custom emoji
+  custom_emoji?: CustomEmojiRef | null; // set for custom emoji reactions
   count: number;
   me: boolean;
   user_ids?: string[]; // first up to 25 reactors, for tooltips
@@ -244,6 +265,9 @@ export enum AuditLogAction {
   MESSAGE_DELETE = 72,
   MESSAGE_PIN = 74,
   MESSAGE_UNPIN = 75,
+  EMOJI_CREATE = 80,
+  EMOJI_UPDATE = 81,
+  EMOJI_DELETE = 82,
 }
 
 export interface AuditLogEntry {

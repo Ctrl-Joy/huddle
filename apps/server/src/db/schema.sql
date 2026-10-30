@@ -33,7 +33,11 @@ CREATE TABLE IF NOT EXISTS guilds (
   description       TEXT,
   owner_id          TEXT NOT NULL REFERENCES users(id),
   system_channel_id TEXT,
-  created_at        TEXT NOT NULL
+  created_at        TEXT NOT NULL,
+  -- public directory (older DBs get these via migrate() in db/index.ts)
+  discoverable      INTEGER NOT NULL DEFAULT 0,
+  category          TEXT,
+  banner_color      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS members (
@@ -200,3 +204,15 @@ CREATE TABLE IF NOT EXISTS user_guild_settings (
   channel_overrides     TEXT NOT NULL DEFAULT '[]',
   PRIMARY KEY (user_id, guild_id)
 );
+
+-- Custom server emoji. Image lives at url (under /uploads/emojis/); animated = GIF.
+CREATE TABLE IF NOT EXISTS emojis (
+  id         TEXT PRIMARY KEY,
+  guild_id   TEXT NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  url        TEXT NOT NULL,
+  animated   INTEGER NOT NULL DEFAULT 0,
+  creator_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_emojis_guild ON emojis(guild_id);

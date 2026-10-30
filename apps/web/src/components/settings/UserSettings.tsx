@@ -13,8 +13,9 @@ import { Field, Toggle } from '../modals/Modal';
 import { Markdown } from '../../lib/markdown';
 import { LogoMark, IconMoon, IconSun, IconCheck } from '../common/icons';
 import { VoiceVideoSettings } from './VoiceVideoSettings';
+import { AccessibilityTab, ChatTab, LanguageTab } from './PreferenceSettings';
 
-type Tab = 'account' | 'profile' | 'notifications' | 'voice' | 'appearance';
+type Tab = 'account' | 'profile' | 'notifications' | 'voice' | 'appearance' | 'accessibility' | 'chat' | 'language';
 
 export function UserSettings({ close, tab: initial }: { close: () => void; tab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initial ?? 'account');
@@ -22,14 +23,26 @@ export function UserSettings({ close, tab: initial }: { close: () => void; tab?:
     <SettingsLayout
       close={close}
       active={tab}
+      searchable
+      startOnContent={!!initial}
       onSelect={(id) => {
         if (id === 'logout') confirmDialog({ title: 'Log Out', body: 'Are you sure you want to log out?', confirmLabel: 'Log Out', danger: true, onConfirm: () => { close(); logout(); } });
         else setTab(id as Tab);
       }}
       sections={[
-        { header: 'User Settings', items: [{ id: 'account', label: 'My Account' }, { id: 'profile', label: 'Profile' }] },
-        { header: 'App Settings', items: [{ id: 'appearance', label: 'Appearance' }, { id: 'voice', label: 'Voice & Video' }, { id: 'notifications', label: 'Notifications' }] },
-        { items: [{ id: 'logout', label: 'Log Out', danger: true }] },
+        { header: 'User Settings', items: [
+          { id: 'account', label: 'My Account', keywords: 'username display name email password member since' },
+          { id: 'profile', label: 'Profile', keywords: 'avatar picture banner colour color about me bio' },
+        ] },
+        { header: 'App Settings', items: [
+          { id: 'appearance', label: 'Appearance', keywords: 'theme dark light mode' },
+          { id: 'accessibility', label: 'Accessibility', keywords: 'font size text scale reduce motion animations underline links' },
+          { id: 'voice', label: 'Voice & Video', keywords: 'microphone mic camera speaker input output device' },
+          { id: 'chat', label: 'Chat', keywords: 'message display cozy compact images videos inline previews' },
+          { id: 'notifications', label: 'Notifications', keywords: 'desktop sounds ping alerts mentions' },
+          { id: 'language', label: 'Language & Time', keywords: 'english clock 12-hour 24-hour time format' },
+        ] },
+        { items: [{ id: 'logout', label: 'Log Out', danger: true, keywords: 'sign out' }] },
       ]}
     >
       {tab === 'account' && <MyAccount goProfile={() => setTab('profile')} />}
@@ -37,6 +50,9 @@ export function UserSettings({ close, tab: initial }: { close: () => void; tab?:
       {tab === 'notifications' && <NotificationsTab />}
       {tab === 'voice' && <VoiceVideoSettings />}
       {tab === 'appearance' && <AppearanceTab />}
+      {tab === 'accessibility' && <AccessibilityTab />}
+      {tab === 'chat' && <ChatTab />}
+      {tab === 'language' && <LanguageTab />}
     </SettingsLayout>
   );
 }

@@ -27,6 +27,8 @@ import inviteRoutes from './routes/invites';
 import banRoutes from './routes/bans';
 import auditRoutes from './routes/audit';
 import searchRoutes from './routes/search';
+import emojiRoutes from './routes/emojis';
+import discoveryRoutes from './routes/discovery';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SERVER_ROOT = path.resolve(here, '..');
@@ -172,7 +174,7 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
 
     for (const r of [
       authRoutes, userRoutes, relationshipRoutes, guildRoutes, channelRoutes, messageRoutes, roleRoutes, memberRoutes,
-      inviteRoutes, banRoutes, auditRoutes, searchRoutes,
+      inviteRoutes, banRoutes, auditRoutes, searchRoutes, discoveryRoutes, emojiRoutes,
     ]) {
       r(api, ctx);
     }

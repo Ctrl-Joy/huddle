@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AuditLogAction, ChannelType, PERMISSION_INFO, Permissions, has,
+  AuditLogAction, ChannelType, GUILD_CATEGORIES, PERMISSION_INFO, Permissions, has, type GuildCategory,
   type AuditLogEntry, type Invite, type Role, type PublicUser,
 } from '@huddle/shared';
 import { SettingsLayout, UnsavedBar } from './SettingsLayout';
@@ -17,8 +17,9 @@ import { Avatar, GuildIcon, Spinner, Tooltip } from '../common/Avatar';
 import { Field, Modal, Toggle } from '../modals/Modal';
 import { IconArrowDown, IconArrowUp, IconClose, IconPlus, IconSearch, IconTrash, IconShield } from '../common/icons';
 import { inviteUrl } from '../modals/InviteModal';
+import { EmojiTab } from './EmojiSettings';
 
-type Tab = 'overview' | 'roles' | 'members' | 'invites' | 'bans' | 'audit';
+type Tab = 'overview' | 'discovery' | 'roles' | 'emoji' |'members' | 'invites' | 'bans' | 'audit';
 
 export function ServerSettings({ close, guildId, tab: initial }: { close: () => void; guildId: string; tab?: Tab }) {
   const guild = useGuildStore((s) => s.guilds[guildId]);
@@ -40,6 +41,8 @@ export function ServerSettings({ close, guildId, tab: initial }: { close: () => 
           items: [
             { id: 'overview', label: 'Overview', hidden: !can(Permissions.MANAGE_GUILD) },
             { id: 'roles', label: 'Roles', hidden: !can(Permissions.MANAGE_ROLES) },
+            { id: 'emoji', label: 'Emoji' },
+            { id: 'discovery', label: 'Discovery', hidden: !can(Permissions.MANAGE_GUILD) },
           ],
         },
         {
@@ -56,6 +59,8 @@ export function ServerSettings({ close, guildId, tab: initial }: { close: () => 
     >
       {tab === 'overview' && <OverviewTab guildId={guildId} />}
       {tab === 'roles' && <RolesTab guildId={guildId} />}
+      {tab === 'emoji' && <EmojiTab guildId={guildId} />}
+      {tab === 'discovery' && <DiscoveryTab guildId={guildId} />}
       {tab === 'members' && <MembersTab guildId={guildId} />}
       {tab === 'invites' && <InvitesTab guildId={guildId} />}
       {tab === 'bans' && <BansTab guildId={guildId} />}
@@ -123,6 +128,82 @@ function OverviewTab({ guildId }: { guildId: string }) {
           {textChannels.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
         </select>
       </Field>
+      {dirty && <UnsavedBar onReset={reset} onSave={save} busy={busy} error={error} />}
+    </div>
+  );
+}
+
+// ---------------- Discovery ----------------
+const BANNER_COLORS = ['#14b8a6', '#22c55e', '#3b82f6', '#7c3aed', '#db2777', '#f43f5e', '#f97316', '#eab308', '#475569'];
+
+function DiscoveryTab({ guildId }: { guildId: string }) {
+  const guild = useGuildStore((s) => s.guilds[guildId])!;
+  const [enabled, setEnabled] = useState(guild.discoverable);
+  const [category, setCategory] = useState<GuildCategory | ''>(guild.category ?? '');
+  const [description, setDescription] = useState(guild.description ?? '');
+  const [banner, setBanner] = useState(guild.banner_color ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const dirty = enabled !== guild.discoverable || category !== (guild.category ?? '') ||
+    description !== (guild.description ?? '') || banner !== (guild.banner_color ?? '');
+
+  const reset = () => {
+    setEnabled(guild.discoverable); setCategory(guild.category ?? ''); setDescription(guild.description ?? '');
+    setBanner(guild.banner_color ?? ''); setError('');
+  };
+  const save = async () => {
+    if (enabled && !category) { setError('Pick a category to list your server'); return; }
+    if (enabled && !description.trim()) { setError('Add a description to list your server'); return; }
+    setBusy(true); setError('');
+    try {
+      const g = await api.patch<typeof guild>(`/guilds/${guildId}`, {
+        discoverable: enabled, category: category || null, description: description.trim() || null, banner_color: banner || null,
+      });
+      if (g?.id) useGuildStore.getState().updateGuild(g);
+      toast(enabled ? 'Your server is listed in Discover' : 'Discovery settings saved', 'success');
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div>
+      <h1 className="settings-title">Discovery</h1>
+      <p className="setting-desc">List your server in Discover so anyone on Huddle can find it and join without an invite. Bans still apply.</p>
+      <div className="setting-row">
+        <div>
+          <div className="setting-title">Show in Discover</div>
+          <div className="setting-desc">Needs a category and a description.</div>
+        </div>
+        <Toggle checked={enabled} onChange={setEnabled} label="Show in Discover" />
+      </div>
+      <div className="divider" />
+      <Field label="Category">
+        <select value={category} onChange={(e) => setCategory(e.target.value as GuildCategory | '')}>
+          <option value="">Choose a category</option>
+          {GUILD_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </Field>
+      <Field label="Description" hint="Shown on your Discover card and invite pages.">
+        <textarea rows={3} maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's your server about?" />
+      </Field>
+      <div className="field">
+        <span className="field-label">Banner Colour</span>
+        <div className="swatches" role="radiogroup" aria-label="Banner colour">
+          <button type="button" role="radio" aria-checked={!banner} className={'swatch default' + (!banner ? ' selected' : '')} title="Category colour" onClick={() => setBanner('')} />
+          {BANNER_COLORS.map((c) => (
+            <button key={c} type="button" role="radio" aria-checked={banner === c} className={'swatch' + (banner === c ? ' selected' : '')} style={{ background: c }} title={c} onClick={() => setBanner(c)} />
+          ))}
+        </div>
+      </div>
+      <span className="field-label">Preview</span>
+      <div className="discover-card discover-card-preview" aria-hidden="true">
+        <div className={'discover-banner cat-' + (category || 'other')} style={banner ? { background: banner } : undefined} />
+        <GuildIcon guild={guild} size={52} className="discover-card-icon" />
+        <div className="discover-card-body">
+          <div className="discover-card-name"><strong className="truncate">{guild.name}</strong></div>
+          <p className="discover-card-desc">{description || 'Your description goes here.'}</p>
+        </div>
+      </div>
       {dirty && <UnsavedBar onReset={reset} onSave={save} busy={busy} error={error} />}
     </div>
   );
@@ -486,6 +567,9 @@ const ACTION_TEXT: Record<number, string> = {
   [AuditLogAction.MESSAGE_DELETE]: 'deleted a message by',
   [AuditLogAction.MESSAGE_PIN]: 'pinned a message by',
   [AuditLogAction.MESSAGE_UNPIN]: 'unpinned a message by',
+  [AuditLogAction.EMOJI_CREATE]: 'added emoji',
+  [AuditLogAction.EMOJI_UPDATE]: 'renamed emoji',
+  [AuditLogAction.EMOJI_DELETE]: 'removed emoji',
 };
 
 function targetName(guildId: string, e: AuditLogEntry, users: Record<string, PublicUser>): string {
@@ -495,6 +579,7 @@ function targetName(guildId: string, e: AuditLogEntry, users: Record<string, Pub
   if (e.action_type >= 10 && e.action_type < 20) { const c = s.channels[e.target_id]; return '#' + (c?.name ?? (nameChange?.old_value as string) ?? (nameChange?.new_value as string) ?? 'deleted-channel'); }
   if (e.action_type >= 30 && e.action_type < 40) { const r = s.roles[guildId]?.[e.target_id]; return '@' + (r?.name ?? (nameChange?.new_value as string) ?? (nameChange?.old_value as string) ?? 'deleted-role'); }
   if (e.action_type >= 40 && e.action_type < 50) return e.target_id;
+  if (e.action_type >= 80 && e.action_type < 90) { const em = s.emojis[guildId]?.find((x) => x.id === e.target_id); return ':' + (em?.name ?? (nameChange?.new_value as string) ?? (nameChange?.old_value as string) ?? 'emoji') + ':'; }
   if (e.action_type === 1) return '';
   const u = users[e.target_id] || s.users[e.target_id];
   return u ? userDisplayName(u) : displayName(e.target_id, guildId);

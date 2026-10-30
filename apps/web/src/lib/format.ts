@@ -1,4 +1,5 @@
 import { snowflakeTimestamp } from '@huddle/shared';
+import { usePrefs } from '../stores/prefs';
 
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -9,30 +10,41 @@ export function formatBytes(n: number): string {
   return `${v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
 }
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 const dateFmt = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' });
 const longDateFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 const dividerFmt = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-const fullFmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'short' });
 const shortDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+// clock-dependent formatters follow the 12-hour / 24-hour preference (Settings > Language & Time)
+const clockFmts = new Map<string, Intl.DateTimeFormat>();
+function clockFmt(kind: 'time' | 'full'): Intl.DateTimeFormat {
+  const hour12 = usePrefs.getState().clock === '12h';
+  const k = kind + hour12;
+  let f = clockFmts.get(k);
+  if (!f) {
+    f = new Intl.DateTimeFormat(undefined, kind === 'time' ? { hour: 'numeric', minute: '2-digit', hour12 } : { dateStyle: 'full', timeStyle: 'short', hour12 });
+    clockFmts.set(k, f);
+  }
+  return f;
+}
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-export function formatTime(iso: string | number | Date): string { return timeFmt.format(new Date(iso)); }
+export function formatTime(iso: string | number | Date): string { return clockFmt('time').format(new Date(iso)); }
 
 /** "Today at 3:04 PM" / "Yesterday at …" / "03/02/2026 3:04 PM" */
 export function formatTimestamp(iso: string | number | Date): string {
   const d = new Date(iso);
   const now = new Date();
   const y = new Date(now); y.setDate(now.getDate() - 1);
-  if (sameDay(d, now)) return `Today at ${timeFmt.format(d)}`;
-  if (sameDay(d, y)) return `Yesterday at ${timeFmt.format(d)}`;
-  return `${dateFmt.format(d)} ${timeFmt.format(d)}`;
+  if (sameDay(d, now)) return `Today at ${clockFmt('time').format(d)}`;
+  if (sameDay(d, y)) return `Yesterday at ${clockFmt('time').format(d)}`;
+  return `${dateFmt.format(d)} ${clockFmt('time').format(d)}`;
 }
 
-export function formatFull(iso: string | number | Date): string { return fullFmt.format(new Date(iso)); }
+export function formatFull(iso: string | number | Date): string { return clockFmt('full').format(new Date(iso)); }
 export function formatDivider(iso: string | number | Date): string { return dividerFmt.format(new Date(iso)); }
 export function formatLongDate(iso: string | number | Date): string { return longDateFmt.format(new Date(iso)); }
 export function formatShortDate(iso: string | number | Date): string { return shortDate.format(new Date(iso)); }

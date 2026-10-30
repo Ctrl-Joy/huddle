@@ -30,6 +30,19 @@ export class Db {
     this.raw.exec('PRAGMA foreign_keys = ON');
     this.raw.exec('PRAGMA busy_timeout = 5000');
     this.raw.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Columns added after a table first shipped (CREATE TABLE IF NOT EXISTS won't add them). */
+  private migrate(): void {
+    const addColumns = (table: string, cols: Record<string, string>) => {
+      const have = new Set((this.raw.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name));
+      for (const [name, def] of Object.entries(cols)) {
+        if (!have.has(name)) this.raw.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`);
+      }
+    };
+    addColumns('guilds', { discoverable: 'INTEGER NOT NULL DEFAULT 0', category: 'TEXT', banner_color: 'TEXT' });
+    this.raw.exec('CREATE INDEX IF NOT EXISTS idx_guilds_discoverable ON guilds(discoverable)');
   }
 
   private stmt(sql: string): StatementSync {

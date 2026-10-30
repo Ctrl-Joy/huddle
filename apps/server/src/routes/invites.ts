@@ -2,10 +2,10 @@ import crypto from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { AuditLogAction, ChannelType, Permissions, has } from '@huddle/shared';
 import { now, type Ctx } from '../context';
-import { ApiErr, ErrorCode, badRequest, forbidden, notFound } from '../errors';
+import { ErrorCode, badRequest, forbidden, notFound } from '../errors';
 import { invite, type InviteRow } from '../serializers';
 import { getGuildRow, requireChannel, requireGuildPerm, guildPerms } from '../services/permissions';
-import { addMember, fullGuild } from '../services/guilds';
+import { fullGuild, joinGuild } from '../services/guilds';
 import { writeAudit } from '../services/audit';
 import { auditReason, body, optInt, uid } from './util';
 
@@ -75,14 +75,8 @@ export default function inviteRoutes(app: FastifyInstance, ctx: Ctx) {
     const me = uid(req);
     const i = loadValid((req.params as { code: string }).code);
     const g = getGuildRow(db, i.guild_id)!;
-    if (db.one('SELECT 1 AS x FROM members WHERE guild_id = ? AND user_id = ?', g.id, me)) {
-      return fullGuild(ctx, g.id); // already a member: no-op
-    }
-    if (db.one('SELECT 1 AS x FROM bans WHERE guild_id = ? AND user_id = ?', g.id, me)) {
-      throw new ApiErr(403, 'You are banned from this server', ErrorCode.BANNED);
-    }
-    db.run('UPDATE invites SET uses = uses + 1 WHERE code = ?', i.code);
-    addMember(ctx, g, me);
+    // already a member: no-op (uses only count real joins)
+    if (joinGuild(ctx, g, me)) db.run('UPDATE invites SET uses = uses + 1 WHERE code = ?', i.code);
     return fullGuild(ctx, g.id);
   });
 

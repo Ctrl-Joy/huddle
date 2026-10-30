@@ -4,3 +4,5 @@ export * from './gateway';
 export * from './snowflake';
 export * from './mentions';
 export * from './api';
+export * from './discovery';
+export * from './emojis';

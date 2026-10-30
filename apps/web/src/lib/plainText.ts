@@ -4,6 +4,7 @@ import { useGuildStore } from '../stores/guilds';
 export function stripMarkdownForPreview(content: string, guildId?: string | null): string {
   const s = useGuildStore.getState();
   return content
+    .replace(/<a?:([A-Za-z0-9_]{2,32}):\d+>/g, ':$1:')
     .replace(/<@&(\d+)>/g, (_, id) => '@' + (guildId ? s.roles[guildId]?.[id]?.name ?? 'role' : 'role'))
     .replace(/<@(\d+)>/g, (_, id) => {
       const m = guildId ? s.members[guildId]?.[id] : undefined;

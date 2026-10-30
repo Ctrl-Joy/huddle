@@ -1,6 +1,6 @@
 // Messages per channel, with pagination flags and optimistic (nonce-keyed) pending messages.
 import { create } from 'zustand';
-import { LIMITS, MessageType, type Message, type PublicUser } from '@huddle/shared';
+import { LIMITS, MessageType, type CustomEmojiRef, type Message, type PublicUser } from '@huddle/shared';
 import { api, errorMessage, uploadWithProgress } from '../api/client';
 import { useGuildStore } from './guilds';
 
@@ -39,7 +39,7 @@ interface MessageStore {
   add(m: Message): void;
   update(m: Partial<Message> & { id: string; channel_id: string }): void;
   remove(channelId: string, id: string): void;
-  reaction(channelId: string, messageId: string, emoji: string, userId: string, add: boolean, meId: string): void;
+  reaction(channelId: string, messageId: string, emoji: string, userId: string, add: boolean, meId: string, custom?: CustomEmojiRef | null): void;
   addPending(m: ClientMessage): void;
   setPendingState(channelId: string, nonce: string, p: Partial<ClientMessage>): void;
   removePending(channelId: string, nonce: string): void;
@@ -203,7 +203,7 @@ export const useMessageStore = create<MessageStore>()((set, get) => ({
     return { channels: { ...s.channels, [channelId]: { ...cur, messages } } };
   }),
 
-  reaction: (channelId, messageId, emoji, userId, add, meId) => set((s) => {
+  reaction: (channelId, messageId, emoji, userId, add, meId, custom) => set((s) => {
     const cur = s.channels[channelId];
     if (!cur) return {};
     const messages = cur.messages.map((m) => {
@@ -215,7 +215,7 @@ export const useMessageStore = create<MessageStore>()((set, get) => ({
           const r = reactions[i];
           if (r.user_ids?.includes(userId)) return m;
           reactions[i] = { ...r, count: r.count + 1, me: r.me || userId === meId, user_ids: [...(r.user_ids || []), userId].slice(0, 25) };
-        } else reactions.push({ emoji, count: 1, me: userId === meId, user_ids: [userId] });
+        } else reactions.push({ emoji, count: 1, me: userId === meId, user_ids: [userId], ...(custom ? { custom_emoji: custom } : {}) });
       } else {
         if (i < 0) return m;
         const r = reactions[i];

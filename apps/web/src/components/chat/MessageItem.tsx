@@ -5,6 +5,7 @@ import { retryMessage, useMessageStore } from '../../stores/messages';
 import { useGuildStore, roleColorFor } from '../../stores/guilds';
 import { useAuthStore } from '../../stores/auth';
 import { useUIStore } from '../../stores/ui';
+import { usePrefs } from '../../stores/prefs';
 import { useCan } from '../../lib/permissions';
 import { Markdown, InlineMarkdown } from '../../lib/markdown';
 import { formatFull, formatTime, formatTimestamp } from '../../lib/format';
@@ -35,6 +36,7 @@ function useAuthorInfo(m: Message) {
 
 export const MessageItem = memo(function MessageItem({ message: m, grouped, highlighted }: { message: ClientMessage; grouped: boolean; highlighted: boolean }) {
   const me = useAuthStore((s) => s.user!);
+  usePrefs((s) => s.clock); // re-render timestamps when the 12/24-hour clock changes
   const editing = useUIStore((s) => s.editing?.messageId === m.id);
   const replying = useUIStore((s) => s.replyTo[m.channel_id] === m.id);
   const canManage = useCan(m.channel_id, Permissions.MANAGE_MESSAGES);
@@ -138,6 +140,7 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
         <EmojiPicker
           anchor={pickerAnchor.current}
           onPick={(e) => { void toggleReaction(m, e); }}
+          guildId={m.guild_id}
           close={() => setPickerOpen(false)}
           closeOnPick
         />

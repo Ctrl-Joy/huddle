@@ -1,11 +1,12 @@
 // Safe markdown renderer → React elements (never dangerouslySetInnerHTML).
 // Supports: **bold** *italic* _italic_ __underline__ ~~strike~~ `code` ```fenced``` > quote ||spoiler||,
-// auto-links, <@user> <@&role> <#channel> @everyone @here, backslash escapes.
+// auto-links, <@user> <@&role> <#channel> <:emoji:id> @everyone @here, backslash escapes.
 import { Fragment, useState, type ReactNode, type MouseEvent } from 'react';
 import { useGuildStore, intToHex } from '../stores/guilds';
 import { useUIStore } from '../stores/ui';
 import { navigate, channelPath } from './nav';
-import { ChannelType } from '@huddle/shared';
+import { CUSTOM_EMOJI_RE, ChannelType } from '@huddle/shared';
+import { CustomEmojiToken } from '../components/chat/CustomEmoji';
 
 interface Ctx { guildId: string | null; key: number }
 
@@ -16,6 +17,7 @@ const RULES: Rule[] = [
   { name: 'code', re: /`([^`\n]+)`/ },
   { name: 'angleurl', re: /<(https?:\/\/[^\s>]+)>/ },
   { name: 'url', re: /https?:\/\/[^\s<]+[^\s<.,:;"')\]!?*_~|]/ },
+  { name: 'customEmoji', re: /<(a?):([A-Za-z0-9_]{2,32}):(\d{1,20})>/ },
   { name: 'user', re: /<@!?(\d+)>/ },
   { name: 'role', re: /<@&(\d+)>/ },
   { name: 'channel', re: /<#(\d+)>/ },
@@ -52,6 +54,7 @@ function parseInline(text: string, ctx: Ctx, depth = 0): ReactNode[] {
         out.push(<a key={k} href={href} target="_blank" rel="noopener noreferrer nofollow" className="md-link">{href}</a>);
         break;
       }
+      case 'customEmoji': out.push(<CustomEmojiToken key={k} id={m[3]} name={m[2]} />); break;
       case 'user': out.push(<UserMention key={k} userId={m[1]} guildId={ctx.guildId} />); break;
       case 'role': out.push(<RoleMention key={k} roleId={m[1]} guildId={ctx.guildId} />); break;
       case 'channel': out.push(<ChannelMention key={k} channelId={m[1]} />); break;
@@ -110,8 +113,11 @@ function trimNewlines(s: string) { return s.replace(/^\n+|\n+$/g, ''); }
 const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier})*|\p{Regional_Indicator}{2}|\s)+$/u;
 
 export function isEmojiOnly(content: string): boolean {
-  const t = content.trim();
-  if (!t || t.length > 60) return false;
+  // custom emoji tokens count as emoji
+  const tokens = content.match(CUSTOM_EMOJI_RE)?.length ?? 0;
+  const t = content.replace(CUSTOM_EMOJI_RE, '').trim();
+  if (!t) return tokens > 0 && tokens <= 30;
+  if (t.length > 60) return false;
   return EMOJI_ONLY.test(t) && !/\d/.test(t);
 }
 

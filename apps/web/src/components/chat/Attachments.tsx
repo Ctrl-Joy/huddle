@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Attachment } from '@huddle/shared';
 import type { ClientMessage } from '../../stores/messages';
 import { openModal } from '../../stores/ui';
+import { usePrefs } from '../../stores/prefs';
 import { formatBytes } from '../../lib/format';
 import { IconDownload, IconFile } from '../common/icons';
 
@@ -28,6 +29,7 @@ function AttachmentView({ a, pending }: { a: Attachment; pending: boolean }) {
   const [revealed, setRevealed] = useState(!spoiler);
   const name = spoiler ? a.filename.slice(8) : a.filename;
   const type = a.content_type || '';
+  const inline = usePrefs((s) => s.inlineMedia);
 
   if (pending || !a.url) {
     return (
@@ -38,7 +40,7 @@ function AttachmentView({ a, pending }: { a: Attachment; pending: boolean }) {
     );
   }
 
-  if (type.startsWith('image/')) {
+  if (inline && type.startsWith('image/')) {
     const dims = fit(a.width, a.height);
     return (
       <div className={'media-attachment' + (spoiler && !revealed ? ' spoilered' : '')} style={dims.width ? { width: dims.width, aspectRatio: `${dims.width} / ${dims.height}` } : undefined}>
@@ -55,7 +57,7 @@ function AttachmentView({ a, pending }: { a: Attachment; pending: boolean }) {
     );
   }
 
-  if (type.startsWith('video/')) {
+  if (inline && type.startsWith('video/')) {
     const dims = fit(a.width, a.height);
     return (
       <div className={'media-attachment video' + (spoiler && !revealed ? ' spoilered' : '')} style={dims.width ? { width: dims.width } : { width: MAX_W }}>

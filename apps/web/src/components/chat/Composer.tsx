@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { ChannelType, LIMITS, Permissions, has, type Channel } from '@huddle/shared';
+import { ChannelType, LIMITS, Permissions, has, parseEmojiToken, type Channel } from '@huddle/shared';
 import { useAuthStore } from '../../stores/auth';
 import { useComposerStore } from '../../stores/composer';
 import { sendMessage, useMessageStore } from '../../stores/messages';
@@ -8,14 +8,18 @@ import { useUIStore, toast } from '../../stores/ui';
 import { usePermissions } from '../../lib/permissions';
 import { channelVisible } from '../../lib/permissionsCore';
 import { sendTyping, resetTyping } from '../../lib/actions';
-import { searchEmoji } from '../../lib/emoji';
+import { encodeCustomEmoji, searchCustomEmoji, searchEmoji } from '../../lib/emoji';
 import { formatBytes, formatTimestamp } from '../../lib/format';
 import { Avatar, Tooltip } from '../common/Avatar';
 import { IconClose, IconEye, IconFile, IconHash, IconPlusCircle, IconSmile, IconSpeaker, IconTrash, IconClock, IconAt } from '../common/icons';
 import { EmojiPicker } from './EmojiPicker';
+import { CustomEmojiImg } from './CustomEmoji';
 import { TypingIndicator } from './TypingIndicator';
 import { addFilesChecked } from './ChatView';
 import { ApiError } from '../../api/client';
+
+// Custom emoji picks show as ":name:" in the textarea; submit turns them into tokens.
+const pickedToText = (e: string) => { const t = parseEmojiToken(e); return t ? `:${t.name}: ` : e; };
 
 // per-channel slow-mode cooldown end timestamps
 const cooldowns = new Map<string, number>();
@@ -153,6 +157,7 @@ export function Composer({ channel }: { channel: Channel }) {
         out.push({ key: 'c' + c.id, insert: '#' + c.name, label: c.name, sub: parent ?? undefined, icon: c.type === ChannelType.GUILD_VOICE ? <IconSpeaker size={18} /> : <IconHash size={18} /> });
       }
     } else if (trigger.char === ':') {
+      for (const e of searchCustomEmoji(channel.guild_id, q, 5)) out.push({ key: 'ce' + e.id, insert: `:${e.name}:`, label: `:${e.name}:`, sub: 'Server emoji', icon: <CustomEmojiImg emoji={e} className="custom-emoji ac-emoji" /> });
       for (const e of searchEmoji(q, 10)) out.push({ key: 'e' + e.e + e.n, insert: e.e, label: `:${e.n}:`, icon: <span className="ac-emoji">{e.e}</span> });
     }
     return out.slice(0, 10);
@@ -187,7 +192,7 @@ export function Composer({ channel }: { channel: Channel }) {
     if (!content && !files.length) return;
     if (content.length > LIMITS.MESSAGE_LENGTH) { toast(`Messages can be at most ${LIMITS.MESSAGE_LENGTH} characters (yours is ${content.length}).`, 'error'); return; }
     if (cooldownLeft > 0) return;
-    const encoded = encodeMentions(content, channel, me.id);
+    const encoded = encodeCustomEmoji(encodeMentions(content, channel, me.id), channel.guild_id);
     const sendFiles = files;
     setText('');
     useComposerStore.getState().setDraft(channelId, '');
@@ -303,7 +308,7 @@ export function Composer({ channel }: { channel: Channel }) {
           </span>
         )}
       </div>
-      {pickerOpen && <EmojiPicker anchor={emojiBtn.current} placement="above" onPick={(e) => insertAtCursor(e)} close={() => setPickerOpen(false)} />}
+      {pickerOpen && <EmojiPicker anchor={emojiBtn.current} placement="above" guildId={channel.guild_id} onPick={(e) => insertAtCursor(pickedToText(e))} close={() => setPickerOpen(false)} />}
     </div>
   );
 }

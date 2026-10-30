@@ -1,7 +1,11 @@
-import { ChannelType, DEFAULT_EVERYONE_PERMISSIONS, MessageType, type FullGuild, type Member } from '@huddle/shared';
-import { now, type Ctx } from '../context';
 import {
-  getChannelRow, getUserRow, guild, guildChannels, member, membersOf, publicUser, role, rolesOf, type GuildRow,
+  ChannelType, DEFAULT_EVERYONE_PERMISSIONS, MessageType, type FullGuild, type GuildTemplateId, type Member,
+} from '@huddle/shared';
+import { now, type Ctx } from '../context';
+import { ApiErr, ErrorCode } from '../errors';
+import { DEFAULT_LAYOUT, TEMPLATE_LAYOUTS } from './templates';
+import {
+  emojisOf, getChannelRow, getUserRow, guild, guildChannels, member, membersOf, publicUser, role, rolesOf, type GuildRow,
 } from '../serializers';
 import { getGuildRow } from './permissions';
 import { createMessage } from './messages';
@@ -22,26 +26,37 @@ export function fullGuild(ctx: Ctx, guildId: string): FullGuild | null {
     presences,
     voice_states: ctx.voice.inGuild(guildId),
     member_count: members.length,
+    emojis: emojisOf(ctx.db, guildId),
   };
 }
 
-export function createGuild(ctx: Ctx, ownerId: string, name: string): string {
+export function createGuild(ctx: Ctx, ownerId: string, name: string, template?: GuildTemplateId): string {
   const { db } = ctx;
   const gid = ctx.id();
   const ts = now();
+  const layout = template ? TEMPLATE_LAYOUTS[template] : DEFAULT_LAYOUT;
   db.tx(() => {
     db.run('INSERT INTO guilds (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)', gid, name, ownerId, ts);
     db.run(
       'INSERT INTO roles (id, guild_id, name, position, permissions) VALUES (?, ?, ?, 0, ?)',
       gid, gid, '@everyone', DEFAULT_EVERYONE_PERMISSIONS.toString(),
     );
-    const textCat = ctx.id(), general = ctx.id(), voiceCat = ctx.id(), voice = ctx.id();
     const ins = 'INSERT INTO channels (id, type, guild_id, name, position, parent_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)';
-    db.run(ins, textCat, ChannelType.GUILD_CATEGORY, gid, 'Text Channels', 0, null, ts);
-    db.run(ins, general, ChannelType.GUILD_TEXT, gid, 'general', 0, textCat, ts);
-    db.run(ins, voiceCat, ChannelType.GUILD_CATEGORY, gid, 'Voice Channels', 1, null, ts);
-    db.run(ins, voice, ChannelType.GUILD_VOICE, gid, 'General', 0, voiceCat, ts);
-    db.run('UPDATE guilds SET system_channel_id = ? WHERE id = ?', general, gid);
+    let systemChannel: string | null = null;
+    layout.forEach((cat, ci) => {
+      const catId = ctx.id();
+      db.run(ins, catId, ChannelType.GUILD_CATEGORY, gid, cat.name, ci, null, ts);
+      const kids = [
+        ...(cat.text ?? []).map((n) => [ChannelType.GUILD_TEXT, n] as const),
+        ...(cat.voice ?? []).map((n) => [ChannelType.GUILD_VOICE, n] as const),
+      ];
+      kids.forEach(([type, n], pos) => {
+        const cid = ctx.id();
+        db.run(ins, cid, type, gid, n, pos, catId, ts);
+        if (!systemChannel && type === ChannelType.GUILD_TEXT) systemChannel = cid;
+      });
+    });
+    db.run('UPDATE guilds SET system_channel_id = ? WHERE id = ?', systemChannel, gid);
     db.run('INSERT INTO members (guild_id, user_id, joined_at) VALUES (?, ?, ?)', gid, ownerId, ts);
   });
   const fg = fullGuild(ctx, gid)!;
@@ -63,6 +78,16 @@ export function addMember(ctx: Ctx, g: GuildRow, userId: string): Member {
   const p = ctx.gw.presence(userId);
   if (p.status !== 'offline') ctx.gw.dispatchToGuild(g.id, 'PRESENCE_UPDATE', p, { exclude: userId });
   return m;
+}
+
+/** Self-join via invite or the directory: no-op if already a member, 403 if banned. True if newly added. */
+export function joinGuild(ctx: Ctx, g: GuildRow, userId: string): boolean {
+  if (ctx.db.one('SELECT 1 AS x FROM members WHERE guild_id = ? AND user_id = ?', g.id, userId)) return false;
+  if (ctx.db.one('SELECT 1 AS x FROM bans WHERE guild_id = ? AND user_id = ?', g.id, userId)) {
+    throw new ApiErr(403, 'You are banned from this server', ErrorCode.BANNED);
+  }
+  addMember(ctx, g, userId);
+  return true;
 }
 
 /** Removes a member (kick/ban/leave) and notifies everyone. */

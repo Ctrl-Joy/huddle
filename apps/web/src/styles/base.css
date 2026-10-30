@@ -273,3 +273,12 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
     scroll-behavior: auto !important;
   }
 }
+
+/* ===== User preferences (Settings > Accessibility / Chat) — classes set on <html> by stores/prefs.ts ===== */
+html.underline-links a, html.underline-links .md-link { text-decoration: underline; }
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after {
+  animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important;
+  transition-duration: 0.001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important;
+}
+html.reduce-motion .spinner { animation-duration: 1.2s !important; animation-iteration-count: infinite !important; } /* keep loading indicators visibly alive */
+input[type="range"].range { width: 100%; accent-color: var(--accent-strong); }

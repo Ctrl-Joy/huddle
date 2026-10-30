@@ -134,6 +134,7 @@ const handlers: Handlers = {
   GUILD_ROLE_CREATE: ({ guild_id, role }) => useGuildStore.getState().upsertRole(guild_id, role),
   GUILD_ROLE_UPDATE: ({ guild_id, role }) => useGuildStore.getState().upsertRole(guild_id, role),
   GUILD_ROLE_DELETE: ({ guild_id, role_id }) => useGuildStore.getState().removeRole(guild_id, role_id),
+  GUILD_EMOJIS_UPDATE: ({ guild_id, emojis }) => useGuildStore.getState().setEmojis(guild_id, emojis),
 
   CHANNEL_CREATE: (c) => useGuildStore.getState().upsertChannel(c),
   CHANNEL_UPDATE: (c) => {
@@ -163,8 +164,8 @@ const handlers: Handlers = {
     if (m.author) useGuildStore.getState().upsertUser(m.author);
   },
   MESSAGE_DELETE: ({ id, channel_id }) => useMessageStore.getState().remove(channel_id, id),
-  MESSAGE_REACTION_ADD: (r) => useMessageStore.getState().reaction(r.channel_id, r.message_id, r.emoji, r.user_id, true, me()),
-  MESSAGE_REACTION_REMOVE: (r) => useMessageStore.getState().reaction(r.channel_id, r.message_id, r.emoji, r.user_id, false, me()),
+  MESSAGE_REACTION_ADD: (r) => useMessageStore.getState().reaction(r.channel_id, r.message_id, r.emoji, r.user_id, true, me(), r.custom_emoji),
+  MESSAGE_REACTION_REMOVE: (r) => useMessageStore.getState().reaction(r.channel_id, r.message_id, r.emoji, r.user_id, false, me(), r.custom_emoji),
   MESSAGE_ACK: (rs) => useReadStateStore.getState().upsertReadState(rs),
 
   TYPING_START: (t) => {

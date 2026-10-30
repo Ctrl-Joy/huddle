@@ -40,7 +40,9 @@ try {
 
     // server
     const g = await call<any>(alice.token, 'POST', '/guilds', { name: 'Huddle HQ' });
-    await call(alice.token, 'PATCH', `/guilds/${g.id}`, { description: 'The official demo server for Huddle.' });
+    await call(alice.token, 'PATCH', `/guilds/${g.id}`, {
+      description: 'The official demo server for Huddle.', discoverable: true, category: 'community', banner_color: '#14b8a6',
+    });
     const general = g.channels.find((c: any) => c.name === 'general');
     const textCat = g.channels.find((c: any) => c.name === 'Text Channels');
     const inv = await call<any>(alice.token, 'POST', `/channels/${general.id}/invites`, { max_age: 0 });
@@ -84,6 +86,20 @@ try {
     const dm = await call<any>(alice.token, 'POST', '/users/@me/channels', { recipient_ids: [bob.id] });
     await send(alice, dm.id, 'Hey Bob, thanks for agreeing to moderate!');
     await send(bob, dm.id, 'Any time. Ping me if anything comes up.');
+
+    // a few public servers built from templates, listed in Discover
+    const demos = [
+      { owner: bob, name: 'Night Owl Gaming', template: 'gaming', category: 'gaming', banner_color: '#7c3aed', description: 'Late-night co-op, ranked grinds and clip sharing.' },
+      { owner: carol, name: 'Study Buddies', template: 'study', category: 'education', banner_color: '#2563eb', description: 'Focus rooms and friendly help with homework and exams.' },
+      { owner: carol, name: 'Sketchbook Corner', template: 'creators', category: 'art', banner_color: '#db2777', description: 'Share doodles, get kind feedback, join weekly prompts.' },
+    ];
+    for (const d of demos) {
+      const dg = await call<any>(d.owner.token, 'POST', '/guilds', { name: d.name, template: d.template });
+      await call(d.owner.token, 'PATCH', `/guilds/${dg.id}`, {
+        description: d.description, discoverable: true, category: d.category, banner_color: d.banner_color,
+      });
+      await call(alice.token, 'POST', `/discovery/${dg.id}/join`);
+    }
 
     console.log('[seed] created users alice / bob / carol (password: password123)');
     console.log(`[seed] server "Huddle HQ" (${g.id}) with #general, #random, #mods (Moderator only), invite code ${inv.code}`);

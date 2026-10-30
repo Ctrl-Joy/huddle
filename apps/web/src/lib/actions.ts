@@ -1,6 +1,10 @@
 // REST actions shared across components. They update stores optimistically where it's safe and
 // otherwise rely on gateway dispatches to reconcile.
-import type { Channel, FullGuild, Guild, Invite, Member, Message, Relationship, Role, User, UserGuildSettings } from '@huddle/shared';
+import type {
+  Channel, DiscoveryResponse, FullGuild, Guild, GuildCategory, GuildTemplateId, Invite, Member, Message, Relationship, Role, User,
+  UserGuildSettings,
+} from '@huddle/shared';
+import { normalizeReactionKey, type GuildEmoji } from '@huddle/shared';
 import { api, errorMessage, uploadWithProgress } from '../api/client';
 import { useGuildStore } from '../stores/guilds';
 import { useReadStateStore, getGuildSettings } from '../stores/readStates';
@@ -40,8 +44,8 @@ export function markGuildRead(guildId: string) {
 }
 
 // ---- guilds ----
-export async function createGuild(name: string, icon?: File | null): Promise<Guild> {
-  const g = await api.post<FullGuild>('/guilds', { name });
+export async function createGuild(name: string, icon?: File | null, template?: GuildTemplateId | null): Promise<Guild> {
+  const g = await api.post<FullGuild>('/guilds', template ? { name, template } : { name });
   // add immediately (gateway GUILD_CREATE will also arrive)
   if ((g as FullGuild).channels) useGuildStore.getState().addGuild(g as FullGuild);
   if (icon) {
@@ -58,6 +62,30 @@ export async function uploadIcon(guildId: string, file: File) {
   return g;
 }
 
+// ---- custom emoji ----
+export async function uploadEmoji(guildId: string, name: string, file: File) {
+  const form = new FormData();
+  form.append('name', name);
+  form.append('file', file);
+  const e = await uploadWithProgress<GuildEmoji>(`/guilds/${guildId}/emojis`, form).promise;
+  const gs = useGuildStore.getState();
+  if (e?.id && !(gs.emojis[guildId] || []).some((x) => x.id === e.id)) gs.setEmojis(guildId, [...(gs.emojis[guildId] || []), e]);
+  return e;
+}
+
+export async function renameEmoji(guildId: string, emojiId: string, name: string) {
+  const e = await api.patch<GuildEmoji>(`/guilds/${guildId}/emojis/${emojiId}`, { name });
+  const gs = useGuildStore.getState();
+  if (e?.id) gs.setEmojis(guildId, (gs.emojis[guildId] || []).map((x) => (x.id === e.id ? e : x)));
+  return e;
+}
+
+export async function deleteEmoji(guildId: string, emojiId: string) {
+  await api.del(`/guilds/${guildId}/emojis/${emojiId}`);
+  const gs = useGuildStore.getState();
+  gs.setEmojis(guildId, (gs.emojis[guildId] || []).filter((x) => x.id !== emojiId));
+}
+
 export async function leaveGuild(guildId: string) {
   await api.del(`/users/@me/guilds/${guildId}`);
   useGuildStore.getState().removeGuild(guildId);
@@ -68,6 +96,18 @@ export async function deleteGuild(guildId: string) {
   await api.del(`/guilds/${guildId}`);
   useGuildStore.getState().removeGuild(guildId);
   navigate('/channels/@me');
+}
+
+// ---- discovery ----
+export function fetchDiscovery(query: { category?: GuildCategory | null; q?: string }, signal?: AbortSignal) {
+  return api.get<DiscoveryResponse>('/discovery', { category: query.category, q: query.q?.trim() }, signal);
+}
+
+/** Joins a listed server (no invite needed); a no-op if already a member. */
+export async function joinDiscoverable(guildId: string): Promise<FullGuild> {
+  const g = await api.post<FullGuild>(`/discovery/${guildId}/join`, {});
+  if (g?.channels) useGuildStore.getState().addGuild(g);
+  return g;
 }
 
 export async function joinInvite(code: string): Promise<Guild | FullGuild | null> {
@@ -148,7 +188,9 @@ export async function deleteMessage(channelId: string, messageId: string) {
   useMessageStore.getState().remove(channelId, messageId);
 }
 
-export async function toggleReaction(m: Message, emoji: string) {
+/** `emoji` may be unicode, a reaction key ("c:<id>") or a custom emoji token from the picker. */
+export async function toggleReaction(m: Message, picked: string) {
+  const emoji = normalizeReactionKey(picked);
   const existing = m.reactions.find((r) => r.emoji === emoji);
   const path = `/channels/${m.channel_id}/messages/${m.id}/reactions/${encodeURIComponent(emoji)}/@me`;
   try {

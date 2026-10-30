@@ -265,3 +265,28 @@
 .reply-content br { display: none; }
 .message-content > .markdown { display: inline; }
 .message-content > .markdown.md-jumbo { display: block; }
+
+/* ===== Chat font size + compact display (Settings > Accessibility / Chat) ===== */
+.message-content { font-size: var(--chat-font-size, 15px); }
+.message.grouped .message-content { line-height: 1.5; min-height: 22px; }
+html.compact-messages .message.first { margin-top: 4px; }
+html.compact-messages .message { padding-left: 64px; }
+html.compact-messages .message-gutter { position: absolute; left: 0; top: 0; width: 64px; padding-top: 2px; justify-content: flex-end; padding-right: 8px; }
+html.compact-messages .message-gutter .avatar, html.compact-messages .message-gutter .clickable { display: none; }
+html.compact-messages .message-main { display: block; }
+html.compact-messages .message-header { display: inline-flex; margin-right: 6px; vertical-align: baseline; }
+html.compact-messages .message-header .message-time { order: -1; margin-right: 6px; }
+html.compact-messages .message-content { display: inline; }
+html.compact-messages .message.grouped .message-gutter { align-items: flex-start; }
+html.compact-messages .message.system .message-gutter { position: static; width: auto; padding: 0; }
+html.compact-messages .message.system { padding-left: 16px; }
+
+/* custom server emoji */
+.custom-emoji { display: inline-block; width: 1.375em; height: 1.375em; object-fit: contain; vertical-align: -0.3em; }
+.md-jumbo .md-emoji { width: 48px; height: 48px; vertical-align: bottom; }
+.ep-cell .custom-emoji { width: 30px; height: 30px; vertical-align: middle; }
+.ep-footer-emoji .custom-emoji { width: 24px; height: 24px; vertical-align: middle; }
+.ep-nav button.ep-nav-guild { filter: none; }
+.reaction-emoji .custom-emoji { width: 18px; height: 18px; vertical-align: -4px; }
+.reaction-tip-emoji .custom-emoji { width: 32px; height: 32px; }
+.ac-icon .custom-emoji { width: 22px; height: 22px; vertical-align: middle; }

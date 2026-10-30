@@ -26,6 +26,7 @@ export const Permissions = {
   CHANGE_NICKNAME: 1n << 26n,
   MANAGE_NICKNAMES: 1n << 27n,
   MANAGE_ROLES: 1n << 28n,
+  MANAGE_EMOJIS: 1n << 30n,
   MODERATE_MEMBERS: 1n << 40n,
   VIDEO: 1n << 41n,
 } as const;
@@ -68,6 +69,7 @@ export const PERMISSION_INFO: { group: string; items: { key: PermissionName; lab
       { key: 'VIEW_CHANNEL', label: 'View Channels', description: 'Allows members to view channels by default (excluding private channels).' },
       { key: 'MANAGE_CHANNELS', label: 'Manage Channels', description: 'Create, edit and delete channels.' },
       { key: 'MANAGE_ROLES', label: 'Manage Roles', description: 'Create roles and edit roles lower than their highest role.' },
+      { key: 'MANAGE_EMOJIS', label: 'Manage Emoji', description: 'Upload, rename and remove custom emoji in this server.' },
       { key: 'VIEW_AUDIT_LOG', label: 'View Audit Log', description: 'View the record of who changed what in this server.' },
       { key: 'MANAGE_GUILD', label: 'Manage Server', description: "Change the server's name, icon and settings." },
     ],

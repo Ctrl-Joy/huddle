@@ -29,7 +29,7 @@ export function buildGuildMenu(guildId: string): MenuItem[] {
   const perms = guildPermissionsFor(guildId, me());
   const gs = getGuildSettings(guildId);
   const firstText = Object.values(s.channels).find((c) => c.guild_id === guildId && c.type === ChannelType.GUILD_TEXT && has(channelPermissionsFor(c, me()), Permissions.CREATE_INVITE));
-  const canSettings = has(perms, Permissions.MANAGE_GUILD) || has(perms, Permissions.MANAGE_ROLES) || has(perms, Permissions.KICK_MEMBERS) || has(perms, Permissions.BAN_MEMBERS) || has(perms, Permissions.VIEW_AUDIT_LOG);
+  const canSettings = has(perms, Permissions.MANAGE_GUILD) || has(perms, Permissions.MANAGE_ROLES) || has(perms, Permissions.KICK_MEMBERS) || has(perms, Permissions.BAN_MEMBERS) || has(perms, Permissions.VIEW_AUDIT_LOG) || has(perms, Permissions.MANAGE_EMOJIS);
   const items: MenuItem[] = [
     { label: 'Mark As Read', onClick: () => markGuildRead(guildId) },
     { separator: true },

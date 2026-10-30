@@ -1,5 +1,6 @@
 import {
-  ChannelType, type Attachment, type AuditLogEntry, type Ban, type Channel, type Guild, type Invite, type Member,
+  ChannelType, customReactionId, type Attachment, type AuditLogEntry, type Ban, type Channel, type CustomEmojiRef,
+  type Guild, type GuildEmoji, type Invite, type Member,
   type Message, type PermissionOverwrite, type PublicUser, type Reaction, type ReadState, type Relationship, type Role,
   type User, type UserGuildSettings,
 } from '@huddle/shared';
@@ -13,7 +14,8 @@ export interface UserRow {
 }
 export interface GuildRow {
   id: string; name: string; icon: string | null; description: string | null; owner_id: string;
-  system_channel_id: string | null; created_at: string;
+  system_channel_id: string | null; created_at: string; discoverable: number; category: string | null;
+  banner_color: string | null;
 }
 export interface MemberRow {
   guild_id: string; user_id: string; nick: string | null; joined_at: string;
@@ -80,6 +82,7 @@ export function guild(g: GuildRow): Guild {
   return {
     id: g.id, name: g.name, icon: g.icon, description: g.description, owner_id: g.owner_id,
     system_channel_id: g.system_channel_id, created_at: g.created_at,
+    discoverable: !!g.discoverable, category: (g.category as Guild['category']) ?? null, banner_color: g.banner_color ?? null,
   };
 }
 
@@ -88,6 +91,26 @@ export function role(r: RoleRow): Role {
     id: r.id, guild_id: r.guild_id, name: r.name, color: r.color, hoist: !!r.hoist, mentionable: !!r.mentionable,
     position: r.position, permissions: String(r.permissions),
   };
+}
+
+// ---------- custom emoji ----------
+export interface EmojiRow {
+  id: string; guild_id: string; name: string; url: string; animated: number; creator_id: string | null; created_at: string;
+}
+
+export function emoji(e: EmojiRow): GuildEmoji {
+  return {
+    id: e.id, guild_id: e.guild_id, name: e.name, url: e.url, animated: !!e.animated, creator_id: e.creator_id,
+    created_at: e.created_at,
+  };
+}
+
+export function emojisOf(db: Db, guildId: string): GuildEmoji[] {
+  return db.all<EmojiRow>('SELECT * FROM emojis WHERE guild_id = ? ORDER BY CAST(id AS INTEGER) ASC', guildId).map(emoji);
+}
+
+export function emojiRef(e: EmojiRow): CustomEmojiRef {
+  return { id: e.id, name: e.name, animated: !!e.animated, url: e.url };
 }
 
 export function rolesOf(db: Db, guildId: string): RoleRow[] {
@@ -261,6 +284,23 @@ export function serializeMessages(db: Db, rows: MessageRow[], viewerId: string |
     agg.count++;
     if (r.user_id === viewerId) agg.me = true;
     if (agg.user_ids!.length < 25) agg.user_ids!.push(r.user_id);
+  }
+  // attach custom emoji info ("c:<id>" keys); reactions whose emoji was deleted are dropped
+  const customIds = new Set<string>();
+  for (const m of reacts.values()) for (const k of m.keys()) { const id = customReactionId(k); if (id) customIds.add(id); }
+  if (customIds.size) {
+    const list = [...customIds];
+    const found = new Map((db.raw.prepare(`SELECT * FROM emojis WHERE id IN (${placeholders(list.length)})`).all(...list) as unknown as EmojiRow[])
+      .map((e) => [e.id, e]));
+    for (const m of reacts.values()) {
+      for (const [k, agg] of m) {
+        const id = customReactionId(k);
+        if (!id) continue;
+        const e = found.get(id);
+        if (e) agg.custom_emoji = emojiRef(e);
+        else m.delete(k);
+      }
+    }
   }
 
   const referenced = new Map<string, Message>();

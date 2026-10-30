@@ -7,12 +7,13 @@ import { useAuthStore } from '../../stores/auth';
 import { useUIStore, openModal } from '../../stores/ui';
 import { getLastChannel } from '../../lib/nav';
 import { Avatar, Badge, GuildIcon, Tooltip } from '../common/Avatar';
-import { IconCompass, IconPlus, LogoMark } from '../common/icons';
+import { IconCompass, IconLink, IconPlus, LogoMark } from '../common/icons';
+import { DISCOVER_PATH } from '../discover/Discover';
 import { buildGuildMenu } from '../menus/menus';
 import { useVoiceStore } from '../../stores/voice';
 import { ChannelType } from '@huddle/shared';
 
-export function ServerRail({ activeGuildId }: { activeGuildId: string | null }) {
+export function ServerRail({ activeGuildId, discover }: { activeGuildId: string | null; discover?: boolean }) {
   const order = useGuildStore((s) => s.guildOrder);
   const guilds = useGuildStore((s) => s.guilds);
   const nav = useNavigate();
@@ -31,7 +32,7 @@ export function ServerRail({ activeGuildId }: { activeGuildId: string | null }) 
 
   return (
     <div className="server-rail" role="tree" aria-label="Servers">
-      <RailItem active={activeGuildId === null} label="Direct Messages" badge={pending} onClick={() => nav('/channels/@me')}>
+      <RailItem active={activeGuildId === null && !discover} label="Direct Messages" badge={pending} onClick={() => nav('/channels/@me')}>
         <span className="rail-home"><LogoMark size={30} /></span>
       </RailItem>
       {dmUnread.slice(0, 5).map(({ channelId, mentions }) => <DMUnreadItem key={channelId} channelId={channelId} mentions={mentions} />)}
@@ -54,6 +55,9 @@ export function ServerRail({ activeGuildId }: { activeGuildId: string | null }) 
         <span className="rail-action-icon"><IconPlus size={22} /></span>
       </RailItem>
       <RailItem label="Join a Server" className="rail-action" onClick={() => openModal('joinServer')}>
+        <span className="rail-action-icon"><IconLink size={22} /></span>
+      </RailItem>
+      <RailItem active={discover} label="Discover Servers" className="rail-action" onClick={() => nav(DISCOVER_PATH)}>
         <span className="rail-action-icon"><IconCompass size={22} /></span>
       </RailItem>
     </div>

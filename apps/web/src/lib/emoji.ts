@@ -1,4 +1,6 @@
 // Built-in unicode emoji dataset: categories → [emoji, name, ...keywords].
+import { customReactionId, emojiToken, normalizeReactionKey, type CustomEmojiRef, type GuildEmoji } from '@huddle/shared';
+import { useGuildStore } from '../stores/guilds';
 export interface EmojiEntry { e: string; n: string; k: string }
 export interface EmojiCategory { id: string; label: string; icon: string; emoji: EmojiEntry[] }
 
@@ -51,4 +53,50 @@ export function getRecentEmoji(): string[] {
 export function pushRecentEmoji(e: string) {
   const list = [e, ...getRecentEmoji().filter((x) => x !== e)].slice(0, 24);
   try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+
+// ---- custom server emoji ----
+// Tokens are <:name:id> / <a:name:id> (see @huddle/shared emojis.ts). The composer only converts
+// ":name:" for emoji of the channel's own server; rendering resolves ids across every server we're in.
+
+/** Looks up a custom emoji by id across all joined servers. */
+export function findCustomEmoji(id: string): GuildEmoji | undefined {
+  for (const list of Object.values(useGuildStore.getState().emojis)) {
+    const e = list.find((x) => x.id === id);
+    if (e) return e;
+  }
+  return undefined;
+}
+
+export function searchCustomEmoji(guildId: string | null | undefined, q: string, limit = 80): GuildEmoji[] {
+  if (!guildId) return [];
+  const list = useGuildStore.getState().emojis[guildId] || [];
+  const s = q.toLowerCase().replace(/^:/, '').replace(/:$/, '');
+  if (!s) return list.slice(0, limit);
+  const starts = list.filter((e) => e.name.toLowerCase().startsWith(s));
+  const contains = list.filter((e) => !e.name.toLowerCase().startsWith(s) && e.name.toLowerCase().includes(s));
+  return [...starts, ...contains].slice(0, limit);
+}
+
+/** Converts ":name:" into <:name:id> tokens for the server's emoji. Skips code spans/blocks and existing tokens. */
+export function encodeCustomEmoji(text: string, guildId: string | null | undefined): string {
+  const list = guildId ? useGuildStore.getState().emojis[guildId] : undefined;
+  if (!list?.length) return text;
+  const byName = new Map(list.map((e) => [e.name.toLowerCase(), e]));
+  const convert = (s: string) => s.replace(/(<a?:[A-Za-z0-9_]{2,32}:\d+>)|:([A-Za-z0-9_]{2,32}):/g, (all, tok: string | undefined, name: string | undefined) => {
+    if (tok || !name) return all;
+    const e = byName.get(name.toLowerCase());
+    return e ? emojiToken(e) : all;
+  });
+  return text.split(/(```[\s\S]*?```|`[^`\n]*`)/g).map((part, idx) => (idx % 2 ? part : convert(part))).join('');
+}
+
+/** Reaction info for a reaction key or a picked emoji (unicode or token). */
+export function reactionEmojiInfo(key: string, custom?: CustomEmojiRef | null): { key: string; custom: CustomEmojiRef | null; label: string } {
+  const norm = normalizeReactionKey(key);
+  const id = customReactionId(norm);
+  if (!id) return { key: norm, custom: null, label: key };
+  const known = findCustomEmoji(id);
+  const ref = custom ?? (known ? { id, name: known.name, animated: known.animated, url: known.url } : null);
+  return { key: norm, custom: ref, label: ref ? `:${ref.name}:` : ':emoji:' };
 }
