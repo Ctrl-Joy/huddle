@@ -1,0 +1,17 @@
+{
+  "name": "huddle",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm run dev -w @huddle/server\" \"npm run dev -w @huddle/web\"",
+    "build": "npm run build -w @huddle/web",
+    "start": "npm run start -w @huddle/server",
+    "typecheck": "tsc -p packages/shared && tsc -p apps/server && tsc -p apps/web",
+    "test": "npm test -w @huddle/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}
