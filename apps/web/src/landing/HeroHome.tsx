@@ -267,7 +267,8 @@ export default function HeroHome() {
 
     const reveal = new IntersectionObserver((entries) => {
       for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); reveal.unobserve(e.target); }
-    }, { root, rootMargin: '0px 0px -8% 0px' });
+      // phones scroll fast: start the reveal just before an element enters so there's never a blank screen
+    }, { root, rootMargin: window.matchMedia('(max-width: 600px)').matches ? '0px 0px 12% 0px' : '0px 0px -8% 0px' });
     root.querySelectorAll('.rv').forEach((el) => reveal.observe(el));
 
     return () => { root.removeEventListener('scroll', onScroll); spy.disconnect(); top.disconnect(); reveal.disconnect(); };
@@ -461,7 +462,7 @@ export default function HeroHome() {
             <p className="in-el" style={d(0.6)}>Servers, channels, drop-in voice, video and screen share for the groups you love. Right in your browser, free to start.</p>
             <div className="cta in-el" style={d(0.72)} ref={lastCtaRef}>
               <Link className="btn big white" to={startLink}>{loggedIn ? 'Open Huddle' : 'Get started'}<I d={ICONS.arrow} /></Link>
-              <Link className="btn big accent" to={appLink}>Open Huddle in your browser</Link>
+              {!loggedIn && <Link className="btn big accent" to={appLink}>Open Huddle in your browser</Link>}
             </div>
           </div>
           <div className="hero-art in-el" style={d(0.35)} aria-hidden="true">

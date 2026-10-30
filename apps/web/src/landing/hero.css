@@ -866,6 +866,12 @@
   .hx .rv.from-r, .hx .rv.from-l { transform: translate3d(0, 40px, 0); }
   .hx .rv.from-r.in, .hx .rv.from-l.in { transform: none; }
 }
+@media (prefers-reduced-motion: no-preference) and (max-width: 600px) {
+  .hx .rv { transition-duration: .6s; }
+  .hx .rv, .hx .rv.from-r, .hx .rv.from-l { transform: translate3d(0, 28px, 0); }
+  /* whole section cards are taller than a phone screen; fading them would blank the screen mid-card */
+  .hx .fcard-wrap.rv { opacity: 1; transform: none; transition: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .hx *, .hx *::before, .hx *::after { animation: none !important; transition: none !important; }
   .hx .msg.pop, .hx .vu.you { opacity: 1; transform: none; }
@@ -929,8 +935,11 @@
   .hx .mate.m3 { width: clamp(50px, 15vw, 80px); }
   .hx .horizon { height: 150px; }
   .hx .ambient { display: none; }
+  .hx .foot-cols a { padding: 11px 0; font-size: 16px; line-height: 1.35; }
+  /* the bar sits over busy art on phones; keep it solid enough that nothing shows through */
+  .hx .bar::before { background: rgba(18, 11, 66, .9); }
 }
-@media (max-width: 380px) {
+@media (max-width: 340px) {
   .hx .foot-cols { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
