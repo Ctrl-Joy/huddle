@@ -10,7 +10,7 @@ import { useCan, useGuildPermissions, channelPermissionsFor } from '../../lib/pe
 import { channelVisible } from '../../lib/permissionsCore';
 import { Avatar, Badge, Tooltip } from '../common/Avatar';
 import {
-  IconChevronDown, IconChevronRight, IconHash, IconHeadphonesOff, IconLock, IconMicOff, IconPlus, IconSettings,
+  IconChevronDown, IconHash, IconHeadphonesOff, IconLock, IconMicOff, IconPlus, IconSettings,
   IconSpeaker, IconUserPlus, IconVideo, IconClose, IconBellOff,
 } from '../common/icons';
 import { buildChannelMenu, buildGuildMenu, buildMemberMenu, openUserPopoutAt } from '../menus/menus';
@@ -90,7 +90,7 @@ function CategoryHeader({ channel, collapsed, guildId }: { channel: Channel; col
   return (
     <div className="category-header" onContextMenu={(e) => useUIStore.getState().openContextMenu(e, buildChannelMenu(channel))}>
       <button className="category-toggle" onClick={() => useUIStore.getState().toggleCategory(channel.id)} aria-expanded={!collapsed}>
-        {collapsed ? <IconChevronRight size={12} /> : <IconChevronDown size={12} />}
+        <span className={'chevron' + (collapsed ? ' collapsed' : '')}><IconChevronDown size={12} /></span>
         <span className="truncate">{channel.name}</span>
       </button>
       {canManage && (

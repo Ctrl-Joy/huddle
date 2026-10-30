@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { IconClose } from '../common/icons';
 import { errorMessage } from '../../api/client';
@@ -7,10 +7,19 @@ export function Modal({ close, title, subtitle, children, footer, size = 'sm', c
   close: () => void; title?: ReactNode; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'full'; className?: string; hideClose?: boolean;
 }) {
+  const [closing, setClosing] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // play the short exit animation (.closing, 150ms) before actually closing
+  const dismiss = () => {
+    if (timer.current) return;
+    setClosing(true);
+    timer.current = setTimeout(close, 150);
+  };
   return createPortal(
-    <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <div className={`modal modal-${size}` + (className ? ' ' + className : '')} role="dialog" aria-modal="true">
-        {!hideClose && <button className="modal-close icon-btn" aria-label="Close" onClick={close}><IconClose size={22} /></button>}
+    <div className={'modal-backdrop' + (closing ? ' closing' : '')} onMouseDown={(e) => { if (e.target === e.currentTarget) dismiss(); }}>
+      <div className={`modal modal-${size}` + (className ? ' ' + className : '') + (closing ? ' closing' : '')} role="dialog" aria-modal="true">
+        {!hideClose && <button className="modal-close icon-btn" aria-label="Close" onClick={dismiss}><IconClose size={22} /></button>}
         {(title || subtitle) && (
           <div className="modal-head">
             {title && <h2>{title}</h2>}

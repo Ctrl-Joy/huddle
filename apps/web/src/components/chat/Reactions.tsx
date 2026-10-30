@@ -27,7 +27,7 @@ export function Reactions({ message, canReact, onAdd }: { message: Message; canR
             aria-label={`${r.emoji} ${r.count}`}
           >
             <span className="reaction-emoji">{r.emoji}</span>
-            <span className="reaction-count">{r.count}</span>
+            <span key={r.count} className="reaction-count">{r.count}</span>
           </button>
         </Tooltip>
       ))}

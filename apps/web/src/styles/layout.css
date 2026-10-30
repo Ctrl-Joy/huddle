@@ -16,20 +16,21 @@
 .rail-item { position: relative; width: 100%; display: flex; justify-content: center; }
 .rail-pill {
   position: absolute; left: 0; top: 50%; width: 4px; height: 0; border-radius: 0 4px 4px 0; background: var(--text);
-  transform: translateY(-50%); transition: height .18s ease, opacity .18s; opacity: 0;
+  transform: translateY(-50%); transition: height var(--dur) var(--ease-spring), opacity var(--dur) var(--ease-out), top var(--dur) var(--ease-out); opacity: 0;
 }
 .rail-item.unread .rail-pill { height: 8px; opacity: 1; }
-.rail-item:hover .rail-pill { height: 20px; opacity: 1; }
+.rail-item:hover .rail-pill { height: 8px; opacity: 1; }
 .rail-item.active .rail-pill { height: 40px; opacity: 1; }
 .rail-button {
   position: relative; width: 48px; height: 48px; border-radius: 50%; background: var(--bg-elevated); color: var(--text);
-  display: flex; align-items: center; justify-content: center; transition: border-radius .2s ease, background .2s, color .2s;
+  display: flex; align-items: center; justify-content: center; transition: border-radius var(--dur) var(--ease-out), background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-.rail-button .guild-icon, .rail-button .avatar { border-radius: inherit; overflow: hidden; transition: border-radius .2s; }
-.rail-item:hover .rail-button, .rail-item.active .rail-button { border-radius: 16px; }
+.rail-button .guild-icon, .rail-button .avatar { border-radius: inherit; overflow: hidden; transition: border-radius var(--dur) var(--ease-out); }
+.rail-item:hover .rail-button, .rail-item.active .rail-button { border-radius: 30%; }
+.rail-item:active .rail-button { transform: scale(.96); }
 .rail-item.active .rail-button, .rail-item:hover .rail-button { background: var(--accent-strong); }
 .rail-item:hover .rail-home, .rail-item.active .rail-home { color: var(--accent-text); }
-.rail-home { color: var(--accent); display: flex; transition: color .2s; }
+.rail-home { color: var(--accent); display: flex; transition: color var(--dur) var(--ease-out); }
 .rail-badge { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 4px var(--bg-rail); min-width: 18px; height: 18px; border-radius: 9px; }
 .rail-sep { width: 32px; height: 2px; border-radius: 1px; background: var(--border); margin: 2px 0; flex-shrink: 0; }
 .rail-action .rail-button { background: var(--bg-elevated); color: var(--accent); }
@@ -50,7 +51,7 @@
   height: var(--header-h); flex-shrink: 0; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--border);
   box-shadow: 0 1px 0 rgba(0,0,0,.08); font-weight: 700;
 }
-.guild-header { width: 100%; justify-content: space-between; gap: 8px; text-align: left; padding: 0 16px; transition: background .12s; }
+.guild-header { width: 100%; justify-content: space-between; gap: 8px; text-align: left; padding: 0 16px; transition: background var(--dur-fast) var(--ease-out); }
 .guild-header:hover, .guild-header.open { background: var(--bg-hover); }
 .search-trigger { width: 100%; height: 30px; border-radius: 6px; background: var(--bg-rail); color: var(--text-faint); font-size: 13px; text-align: left; padding: 0 8px; font-weight: 500; }
 [data-theme="light"] .search-trigger { background: var(--bg-input); }
@@ -58,11 +59,15 @@
 .sidebar-empty { color: var(--text-faint); font-size: 13px; padding: 16px 8px; text-align: center; }
 
 .category { margin-top: 14px; }
+.category > .channel-row { animation: rowIn var(--dur) var(--ease-out); }
+@keyframes rowIn { from { opacity: 0; transform: translateY(-3px); } }
+.chevron { display: flex; transition: transform var(--dur) var(--ease-out); }
+.chevron.collapsed { transform: rotate(-90deg); }
 .category-header { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 4px 0; color: var(--text-faint); }
 .category-toggle { display: flex; align-items: center; gap: 2px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); min-width: 0; }
 .category-header:hover .category-toggle { color: var(--text-muted); }
 
-.channel-row { position: relative; display: flex; align-items: center; border-radius: 6px; margin: 1px 0; color: var(--text-faint); }
+.channel-row { position: relative; display: flex; align-items: center; border-radius: 6px; margin: 1px 0; color: var(--text-faint); transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .channel-row:hover { background: var(--bg-hover); color: var(--text-muted); }
 .channel-row.active { background: var(--bg-active); color: var(--text); }
 .channel-row.unread { color: var(--text); }
@@ -76,7 +81,8 @@
 .channel-row:hover .channel-actions, .channel-row.active .channel-actions { display: flex; }
 .channel-badge { margin-right: 8px; }
 .channel-muted-icon { flex-shrink: 0; }
-.unread-pill { position: absolute; left: -8px; width: 4px; height: 8px; border-radius: 0 4px 4px 0; background: var(--text); }
+.unread-pill { position: absolute; left: -8px; width: 4px; height: 8px; border-radius: 0 4px 4px 0; background: var(--text); animation: pipIn var(--dur) var(--ease-spring); }
+@keyframes pipIn { from { transform: scaleY(0); opacity: 0; } }
 
 .voice-participants { padding: 0 0 4px 30px; }
 .voice-participant { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-radius: 6px; font-size: 14px; color: var(--text-muted); cursor: pointer; }
@@ -103,8 +109,8 @@
 .dm-sub.accent { color: var(--success); }
 .dm-empty { padding: 4px 8px; }
 .dm-skeleton { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-.dm-skeleton span:first-child { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-elevated); }
-.dm-skeleton span:last-child { height: 12px; width: 60%; border-radius: 6px; background: var(--bg-elevated); }
+.dm-skeleton span:first-child { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-input) 50%, var(--bg-elevated) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+.dm-skeleton span:last-child { height: 12px; width: 60%; border-radius: 6px; background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-input) 50%, var(--bg-elevated) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 
 /* ===== Voice + user panel ===== */
 .voice-panel { background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 8px 8px 6px; }

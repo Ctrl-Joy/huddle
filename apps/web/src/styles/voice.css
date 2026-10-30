@@ -52,3 +52,14 @@
 /* sidebar participants: speaking ring on the small avatar */
 .voice-participant .avatar.speaking { box-shadow: 0 0 0 2px var(--bg-sidebar), 0 0 0 4px var(--success); }
 .voice-participant:has(.avatar.speaking) { color: var(--text); }
+
+/* ===== Motion ===== */
+.voice-tile { transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); animation: tileIn var(--dur-slow) var(--ease-spring); }
+@keyframes tileIn { from { opacity: 0; transform: scale(.92); } }
+.tile-fs { transition: opacity var(--dur-fast) var(--ease-out); }
+.call-btn { transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.call-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.call-btn:active:not(:disabled) { transform: scale(.94); }
+.call-btn svg { animation: iconSwap var(--dur) var(--ease-out); }
+@keyframes iconSwap { from { opacity: 0; transform: scale(.6) rotate(-25deg); } }
+.voice-participant .avatar, .voice-tile .avatar { transition: box-shadow var(--dur-fast) var(--ease-out); }

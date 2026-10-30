@@ -28,7 +28,7 @@
 .list-bottom-spacer { height: 18px; flex-shrink: 0; }
 .history-loading { display: flex; justify-content: center; padding: 20px; }
 .skeleton-msgs { display: flex; flex-direction: column; gap: 10px; width: 60%; }
-.skeleton-msgs i { height: 12px; border-radius: 6px; background: var(--bg-elevated); }
+.skeleton-msgs i { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-input) 50%, var(--bg-elevated) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 .skeleton-msgs i:nth-child(2) { width: 70%; } .skeleton-msgs i:nth-child(3) { width: 40%; }
 .no-history { margin: 20px; padding: 16px; border-radius: 10px; background: var(--bg-elevated); color: var(--text-muted); text-align: center; }
 
@@ -56,7 +56,10 @@
 .message:hover, .message.toolbar-pinned { background: var(--bg-message-hover); }
 .message.mentioned { background: var(--mention-bg); }
 .message.mentioned::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--mention-bar); }
-.message.highlighted { background: var(--accent-soft); transition: background 1s; }
+.message.highlighted { animation: jumpFade 2s var(--ease-out); }
+@keyframes jumpFade { from { background: var(--accent-soft); } to { background: transparent; } }
+.message.fresh { animation: msgIn 160ms var(--ease-out); }
+@keyframes msgIn { from { opacity: 0; transform: translateY(4px); } }
 .message.replying { background: var(--accent-soft); }
 .message.replying::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); }
 .message.pending .message-content { opacity: .55; }
@@ -81,10 +84,10 @@
 .upload-progress span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
 
 .message-toolbar {
-  position: absolute; right: 16px; top: -16px; display: none; background: var(--bg-elevated); border: 1px solid var(--border);
+  position: absolute; right: 16px; top: -16px; display: flex; opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(4px); transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur) var(--ease-out), visibility 0s linear var(--dur); background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: 8px; box-shadow: var(--shadow-md); padding: 2px; z-index: 3;
 }
-.message:hover .message-toolbar, .message.toolbar-pinned .message-toolbar { display: flex; }
+.message:hover .message-toolbar, .message.toolbar-pinned .message-toolbar { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur) var(--ease-out), visibility 0s; }
 .tb-btn { width: 32px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-muted); }
 .tb-btn:hover { background: var(--bg-hover); color: var(--text); }
 .tb-btn.danger:hover { color: var(--danger); }
@@ -139,12 +142,15 @@
 
 /* ===== Reactions ===== */
 .reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.reaction { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid transparent; font-size: 14px; }
+.reaction { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid transparent; font-size: 14px; transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+.reaction:not(.add) { animation: reactPop var(--dur) var(--ease-spring); }
+@keyframes reactPop { from { transform: scale(.8); } }
 .reaction:hover:not(:disabled) { border-color: var(--border-strong); }
 .reaction.me { background: var(--accent-soft); border-color: var(--accent); }
-.reaction-count { font-size: 13px; font-weight: 700; color: var(--text-muted); }
+.reaction-count { font-size: 13px; font-weight: 700; color: var(--text-muted); animation: countBump var(--dur) var(--ease-spring); }
+@keyframes countBump { from { transform: scale(1.35); } }
 .reaction.me .reaction-count { color: var(--accent); }
-.reaction.add { color: var(--text-muted); opacity: 0; }
+.reaction.add { color: var(--text-muted); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
 .message:hover .reaction.add { opacity: 1; }
 .reaction-tip { display: flex; align-items: center; gap: 8px; max-width: 240px; }
 .reaction-tip-emoji { font-size: 26px; }
@@ -169,9 +175,9 @@
 .typing { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .typing-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .typing-dots { display: inline-flex; gap: 3px; }
-.typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: typing 1.2s infinite; }
+.typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: typing 1.2s var(--ease-out) infinite; }
 .typing-dots i:nth-child(2) { animation-delay: .15s; } .typing-dots i:nth-child(3) { animation-delay: .3s; }
-@keyframes typing { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+@keyframes typing { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
 .slowmode { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-faint); }
 .slowmode.active { color: var(--warning); font-weight: 700; }
 
@@ -196,7 +202,7 @@
 .ac-emoji { font-size: 20px; }
 
 /* ===== Emoji picker ===== */
-.emoji-picker { position: fixed; z-index: 120; width: 380px; height: 420px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+.emoji-picker { transform-origin: bottom center; animation: menuIn var(--dur-fast) var(--ease-out); position: fixed; z-index: 120; width: 380px; height: 420px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
 .ep-search { position: relative; padding: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
 .ep-search input { padding: 7px 30px 7px 10px; font-size: 14px; }
 .ep-search svg { position: absolute; right: 20px; color: var(--text-faint); }

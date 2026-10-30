@@ -7,7 +7,11 @@ import { useGuildStore } from '../../stores/guilds';
 import { LogoMark } from './icons';
 
 export function StatusDot({ status, size = 10, ring = 'var(--bg-sidebar)' }: { status: PresenceStatus; size?: number; ring?: string }) {
-  return <span className={`status-dot status-${status}`} style={{ width: size, height: size, boxShadow: `0 0 0 3px ${ring}`, ['--ring' as string]: ring } as CSSProperties} title={STATUS_LABEL[status]} />;
+  const prev = useRef(status);
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => { if (prev.current !== status) { prev.current = status; setPulse((n) => n + 1); } }, [status]);
+  // keyed on pulse so a presence change re-mounts the dot and plays the one-shot pulse
+  return <span key={pulse} className={`status-dot status-${status}` + (pulse ? ' pulse' : '')} style={{ width: size, height: size, boxShadow: `0 0 0 3px ${ring}`, ['--ring' as string]: ring } as CSSProperties} title={STATUS_LABEL[status]} />;
 }
 
 interface AvatarProps {

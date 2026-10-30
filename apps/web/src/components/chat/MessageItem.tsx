@@ -42,6 +42,8 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
   const canSend = useCan(m.channel_id, Permissions.SEND_MESSAGES);
   const { name, color, user } = useAuthorInfo(m);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // only messages that just arrived get the entrance animation (not history loaded on mount)
+  const [fresh] = useState(() => Date.now() - Date.parse(m.created_at) < 3000);
   const pickerAnchor = useRef<HTMLButtonElement>(null);
   const own = m.author.id === me.id;
   const pending = m._state === 'pending';
@@ -59,7 +61,7 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
   if (isSystem) return <SystemMessage m={m} name={name} color={color} highlighted={highlighted} />;
 
   const cls = 'message' + (grouped ? ' grouped' : ' first') + (mentioned ? ' mentioned' : '') + (highlighted ? ' highlighted' : '')
-    + (pending ? ' pending' : '') + (failed ? ' failed' : '') + (editing ? ' editing' : '') + (replying ? ' replying' : '') + (pickerOpen ? ' toolbar-pinned' : '');
+    + (pending ? ' pending' : '') + (failed ? ' failed' : '') + (editing ? ' editing' : '') + (replying ? ' replying' : '') + (pickerOpen ? ' toolbar-pinned' : '') + (fresh ? ' fresh' : '');
 
   return (
     <div className={cls} data-mid={m.id} onContextMenu={onContextMenu}>
