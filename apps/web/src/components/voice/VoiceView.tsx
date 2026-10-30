@@ -1,16 +1,16 @@
 // Voice channel main view: participant tile grid + call controls.
-// WebRTC hook-up point: the media engine (src/voice/, added later) publishes MediaStreams via
+// The media engine (src/voice/) publishes MediaStreams via
 //   useVoiceStore.getState().setStream(userId, 'camera' | 'screen', stream)
-// and speaking flags via setSpeaking(userId, bool). <VideoSlot> below renders them — nothing else
-// in the UI needs to change. Remote AUDIO playback is the engine's job (it can attach its own
-// hidden <audio> elements), so tiles never render audio.
-import { useEffect, useMemo, useRef, type MouseEvent } from 'react';
+// and speaking flags via setSpeaking(userId, bool); the components below render them. Remote AUDIO
+// playback is the engine's job (hidden <audio> elements), so tiles never render audio.
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { ChannelType, Permissions, has, type Channel, type VoiceState } from '@huddle/shared';
 import { useVoiceStore, voiceActions } from '../../stores/voice';
 import { useGuildStore, displayName } from '../../stores/guilds';
 import { useAuthStore } from '../../stores/auth';
 import { useUIStore } from '../../stores/ui';
 import { usePermissions } from '../../lib/permissions';
+import { useMediaDiag } from '../../voice/mediaState';
 import { Avatar, Tooltip } from '../common/Avatar';
 import {
   IconHeadphones, IconHeadphonesOff, IconMenu, IconMic, IconMicOff, IconPhoneOff, IconScreen, IconSpeaker, IconVideo, IconVideoOff,
@@ -40,13 +40,44 @@ export function VoiceView({ channel }: { channel: Channel }) {
   );
 }
 
+type TileKind = 'camera' | 'screen' | 'ringing';
+interface TileSpec { key: string; userId: string; kind: TileKind; state?: VoiceState }
+
 /** Tile grid for everyone connected to channelId (voice channel or DM call). */
 export function CallStage({ channelId, guildId, compact }: { channelId: string; guildId: string | null; compact?: boolean }) {
   const states = useVoiceStore((s) => s.states);
   const streams = useVoiceStore((s) => s.streams);
+  const call = useVoiceStore((s) => (guildId ? undefined : s.calls[channelId]));
+  // undefined = automatic (first screen share), null = user explicitly unfocused, string = tile key
+  const [manualFocus, setManualFocus] = useState<string | null | undefined>(undefined);
+
   const participants = useMemo(() => Object.values(states).filter((v) => v.channel_id === channelId), [states, channelId]);
-  const focused = participants.find((p) => streams[p.user_id]?.screen);
-  if (!participants.length) {
+  const tiles = useMemo(() => {
+    const out: TileSpec[] = [];
+    for (const p of participants) out.push({ key: p.user_id + ':camera', userId: p.user_id, kind: 'camera', state: p });
+    for (const p of participants) {
+      if (p.self_stream || streams[p.user_id]?.screen) out.push({ key: p.user_id + ':screen', userId: p.user_id, kind: 'screen', state: p });
+    }
+    if (call) {
+      const here = new Set(participants.map((p) => p.user_id));
+      for (const id of call.ringing) if (!here.has(id)) out.push({ key: id + ':ringing', userId: id, kind: 'ringing' });
+    }
+    return out;
+  }, [participants, streams, call]);
+
+  const meId = useAuthStore((s) => s.user!.id);
+  const shared = tiles.filter((t) => t.kind === 'screen' && streams[t.userId]?.screen);
+  const autoFocus = (shared.find((t) => t.userId !== meId) ?? shared[0])?.key ?? null; // prefer someone else's screen
+  const focusKey = manualFocus === undefined || (manualFocus && !tiles.some((t) => t.key === manualFocus)) ? autoFocus : manualFocus;
+  const focused = focusKey ? tiles.find((t) => t.key === focusKey) : undefined;
+  // a newly started screen share re-enables auto focus
+  const lastAuto = useRef(autoFocus);
+  useEffect(() => {
+    if (autoFocus && autoFocus !== lastAuto.current) setManualFocus(undefined);
+    lastAuto.current = autoFocus;
+  }, [autoFocus]);
+
+  if (!tiles.length) {
     return (
       <div className={'call-stage empty' + (compact ? ' compact' : '')}>
         <div className="empty-art" aria-hidden="true"><span /><span /><span /></div>
@@ -54,41 +85,82 @@ export function CallStage({ channelId, guildId, compact }: { channelId: string; 
       </div>
     );
   }
+  const toggle = (key: string) => setManualFocus(focusKey === key ? null : key);
+  const render = (t: TileSpec, isFocus = false) => t.kind === 'ringing'
+    ? <RingingTile key={t.key} userId={t.userId} guildId={guildId} />
+    : <VoiceTile key={t.key} state={t.state!} guildId={guildId} kind={t.kind} focused={isFocus} onSelect={() => toggle(t.key)} />;
+  const rest = focused ? tiles.filter((t) => t !== focused) : tiles;
   return (
     <div className={'call-stage' + (compact ? ' compact' : '') + (focused ? ' has-focus' : '')}>
-      {focused && (
-        <div className="focus-tile">
-          <VoiceTile state={focused} guildId={guildId} kind="screen" />
+      {focused && <div className="focus-tile">{render(focused, true)}</div>}
+      {rest.length > 0 && (
+        <div className={focused ? 'tile-strip' : 'tile-grid n' + Math.min(rest.length, 9)}>
+          {rest.map((t) => render(t))}
         </div>
       )}
-      <div className={'tile-grid n' + Math.min(participants.length, 9)}>
-        {participants.map((p) => <VoiceTile key={p.user_id} state={p} guildId={guildId} kind="camera" />)}
-      </div>
     </div>
   );
 }
 
-export function VoiceTile({ state, guildId, kind }: { state: VoiceState; guildId: string | null; kind: 'camera' | 'screen' }) {
+export function VoiceTile({ state, guildId, kind, focused, onSelect }: {
+  state: VoiceState; guildId: string | null; kind: 'camera' | 'screen'; focused?: boolean; onSelect?: () => void;
+}) {
   const stream = useVoiceStore((s) => s.streams[state.user_id]?.[kind] ?? null);
   const speaking = useVoiceStore((s) => !!s.speaking[state.user_id]);
   const me = useAuthStore((s) => s.user!.id);
+  const peerState = useMediaDiag((s) => s.peerStates[state.user_id]);
   const name = useGuildStore(() => displayName(state.user_id, guildId));
   useGuildStore((s) => (guildId ? s.members[guildId]?.[state.user_id] : s.users[state.user_id]));
+  const ref = useRef<HTMLDivElement>(null);
   const muted = state.self_mute || state.mute;
   const deaf = state.self_deaf || state.deaf;
+  const isMe = state.user_id === me;
+  const connecting = !isMe && peerState && peerState !== 'connected';
   const onContext = (e: MouseEvent) => useUIStore.getState().openContextMenu(e, guildId ? buildMemberMenu(guildId, state.user_id, e.currentTarget) : buildUserMenu(state.user_id, e.currentTarget));
+  const fullscreen = (e: MouseEvent) => {
+    e.stopPropagation();
+    const el = ref.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void el.requestFullscreen?.().catch(() => {});
+  };
   return (
-    <div className={'voice-tile' + (speaking ? ' speaking' : '') + (stream ? ' has-video' : '') + (kind === 'screen' ? ' screen' : '')}
-      onContextMenu={onContext} onDoubleClick={(e) => openUserPopoutAt(state.user_id, guildId, e.currentTarget)}>
-      {stream ? <VideoSlot stream={stream} mirrored={kind === 'camera' && state.user_id === me} /> : (
-        <div className="tile-avatar"><Avatar userId={state.user_id} size={kind === 'screen' ? 96 : 72} speaking={speaking} /></div>
+    <div ref={ref} data-user={state.user_id} data-kind={kind}
+      className={'voice-tile' + (speaking && kind === 'camera' ? ' speaking' : '') + (stream ? ' has-video' : '') + (kind === 'screen' ? ' screen' : '') + (focused ? ' focused' : '')}
+      onClick={onSelect} onContextMenu={onContext} onDoubleClick={(e) => openUserPopoutAt(state.user_id, guildId, e.currentTarget)}
+      role="button" tabIndex={0} aria-label={`${name}${kind === 'screen' ? "'s screen" : ''}${focused ? ' (focused)' : ''}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(); } }}>
+      {stream ? <VideoSlot stream={stream} mirrored={kind === 'camera' && isMe} /> : kind === 'screen' ? (
+        <div className="tile-placeholder"><IconScreen size={32} /><span>Loading stream…</span></div>
+      ) : (
+        <div className="tile-avatar"><Avatar userId={state.user_id} size={focused ? 112 : 72} speaking={speaking} /></div>
       )}
       <div className="tile-label">
-        {muted && <IconMicOff size={14} />}
-        {deaf && <IconHeadphonesOff size={14} />}
+        {kind === 'camera' && deaf && <IconHeadphonesOff size={14} className={state.deaf ? 'server-flag' : ''} aria-label={state.deaf ? 'Server deafened' : 'Deafened'} />}
+        {kind === 'camera' && muted && !deaf && <IconMicOff size={14} className={state.mute ? 'server-flag' : ''} aria-label={state.mute ? 'Server muted' : 'Muted'} />}
         <span className="truncate">{name}{kind === 'screen' ? "'s screen" : ''}</span>
-        {state.self_stream && kind === 'camera' && <span className="live-pill">LIVE</span>}
+        {kind === 'camera' && state.self_video && !stream && <IconVideo size={14} aria-label="Camera on" />}
+        {(kind === 'screen' || state.self_stream) && <span className="live-pill">LIVE</span>}
       </div>
+      {connecting && <div className="tile-status">Connecting…</div>}
+      {stream && (
+        <button className="tile-fs" aria-label="Fullscreen" title="Fullscreen" onClick={fullscreen}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** A DM recipient who's being rung but hasn't joined yet. */
+function RingingTile({ userId, guildId }: { userId: string; guildId: string | null }) {
+  const name = useGuildStore(() => displayName(userId, guildId));
+  return (
+    <div className="voice-tile ringing-tile" aria-label={`Calling ${name}`}>
+      <div className="tile-avatar"><Avatar userId={userId} size={72} className="ringing" /></div>
+      <div className="tile-label"><span className="truncate">{name}</span><span className="muted small">Calling…</span></div>
     </div>
   );
 }
@@ -108,26 +180,31 @@ export function VideoSlot({ stream, mirrored }: { stream: MediaStream; mirrored?
 export function CallControls() {
   const s = useVoiceStore();
   const conn = s.connection;
+  const me = useAuthStore((st) => st.user!.id);
+  const mine = s.states[me];
+  const listenOnly = useMediaDiag((d) => d.listenOnly);
   const channel = useGuildStore((st) => (conn ? st.channels[conn.channelId] : undefined));
   const perms = usePermissions(conn?.channelId);
   const isDM = channel?.type === ChannelType.DM || channel?.type === ChannelType.GROUP_DM;
   const canVideo = isDM || has(perms, Permissions.VIDEO);
   const canStream = isDM || has(perms, Permissions.STREAM);
+  const serverMuted = !!mine?.mute;
+  const serverDeaf = !!mine?.deaf;
   return (
     <div className="call-controls">
-      <Tooltip label={s.selfVideo ? 'Turn Off Camera' : 'Turn On Camera'}>
-        <button className={'call-btn' + (s.selfVideo ? ' on' : '')} disabled={!canVideo} aria-label="Toggle camera" onClick={() => voiceActions.toggleVideo()}>
+      <Tooltip label={!canVideo ? 'No permission to use video' : s.selfVideo ? 'Turn Off Camera' : 'Turn On Camera'}>
+        <button className={'call-btn' + (s.selfVideo ? ' on' : '')} disabled={!canVideo} aria-pressed={s.selfVideo} aria-label="Toggle camera" onClick={() => voiceActions.toggleVideo()}>
           {s.selfVideo ? <IconVideo size={22} /> : <IconVideoOff size={22} />}
         </button>
       </Tooltip>
-      <Tooltip label={s.selfStream ? 'Stop Streaming' : 'Share Your Screen'}>
-        <button className={'call-btn' + (s.selfStream ? ' on' : '')} disabled={!canStream} aria-label="Toggle screen share" onClick={() => voiceActions.toggleScreen()}><IconScreen size={22} /></button>
+      <Tooltip label={!canStream ? 'No permission to stream' : s.selfStream ? 'Stop Streaming' : 'Share Your Screen'}>
+        <button className={'call-btn' + (s.selfStream ? ' on' : '')} disabled={!canStream} aria-pressed={s.selfStream} aria-label="Toggle screen share" onClick={() => voiceActions.toggleScreen()}><IconScreen size={22} /></button>
       </Tooltip>
-      <Tooltip label={s.selfMute ? 'Unmute' : 'Mute'}>
-        <button className={'call-btn' + (s.selfMute ? ' off' : '')} aria-label="Toggle mute" onClick={() => voiceActions.toggleMute()}>{s.selfMute ? <IconMicOff size={22} /> : <IconMic size={22} />}</button>
+      <Tooltip label={serverMuted ? 'Server muted' : listenOnly ? 'No microphone — click to retry' : s.selfMute ? 'Unmute' : 'Mute'}>
+        <button className={'call-btn' + (s.selfMute || serverMuted ? ' off' : '') + (serverMuted ? ' server' : '')} aria-pressed={s.selfMute} aria-label="Toggle mute" onClick={() => voiceActions.toggleMute()}>{s.selfMute || serverMuted ? <IconMicOff size={22} /> : <IconMic size={22} />}</button>
       </Tooltip>
-      <Tooltip label={s.selfDeaf ? 'Undeafen' : 'Deafen'}>
-        <button className={'call-btn' + (s.selfDeaf ? ' off' : '')} aria-label="Toggle deafen" onClick={() => voiceActions.toggleDeafen()}>{s.selfDeaf ? <IconHeadphonesOff size={22} /> : <IconHeadphones size={22} />}</button>
+      <Tooltip label={serverDeaf ? 'Server deafened' : s.selfDeaf ? 'Undeafen' : 'Deafen'}>
+        <button className={'call-btn' + (s.selfDeaf || serverDeaf ? ' off' : '') + (serverDeaf ? ' server' : '')} aria-pressed={s.selfDeaf} aria-label="Toggle deafen" onClick={() => voiceActions.toggleDeafen()}>{s.selfDeaf || serverDeaf ? <IconHeadphonesOff size={22} /> : <IconHeadphones size={22} />}</button>
       </Tooltip>
       <Tooltip label="Disconnect">
         <button className="call-btn hangup" aria-label="Disconnect" onClick={() => voiceActions.leave()}><IconPhoneOff size={22} /></button>

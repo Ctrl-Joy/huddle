@@ -26,6 +26,7 @@ let lastPing = 0;
 /** Short two-tone "ping" synthesized with WebAudio — no audio files. */
 export function playPing(kind: 'message' | 'join' | 'leave' | 'ring' = 'message') {
   if (!getNotifyPrefs().sounds) return;
+  try { if (localStorage.getItem('huddle.fakeMedia') === '1') return; } catch { /* ignore */ } // silent automated voice tests
   const now = Date.now();
   if (now - lastPing < 400 && kind === 'message') return;
   lastPing = now;

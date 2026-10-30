@@ -100,7 +100,13 @@ export const useVoiceStore = create<VoiceStoreState>()((set, get) => ({
       }
       const me = useAuthStore.getState().user?.id;
       if (vs.user_id === me) {
-        if (!vs.channel_id) {
+        // While 'connecting' (switching channels, or rejoining after a gateway reconnect) the server
+        // may still echo our *previous* channel or its disconnect — don't let that clobber the new
+        // connection. Once 'connected', follow the server (forced disconnect / server move).
+        const stale = s.connection?.status === 'connecting' && vs.channel_id !== s.connection.channelId;
+        if (stale) {
+          // keep connection as-is
+        } else if (!vs.channel_id) {
           if (s.connection) {
             const old = s.connection;
             queueMicrotask(() => engine?.onLeave?.(old));

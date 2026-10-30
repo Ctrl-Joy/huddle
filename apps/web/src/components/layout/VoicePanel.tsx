@@ -7,6 +7,7 @@ import { channelPath } from '../../lib/nav';
 import { formatDuration } from '../../lib/format';
 import { Tooltip } from '../common/Avatar';
 import { IconPhoneOff, IconScreen, IconVideo, IconVideoOff } from '../common/icons';
+import { useMediaDiag } from '../../voice/mediaState';
 
 /** "Voice Connected" panel shown above the user panel while in a voice channel or DM call. */
 export function VoicePanel() {
@@ -17,6 +18,9 @@ export function VoicePanel() {
   const guild = useGuildStore((s) => (conn?.guildId ? s.guilds[conn.guildId] : undefined));
   const me = useAuthStore((s) => s.user!.id);
   const nav = useNavigate();
+  const rtt = useMediaDiag((d) => d.rtt);
+  const listenOnly = useMediaDiag((d) => d.listenOnly);
+  const peerStates = useMediaDiag((d) => d.peerStates);
   const [, tick] = useState(0);
   useEffect(() => {
     if (!conn) return;
@@ -25,13 +29,18 @@ export function VoicePanel() {
   }, [conn]);
   if (!conn) return null;
   const connected = conn.status === 'connected';
+  const peersPending = Object.values(peerStates).some((st) => st !== 'connected');
+  const quality = rtt === null ? '' : rtt < 150 ? ' good' : rtt < 300 ? ' fair' : ' poor';
+  const statusTitle = !connected ? 'Connecting to voice…' : (rtt !== null ? `Ping: ${rtt} ms` : 'Connected') + (peersPending ? ' · establishing media with some participants' : '') + (listenOnly ? ' · listen-only (no microphone)' : '');
   return (
     <div className="voice-panel">
       <div className="voice-panel-top">
         <div className="voice-panel-info">
-          <span className={'voice-status ' + (connected ? 'ok' : 'pending')}>
+          <span className={'voice-status ' + (connected ? 'ok' : 'pending') + quality} title={statusTitle} data-testid="voice-status">
             <span className="signal" aria-hidden="true"><i /><i /><i /></span>
             {connected ? 'Voice Connected' : 'Connecting…'}
+            {connected && rtt !== null && <span className="voice-ping">{rtt} ms</span>}
+            {connected && listenOnly && <span className="voice-ping">listen-only</span>}
           </span>
           <button className="voice-panel-where truncate" onClick={() => channel && nav(channelPath(channel))}>
             {channel ? (guild ? `${channel.name} / ${guild.name}` : channelDisplayName(channel, me)) : 'Unknown channel'}
