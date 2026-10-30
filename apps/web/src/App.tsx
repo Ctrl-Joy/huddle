@@ -11,6 +11,7 @@ import { AppShell } from './components/layout/AppShell';
 // Public marketing site — lazy so it stays out of the app bundle.
 const LandingLayout = lazy(() => import('./landing/LandingLayout'));
 const HomePage = lazy(() => import('./landing/HomePage'));
+const HeroHome = lazy(() => import('./landing/HeroHome'));
 const DownloadPage = lazy(() => import('./landing/DownloadPage'));
 const SafetyPage = lazy(() => import('./landing/SafetyPage'));
 const SupportPage = lazy(() => import('./landing/SupportPage'));
@@ -48,8 +49,9 @@ export function App() {
         <Route path="/invite/:code" element={<InvitePage />} />
         <Route path="/channels/:guildId/:channelId?" element={<RequireAuth><AppShell /></RequireAuth>} />
         <Route path="/channels" element={<Navigate to="/channels/@me" replace />} />
+        <Route path="/" element={<Suspense fallback={<div style={{ height: '100%', background: '#000' }} />}><HeroHome /></Suspense>} />
         <Route element={<Landing />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/features" element={<HomePage />} />
           <Route path="/download" element={<DownloadPage />} />
           <Route path="/safety" element={<SafetyPage />} />
           <Route path="/support" element={<SupportPage />} />
