@@ -40,6 +40,8 @@ interface UIState {
   popout: PopoutState | null;
   memberListOpen: boolean;
   mobileNavOpen: boolean;
+  /** phones: the members / search drawer that slides in from the right */
+  mobileMembersOpen: boolean;
   searchOpen: boolean;
   searchQuery: string;
   searchGuildId: string | null;
@@ -58,6 +60,7 @@ interface UIState {
   closePopout(): void;
   toggleMemberList(): void;
   setMobileNav(open: boolean): void;
+  setMobileMembers(open: boolean): void;
   openSearch(guildId: string, query: string): void;
   closeSearch(): void;
   setTheme(t: Theme): void;
@@ -81,6 +84,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   popout: null,
   memberListOpen: load('huddle.memberList', true),
   mobileNavOpen: false,
+  mobileMembersOpen: false,
   searchOpen: false,
   searchQuery: '',
   searchGuildId: null,
@@ -103,9 +107,10 @@ export const useUIStore = create<UIState>()((set, get) => ({
   openPopout: (p) => set({ popout: p, contextMenu: null }),
   closePopout: () => set({ popout: null }),
   toggleMemberList: () => { const v = !get().memberListOpen; save('huddle.memberList', v); set({ memberListOpen: v }); },
-  setMobileNav: (open) => set({ mobileNavOpen: open }),
-  openSearch: (guildId, query) => set({ searchOpen: true, searchQuery: query, searchGuildId: guildId }),
-  closeSearch: () => set({ searchOpen: false }),
+  setMobileNav: (open) => set(open ? { mobileNavOpen: true, mobileMembersOpen: false } : { mobileNavOpen: false }),
+  setMobileMembers: (open) => set(open ? { mobileMembersOpen: true, mobileNavOpen: false } : { mobileMembersOpen: false }),
+  openSearch: (guildId, query) => set({ searchOpen: true, searchQuery: query, searchGuildId: guildId, mobileMembersOpen: true, mobileNavOpen: false }),
+  closeSearch: () => set({ searchOpen: false, mobileMembersOpen: false }),
   setTheme: (t) => {
     try { localStorage.setItem('huddle.theme', t); } catch { /* ignore */ }
     document.documentElement.setAttribute('data-theme', t);

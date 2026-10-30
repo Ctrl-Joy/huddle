@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { ChannelType } from '@huddle/shared';
 import { useGuildStore, sortChannels } from '../../stores/guilds';
@@ -20,6 +20,7 @@ import { Layers } from './Layers';
 import { useAppEffects } from './useAppEffects';
 import { ConnectionBanner } from './ConnectionBanner';
 import { IncomingCall } from '../voice/IncomingCall';
+import { useSwipePanels } from './useSwipePanels';
 
 export function AppShell() {
   const { guildId = '@me', channelId } = useParams();
@@ -31,7 +32,10 @@ export function AppShell() {
   const roles = useGuildStore((s) => (isHome ? undefined : s.roles[guildId]));
   const me = useAuthStore((s) => s.user!.id);
   const mobileNavOpen = useUIStore((s) => s.mobileNavOpen);
+  const mobileMembersOpen = useUIStore((s) => s.mobileMembersOpen);
+  const bodyRef = useRef<HTMLDivElement>(null);
   useAppEffects();
+  useSwipePanels(bodyRef);
 
   // which channel to land on when none given / not visible
   const fallbackChannel = useMemo(() => {
@@ -54,6 +58,7 @@ export function AppShell() {
     useViewStore.getState().set({ guildId: isHome ? null : guildId, channelId: valid ? channelId ?? null : null });
     if (!isHome && valid && channelId && channel?.type === ChannelType.GUILD_TEXT) setLastChannel(guildId, channelId);
     useUIStore.getState().setMobileNav(false);
+    useUIStore.getState().setMobileMembers(false);
   }, [guildId, channelId, valid, isHome, channel?.type]);
 
   useEffect(() => { useUIStore.getState().closeSearch(); }, [guildId]);
@@ -73,9 +78,9 @@ export function AppShell() {
   else main = <EmptyGuild />;
 
   return (
-    <div className={'app' + (mobileNavOpen ? ' mobile-nav-open' : '')}>
+    <div className={'app' + (mobileNavOpen ? ' mobile-nav-open' : '') + (mobileMembersOpen ? ' mobile-members-open' : '')}>
       <ConnectionBanner />
-      <div className="app-body">
+      <div className="app-body" ref={bodyRef}>
         <nav className="nav-column" aria-label="Navigation">
           <ServerRail activeGuildId={isHome ? null : guildId} />
           <aside className="sidebar">
@@ -84,7 +89,7 @@ export function AppShell() {
             <UserPanel />
           </aside>
         </nav>
-        <div className="mobile-scrim" onClick={() => useUIStore.getState().setMobileNav(false)} />
+        <div className="mobile-scrim" onClick={() => { useUIStore.getState().setMobileNav(false); useUIStore.getState().setMobileMembers(false); }} />
         <main className="main">{main}</main>
       </div>
       <IncomingCall />

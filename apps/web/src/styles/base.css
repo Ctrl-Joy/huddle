@@ -130,6 +130,18 @@ code { font-family: var(--font-mono); }
 .divider { height: 1px; background: var(--border); margin: 20px 0; }
 .mobile-only { display: none !important; }
 
+/* ===== Touch devices ===== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior: none; }
+@media (hover: none) {
+  /* long-press opens Huddle's own menus, not the system callout or text selection */
+  .message, .channel-row, .dm-row, .member-row, .guild-icon, .rail-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+}
+/* iOS zooms the page into any field with text under 16px */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 800px) { input, textarea, select { font-size: 16px !important; } }
+}
+
 /* ===== Buttons ===== */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;

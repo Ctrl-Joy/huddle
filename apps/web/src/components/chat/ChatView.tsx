@@ -16,6 +16,7 @@ import { IconUpload } from '../common/icons';
 import { formatBytes } from '../../lib/format';
 import { useVoiceStore, voiceActions } from '../../stores/voice';
 import { CallStage, CallControls } from '../voice/VoiceView';
+import { usePhone } from '../../lib/usePhone';
 
 export function addFilesChecked(channelId: string, files: File[]) {
   const ok: File[] = [];
@@ -29,7 +30,9 @@ export function addFilesChecked(channelId: string, files: File[]) {
 }
 
 export function ChatView({ channel }: { channel: Channel }) {
-  const memberListOpen = useUIStore((s) => s.memberListOpen);
+  const phone = usePhone();
+  // phones show the member list / search as a drawer opened from the header or by swiping left
+  const memberListOpen = useUIStore((s) => (phone ? s.mobileMembersOpen : s.memberListOpen));
   const searchOpen = useUIStore((s) => s.searchOpen);
   const canAttachPerm = useCan(channel.id, Permissions.ATTACH_FILES);
   const canSend = useCan(channel.id, Permissions.SEND_MESSAGES);
@@ -61,7 +64,7 @@ export function ChatView({ channel }: { channel: Channel }) {
     addFilesChecked(channel.id, Array.from(e.dataTransfer.files));
   };
 
-  const side = searchOpen && channel.guild_id ? <SearchPanel guildId={channel.guild_id} />
+  const side = searchOpen && channel.guild_id && (!phone || memberListOpen) ? <SearchPanel guildId={channel.guild_id} />
     : memberListOpen ? (isDM ? <DMProfilePanel channel={channel} /> : <MemberList guildId={channel.guild_id!} channelId={channel.id} />)
     : null;
 

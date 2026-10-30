@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChannelType, type Channel } from '@huddle/shared';
 import { useUIStore } from '../../stores/ui';
+import { isPhone, usePhone } from '../../lib/usePhone';
 import { useAuthStore } from '../../stores/auth';
 import { channelDisplayName } from '../../stores/guilds';
 import { useStatus } from '../../stores/presences';
@@ -12,7 +13,8 @@ import { PinsPopover } from './PinsPopover';
 
 export function ChatHeader({ channel }: { channel: Channel }) {
   const me = useAuthStore((s) => s.user!.id);
-  const memberListOpen = useUIStore((s) => s.memberListOpen);
+  const phone = usePhone();
+  const memberListOpen = useUIStore((s) => (phone ? s.mobileMembersOpen : s.memberListOpen));
   const [pinsOpen, setPinsOpen] = useState(false);
   const isDM = channel.type === ChannelType.DM;
   const isGroup = channel.type === ChannelType.GROUP_DM;
@@ -72,7 +74,7 @@ export function ChatHeader({ channel }: { channel: Channel }) {
           {pinsOpen && <PinsPopover channel={channel} close={() => setPinsOpen(false)} />}
         </div>
         <Tooltip label={isDM ? (memberListOpen ? 'Hide User Profile' : 'Show User Profile') : memberListOpen ? 'Hide Member List' : 'Show Member List'} side="bottom">
-          <button className={'icon-btn hide-narrow' + (memberListOpen ? ' active' : '')} aria-label="Toggle member list" onClick={() => useUIStore.getState().toggleMemberList()}>
+          <button className={'icon-btn' + (memberListOpen ? ' active' : '')} aria-label="Toggle member list" onClick={() => (isPhone() ? useUIStore.getState().setMobileMembers(true) : useUIStore.getState().toggleMemberList())}>
             {isDM && other ? <Avatar user={other} size={22} /> : <IconUsers size={20} />}
           </button>
         </Tooltip>
