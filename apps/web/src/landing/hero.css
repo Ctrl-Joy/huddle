@@ -588,27 +588,7 @@
 .hx .mq-star { width: .5em; height: .5em; margin: 0 .45em; flex: none; }
 @keyframes mq { to { transform: translate3d(-50%, 0, 0); } }
 
-/* ---------- download ---------- */
 .hx .solo .fcard { grid-template-columns: minmax(0, 1fr); }
-.hx .platforms { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
-.hx .platform { flex: 1 1 110px; max-width: 260px; }
-.hx .platform {
-  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 10px 20px; text-align: center;
-  border-radius: 22px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
-}
-.hx .pl-ic {
-  display: grid; place-items: center; width: 60px; height: 60px; margin-bottom: 6px; border-radius: 20px;
-  background: linear-gradient(150deg, rgba(158, 216, 255, .9), rgba(109, 91, 255, .9)); color: #120b40;
-}
-.hx .pl-ic svg { width: 28px; height: 28px; }
-.hx .platform strong { font-size: 16px; font-weight: 750; }
-.hx .platform small { font-size: 13px; color: var(--mute); }
-.hx .platform.current { border: 2px solid var(--teal); background: rgba(93,242,214,.12); box-shadow: 0 0 40px rgba(93,242,214,.22); }
-.hx .platform.current .pl-ic { background: linear-gradient(150deg, #6ff7df, #14b8a6); }
-.hx .platform.current small { color: var(--teal); font-weight: 650; }
-.hx .panel-cta { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px 22px; }
-.hx .note { display: inline-flex; align-items: center; gap: 10px; color: var(--sub); font-size: 15px; }
-.hx .note i { width: 9px; height: 9px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 0 rgba(255,209,102,.6); animation: pulse 2s infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,209,102,.55); } 100% { box-shadow: 0 0 0 12px rgba(255,209,102,0); } }
 
 /* ---------- safety ---------- */
@@ -859,8 +839,8 @@
   .hx .rv.from-l { transform: translate3d(-70px, 0, 0); }
   .hx .rv.in { opacity: 1; transform: none; }
   .hx .post.rv.in:hover { transform: translateY(-4px); }
-  .hx .platform.rv, .hx .safe.rv, .hx .post.rv { transform: translate3d(0, 24px, 0); }
-  .hx .platform.rv.in, .hx .safe.rv.in { transform: none; }
+  .hx .safe.rv, .hx .post.rv { transform: translate3d(0, 24px, 0); }
+  .hx .safe.rv.in { transform: none; }
 }
 @media (prefers-reduced-motion: no-preference) and (max-width: 900px) {
   .hx .rv.from-r, .hx .rv.from-l { transform: translate3d(0, 40px, 0); }

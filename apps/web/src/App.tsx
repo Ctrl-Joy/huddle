@@ -44,9 +44,10 @@ export function App() {
         <Route path="/channels" element={<Navigate to="/channels/@me" replace />} />
         <Route path="/" element={<Lazy><HeroHome /></Lazy>} />
         {/* old marketing pages now live as sections of the home page */}
-        {['features', 'download', 'safety', 'support', 'blog'].map((id) => (
+        {['features', 'safety', 'support', 'blog'].map((id) => (
           <Route key={id} path={`/${id}`} element={<Navigate to={`/#${id}`} replace />} />
         ))}
+        <Route path="/download" element={<Navigate to="/" replace />} />
         <Route path="/blog/:slug" element={<Navigate to="/#blog" replace />} />
         <Route path="*" element={<Lazy><NotFound /></Lazy>} />
       </Routes>

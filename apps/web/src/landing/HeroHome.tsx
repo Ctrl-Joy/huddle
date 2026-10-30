@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { POSTS, fmtDate, type Post } from './posts';
@@ -11,7 +11,6 @@ const SKY_POSTER = 'https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttw
 
 const SECTIONS = [
   { id: 'features', label: 'Features' },
-  { id: 'download', label: 'Download' },
   { id: 'safety', label: 'Safety' },
   { id: 'support', label: 'Support' },
   { id: 'blog', label: 'Blog' },
@@ -28,10 +27,6 @@ const ICONS = {
   lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
   gavel: 'M14 4l6 6M11 7l6 6M4 20l7-7M9 9l6-6 6 6-6 6z',
   server: 'M4 4h16v7H4zM4 13h16v7H4zM8 8h.01M8 17h.01',
-  monitor: 'M3 4h18v12H3zM8 20h8M12 16v4',
-  laptop: 'M5 5h14v10H5zM2 19h20',
-  phone: 'M7 2h10v20H7zM11 18h2',
-  tablet: 'M5 3h14v18H5zM11 18h2',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
   plus: 'M12 5v14M5 12h14',
   close: 'M18 6 6 18M6 6l12 12',
@@ -61,24 +56,6 @@ const FAQ = [
   { q: 'How do I share my screen?', a: 'Join a voice channel or start a DM call, then press the screen button. Your browser lets you pick a screen, a window or a tab.' },
   { q: 'How do I control notifications?', a: 'Right-click a server and open Notification Settings: all messages, only @mentions, or nothing. You can also mute single channels.' },
 ];
-
-const PLATFORMS = [
-  { id: 'windows', name: 'Windows', icon: ICONS.monitor },
-  { id: 'mac', name: 'macOS', icon: ICONS.laptop },
-  { id: 'linux', name: 'Linux', icon: ICONS.monitor },
-  { id: 'ios', name: 'iOS', icon: ICONS.phone },
-  { id: 'android', name: 'Android', icon: ICONS.tablet },
-];
-
-function detectPlatform(): string {
-  const ua = navigator.userAgent.toLowerCase();
-  if (/iphone|ipad|ipod/.test(ua)) return 'ios';
-  if (/android/.test(ua)) return 'android';
-  if (/mac/.test(ua)) return 'mac';
-  if (/win/.test(ua)) return 'windows';
-  if (/linux/.test(ua)) return 'linux';
-  return '';
-}
 
 // ---------- feature cards ----------
 interface Feature { key: string; hue: number; lines: string[]; body: string; mock: ReactNode; deco: ReactNode }
@@ -190,7 +167,7 @@ const SOCIAL = [
   { label: 'Mentions', icon: ICONS.at },
 ];
 
-/** Scrolling home: hero, feature cards, marquee, Download / Safety / Support / Blog, closing CTA, footer. */
+/** Scrolling home: hero, feature cards, marquee, Safety / Support / Blog, closing CTA, footer. */
 export default function HeroHome() {
   const loggedIn = useAuthStore((s) => !!s.token);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -205,7 +182,6 @@ export default function HeroHome() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [post, setPost] = useState<Post | null>(null);
   const [lang, setLang] = useState('en');
-  const platform = useMemo(detectPlatform, []);
 
   useEffect(() => {
     const prev = document.title;
@@ -239,7 +215,7 @@ export default function HeroHome() {
     };
   }, []);
 
-  // Jump to a section when arriving with a hash (e.g. redirected from /download).
+  // Jump to a section when arriving with a hash (e.g. redirected from /safety).
   useEffect(() => {
     const id = window.location.hash.slice(1);
     if (!id) return;
@@ -508,34 +484,6 @@ export default function HeroHome() {
           ))}
         </div>
 
-        <section className="sec" id="download" aria-labelledby="h-download">
-          <div className="wrap">
-            <div className="fcard-wrap rv solo" style={{ '--h': 200 } as CSSProperties}>
-              <div className="fcard tilt dl">
-                <div className="f-text center">
-                  <h2 className="disp" id="h-download"><span>Wherever you are,</span><span>Huddle’s there</span></h2>
-                  <p>Huddle runs in any modern browser on any device. Want a window of its own? Install it as an app from your browser’s menu in two clicks.</p>
-                </div>
-                <div className="platforms">
-                  {PLATFORMS.map((p, i) => (
-                    <div key={p.id} className={'platform rv' + (p.id === platform ? ' current' : '')} style={{ transitionDelay: `${0.06 * i}s` }}>
-                      <div className="pl-ic"><I d={p.icon} /></div>
-                      <strong>{p.name}</strong>
-                      <small>{p.id === platform ? 'Your device' : 'In the browser'}</small>
-                    </div>
-                  ))}
-                </div>
-                <div className="panel-cta">
-                  <Link className="btn big white" to={appLink}>Open Huddle in your browser</Link>
-                  <span className="note"><i />Native apps are on the way.</span>
-                </div>
-              </div>
-              <Buddy hue="sky" mood="happy" topper="beanie" wave className="peek p-tl b-peek" />
-              <Orb hue="teal" className="peek p-bl" />
-            </div>
-          </div>
-        </section>
-
         <section className="sec" id="safety" aria-labelledby="h-safety">
           <div className="wrap">
             <div className="fcard-wrap rv solo" style={{ '--h': 280 } as CSSProperties}>
@@ -682,7 +630,6 @@ export default function HeroHome() {
               <nav className="foot-cols" aria-label="Footer">
                 <div>
                   <h4>Product</h4>
-                  <a href="#download" onClick={goTo('download')}>Download</a>
                   <a href="#features" onClick={goTo('features')}>Features</a>
                   <a href="#">Status</a>
                   <Link to={appLink}>Web app</Link>
