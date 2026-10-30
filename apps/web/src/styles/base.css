@@ -1,19 +1,20 @@
 /* ===== Huddle design tokens ===== */
+/* dark theme: neutral near-black greys (no blue tint) */
 :root {
-  --bg-rail: #0e1014;
-  --bg-sidebar: #14171d;
-  --bg-chat: #1a1d24;
-  --bg-elevated: #21252e;
-  --bg-input: #272c37;
-  --bg-panel: #111419;
-  --bg-hover: rgba(152, 161, 176, 0.08);
-  --bg-active: rgba(152, 161, 176, 0.16);
-  --bg-message-hover: rgba(0, 0, 0, 0.12);
-  --border: #2c313c;
-  --border-strong: #3a404d;
-  --text: #e7e9ee;
-  --text-muted: #98a1b0;
-  --text-faint: #6b7383;
+  --bg-rail: #121214;
+  --bg-sidebar: #121214;
+  --bg-chat: #1a1a1e;
+  --bg-elevated: #202024;
+  --bg-input: #222225;
+  --bg-panel: #202024;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: #2c2c30;
+  --bg-message-hover: rgba(0, 0, 0, 0.14);
+  --border: #29292d;
+  --border-strong: #3a3a40;
+  --text: #ededf0;
+  --text-muted: #a3a3ad;
+  --text-faint: #6f6f7a;
   --accent: #2dd4bf;
   --accent-strong: #14b8a6;
   --accent-text: #06201d;
@@ -30,7 +31,7 @@
   --mention-bar: #f59e0b;
   --mention-pill-bg: rgba(45, 212, 191, 0.16);
   --mention-pill-text: #5eead4;
-  --code-bg: #12151b;
+  --code-bg: #141417;
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03);
   --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
   --radius-sm: 6px;

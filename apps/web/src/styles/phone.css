@@ -20,7 +20,8 @@
     box-shadow: var(--shadow-lg); border-left: 0; overflow-y: auto; animation: drawer-in-r .26s var(--ease-out) both;
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
-  .user-panel { padding-bottom: calc(8px + env(safe-area-inset-bottom)); height: auto; min-height: 52px; }
+  .user-panel { bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .nav-column { --user-panel-space: calc(72px + env(safe-area-inset-bottom)); }
   .friends-main { padding: 12px; }
   .chat-header { padding: 0 6px 0 8px; gap: 4px; }
   .chat-header-title .header-topic, .chat-header-title .header-divider { display: none; }
