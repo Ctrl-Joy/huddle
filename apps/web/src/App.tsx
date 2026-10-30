@@ -8,19 +8,12 @@ import { InvitePage } from './pages/InvitePage';
 import { Splash } from './pages/Splash';
 import { AppShell } from './components/layout/AppShell';
 
-// Public marketing site — lazy so it stays out of the app bundle.
-const LandingLayout = lazy(() => import('./landing/LandingLayout'));
-const HomePage = lazy(() => import('./landing/HomePage'));
+// Public home page — lazy so it stays out of the app bundle.
 const HeroHome = lazy(() => import('./landing/HeroHome'));
-const DownloadPage = lazy(() => import('./landing/DownloadPage'));
-const SafetyPage = lazy(() => import('./landing/SafetyPage'));
-const SupportPage = lazy(() => import('./landing/SupportPage'));
-const BlogIndexPage = lazy(() => import('./landing/BlogPages').then((m) => ({ default: m.BlogIndexPage })));
-const BlogPostPage = lazy(() => import('./landing/BlogPages').then((m) => ({ default: m.BlogPostPage })));
-const NotFoundPage = lazy(() => import('./landing/NotFoundPage'));
+const NotFound = lazy(() => import('./landing/NotFound'));
 
-function Landing() {
-  return <Suspense fallback={<div style={{ height: '100%', background: '#070b14' }} />}><LandingLayout /></Suspense>;
+function Lazy({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<div style={{ height: '100%', background: '#000' }} />}>{children}</Suspense>;
 }
 
 function NavBridge() {
@@ -49,16 +42,13 @@ export function App() {
         <Route path="/invite/:code" element={<InvitePage />} />
         <Route path="/channels/:guildId/:channelId?" element={<RequireAuth><AppShell /></RequireAuth>} />
         <Route path="/channels" element={<Navigate to="/channels/@me" replace />} />
-        <Route path="/" element={<Suspense fallback={<div style={{ height: '100%', background: '#000' }} />}><HeroHome /></Suspense>} />
-        <Route element={<Landing />}>
-          <Route path="/features" element={<HomePage />} />
-          <Route path="/download" element={<DownloadPage />} />
-          <Route path="/safety" element={<SafetyPage />} />
-          <Route path="/support" element={<SupportPage />} />
-          <Route path="/blog" element={<BlogIndexPage />} />
-          <Route path="/blog/:slug" element={<BlogPostPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
+        <Route path="/" element={<Lazy><HeroHome /></Lazy>} />
+        {/* old marketing pages now live as sections of the home page */}
+        {['features', 'download', 'safety', 'support', 'blog'].map((id) => (
+          <Route key={id} path={`/${id}`} element={<Navigate to={`/#${id}`} replace />} />
+        ))}
+        <Route path="/blog/:slug" element={<Navigate to="/#blog" replace />} />
+        <Route path="*" element={<Lazy><NotFound /></Lazy>} />
       </Routes>
     </BrowserRouter>
   );
