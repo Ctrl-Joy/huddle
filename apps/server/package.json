@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/index.ts",
     "start": "tsx src/index.ts",
+    "seed": "tsx scripts/seed.ts",
     "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts"
   },
   "dependencies": {
