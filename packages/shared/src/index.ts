@@ -6,3 +6,6 @@ export * from './mentions';
 export * from './api';
 export * from './discovery';
 export * from './emojis';
+export * from './scheduledEvents';
+export * from './soundboard';
+export * from './stickers';

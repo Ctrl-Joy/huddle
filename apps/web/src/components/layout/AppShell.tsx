@@ -77,7 +77,8 @@ export function AppShell() {
     return <Navigate to={`/channels/${guildId}/${channel.parent_id}?${params}`} replace />;
   }
   if (!isHome && (!channelId || !valid) && fallbackChannel && fallbackChannel !== channelId) {
-    return <Navigate to={`/channels/${guildId}/${fallbackChannel}`} replace />;
+    // keep the query (e.g. ?event= from an event link)
+    return <Navigate to={`/channels/${guildId}/${fallbackChannel}${window.location.search}`} replace />;
   }
   if (isDiscover && discoverPage === undefined) return <Navigate to={DISCOVER_PATH} replace />;
   if (isHome && !isDiscover && channelId && !valid) return <Navigate to="/channels/@me" replace />;

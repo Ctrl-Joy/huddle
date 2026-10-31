@@ -234,3 +234,4 @@
 .dm-close { margin-left: auto; display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 4px; background: none; color: var(--text-faint); cursor: pointer; opacity: 0; transition: opacity var(--dur-fast, 120ms), color var(--dur-fast, 120ms); }
 .dm-row:hover .dm-close, .dm-close:focus-visible { opacity: 1; }
 .dm-close:hover { color: var(--text); }
+.friends-header-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; flex-shrink: 0; padding-left: 8px; }

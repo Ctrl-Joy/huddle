@@ -28,13 +28,19 @@ import banRoutes from './routes/bans';
 import auditRoutes from './routes/audit';
 import searchRoutes from './routes/search';
 import emojiRoutes from './routes/emojis';
+import soundboardRoutes from './routes/soundboard';
 import discoveryRoutes from './routes/discovery';
 import threadRoutes from './routes/threads';
 import { archiveStaleThreads } from './services/threads';
 import userSettingsRoutes from './routes/userSettings';
 import messageFeatureRoutes from './routes/messageFeatures';
 import { finalizeExpiredPolls } from './services/polls';
+import scheduledEventRoutes from './routes/scheduledEvents';
+import { advanceScheduledEvents } from './services/scheduledEvents';
 import { LinkPreviews, type PageFetcher } from './services/linkPreview';
+import { GifService, type GifFetch } from './services/gifs';
+import stickerRoutes from './routes/stickers';
+import gifRoutes from './routes/gifs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SERVER_ROOT = path.resolve(here, '..');
@@ -53,6 +59,10 @@ export interface BuildOptions {
   webDist?: string;
   /** Link-preview page fetcher; tests pass a stub so nothing touches the network. */
   fetchPage?: PageFetcher;
+  /** GIF provider key. Default: $HUDDLE_GIF_API_KEY; null/empty disables GIF search. */
+  gifApiKey?: string | null;
+  /** GIF provider fetcher; tests pass a stub. */
+  fetchGifs?: GifFetch;
 }
 
 export type HuddleApp = FastifyInstance & { huddle: Ctx };
@@ -85,6 +95,7 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
   ctx.voice = new VoiceManager(ctx);
   ctx.previews = new LinkPreviews(ctx);
   if (opts.fetchPage) ctx.previews.fetcher = opts.fetchPage;
+  ctx.gifs = new GifService((opts.gifApiKey !== undefined ? opts.gifApiKey : process.env.HUDDLE_GIF_API_KEY) || null, opts.fetchGifs);
   app.decorate('huddle', ctx);
   app.decorateRequest('userId', null);
 
@@ -189,6 +200,10 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
       r(api, ctx);
     }
     messageFeatureRoutes(api, ctx);
+    stickerRoutes(api, ctx);
+    gifRoutes(api, ctx);
+    scheduledEventRoutes(api, ctx);
+    soundboardRoutes(api, ctx);
   }, { prefix: '/api' });
 
   // Close polls whose time is up (votes are refused after expiry regardless; this posts the result line).
@@ -208,6 +223,13 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
     try { archiveStaleThreads(ctx); } catch (e) { console.error('[huddle] thread auto-archive failed', e); }
   }, 60_000);
   archiveTimer.unref();
+
+  // Scheduled events: external ones go live at their start time; anything past its end auto-completes.
+  const eventTimer = setInterval(() => {
+    try { advanceScheduledEvents(ctx); } catch (e) { console.error('[huddle] scheduled event update failed', e); }
+  }, 15_000);
+  eventTimer.unref();
+  app.addHook('preClose', async () => { clearInterval(eventTimer); });
 
   app.addHook('preClose', async () => {
     clearInterval(archiveTimer);

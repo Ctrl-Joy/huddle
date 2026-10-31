@@ -9,7 +9,7 @@ import {
 import { requireChannel, requirePerm } from '../services/permissions';
 import { createMessage, dispatchMessageUpdate, type NewAttachment } from '../services/messages';
 import { endPoll, getPollRow, pollIsOpen, setVotes } from '../services/polls';
-import { parseEmbeds, parseForward, type ForwardData } from '../messageExtras';
+import { parseEmbeds, parseForward, parseStickers, type ForwardData } from '../messageExtras';
 import { body, isSnowflake, uid } from './util';
 import { isBlocked } from './users';
 
@@ -89,11 +89,12 @@ export default function messageFeatureRoutes(app: FastifyInstance, ctx: Ctx) {
       message_id: m.id, channel_id: m.channel_id, guild_id: m.guild_id, author_id: m.author_id,
       content: m.content, created_at: m.created_at, edited_at: m.edited_at,
       embeds: (m.flags ?? 0) & MessageFlags.SUPPRESS_EMBEDS ? [] : parseEmbeds(m.embeds),
+      ...(m.stickers ? { sticker_items: parseStickers(m.stickers) } : {}),
     };
     const files = db.all<any>(
       `SELECT * FROM attachments WHERE message_id = ? AND snapshot = ? ORDER BY rowid`, m.id, inner ? 1 : 0,
     );
-    if (!snap.content.trim() && !files.length && !snap.embeds.length) throw badRequest('This message has nothing to forward');
+    if (!snap.content.trim() && !files.length && !snap.embeds.length && !snap.sticker_items?.length) throw badRequest('This message has nothing to forward');
 
     // Validate every destination before creating anything.
     const targets = targetIds.map((tid) => {

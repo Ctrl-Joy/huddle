@@ -1,17 +1,20 @@
-import { useMemo, useRef, type MouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, type MouseEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChannelType, Permissions, has, type Channel, type VoiceState } from '@huddle/shared';
 import { useGuildStore, sortChannels, displayName } from '../../stores/guilds';
 import { useAuthStore } from '../../stores/auth';
 import { useUIStore, openModal } from '../../stores/ui';
-import { useChannelUnread } from '../../stores/readStates';
+import { useChannelUnread, useReadStateStore, isChannelMuted } from '../../stores/readStates';
+import { useEventStore, useGuildEvents, useLiveEventIn } from '../../stores/scheduledEvents';
+import { loadGuildEvents } from '../../lib/scheduledEvents';
+import { pluralize } from '../../lib/format';
 import { useVoiceStore, voiceActions } from '../../stores/voice';
 import { useCan, useGuildPermissions, channelPermissionsFor } from '../../lib/permissions';
 import { channelVisible } from '../../lib/permissionsCore';
 import { Avatar, Badge, Tooltip } from '../common/Avatar';
 import {
   IconChevronDown, IconHeadphonesOff, IconLock, IconMicOff, IconPlus, IconSettings,
-  IconUserPlus, IconVideo, IconClose, IconBellOff,
+  IconUserPlus, IconVideo, IconClose, IconBellOff, IconCalendar,
 } from '../common/icons';
 import { buildChannelMenu, buildGuildMenu, buildMemberMenu, openUserPopoutAt } from '../menus/menus';
 import { toast } from '../../stores/ui';
@@ -33,12 +36,33 @@ export function ChannelSidebar({ guildId, activeChannelId }: { guildId: string; 
   const gb = useGuildBanner(guildId);
   const perms = useGuildPermissions(guildId);
   const menuOpen = useUIStore((s) => s.contextMenu?.tag === 'guild-header:' + guildId);
+  const settings = useReadStateStore((s) => s.guildSettings[guildId]);
+  const events = useGuildEvents(guildId);
+  const eventsLoaded = useEventStore((s) => !!s.loaded[guildId]);
+  const [params, setParams] = useSearchParams();
+  const linkedEvent = params.get('event');
+
+  useEffect(() => { if (!eventsLoaded) void loadGuildEvents(guildId); }, [guildId, eventsLoaded]);
+  // an event link (/channels/:guild?event=:id) opens that event's details
+  useEffect(() => {
+    if (!linkedEvent) return;
+    const open = useUIStore.getState().modals.some((m) => m.type === 'events' && m.props.eventId === linkedEvent);
+    if (!open) openModal('events', { guildId, eventId: linkedEvent });
+    const next = new URLSearchParams(params);
+    next.delete('event');
+    setParams(next, { replace: true });
+  }, [linkedEvent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tree = useMemo(() => {
     const all = Object.values(channels).filter((c) => c.guild_id === guildId);
     const categories = all.filter((c) => c.type === ChannelType.GUILD_CATEGORY).sort(sortChannels);
     // threads aren't rows of their own: their unread / mentions roll up into the parent channel
-    const visible = all.filter((c) => c.type !== ChannelType.GUILD_CATEGORY && c.type !== ChannelType.PUBLIC_THREAD && channelVisible(c, me));
+    // "Hide Muted Channels" drops muted ones (the open channel always stays)
+    const hideMuted = !!settings?.hide_muted_channels;
+    const muted = (c: Channel) => hideMuted && c.id !== activeChannelId && isChannelMuted(c, { [guildId]: settings! });
+    const viewable = all.filter((c) => c.type !== ChannelType.GUILD_CATEGORY && c.type !== ChannelType.PUBLIC_THREAD && channelVisible(c, me));
+    const visible = viewable.filter((c) => !muted(c));
+    const hasVisibleChildren = (catId: string) => viewable.some((c) => c.parent_id === catId);
     const byParent = new Map<string | null, Channel[]>();
     for (const c of visible) {
       const p = c.parent_id && categories.some((x) => x.id === c.parent_id) ? c.parent_id : null;
@@ -49,10 +73,10 @@ export function ChannelSidebar({ guildId, activeChannelId }: { guildId: string; 
     const canManage = has(perms, Permissions.MANAGE_CHANNELS);
     return {
       root: byParent.get(null) || [],
-      // hide empty categories unless you can manage channels
-      categories: categories.filter((cat) => canManage || (byParent.get(cat.id)?.length ?? 0) > 0).map((cat) => ({ cat, children: byParent.get(cat.id) || [] })),
+      // hide empty categories unless you can manage channels (but not ones emptied by hiding muted channels)
+      categories: categories.filter((cat) => (byParent.get(cat.id)?.length ?? 0) > 0 || (canManage && !muted(cat) && !hasVisibleChildren(cat.id))).map((cat) => ({ cat, children: byParent.get(cat.id) || [] })),
     };
-  }, [channels, guildId, me, perms]);
+  }, [channels, guildId, me, perms, settings, activeChannelId]);
 
   if (!guild) return null;
 
@@ -71,6 +95,13 @@ export function ChannelSidebar({ guildId, activeChannelId }: { guildId: string; 
       </button>
       <div ref={gb.listRef} onScroll={gb.onListScroll} className="channel-list scroll-thin" onContextMenu={(e) => { if (e.target === e.currentTarget) useUIStore.getState().openContextMenu(e, buildGuildMenu(guildId)); }}>
         {gb.bannerEl}
+        <button className="channel-row events-row" onClick={() => openModal('events', { guildId })}>
+          <span className="channel-link">
+            <span className="channel-icon"><IconCalendar size={18} /></span>
+            <span className="channel-name truncate">{events.length ? pluralize(events.length, 'Event') : 'Events'}</span>
+            {events.some((e) => e.status === 'active') && <span className="event-live-pill">LIVE</span>}
+          </span>
+        </button>
         {tree.root.map((c) => <ChannelRow key={c.id} channel={c} active={c.id === activeChannelId} />)}
         {tree.categories.map(({ cat, children }) => {
           const isCollapsed = !!collapsed[cat.id];
@@ -117,6 +148,7 @@ function ChannelRow({ channel, active, hideParticipants }: { channel: Channel; a
   const connected = useVoiceStore((s) => s.connection?.channelId === channel.id);
   const states = useVoiceStore((s) => s.states);
   const participants = useMemo(() => Object.values(states).filter((v) => v.channel_id === channel.id), [states, channel.id]);
+  const liveEvent = useLiveEventIn(channel.id);
 
   const onClick = () => {
     if (voice) {
@@ -129,7 +161,7 @@ function ChannelRow({ channel, active, hideParticipants }: { channel: Channel; a
   return (
     <>
       <div
-        className={'channel-row' + (active ? ' active' : '') + (unread && !muted && !active ? ' unread' : '') + (muted ? ' muted' : '') + (connected ? ' connected' : '')}
+        className={'channel-row' + (active ? ' active' : '') + (unread && !muted && !active ? ' unread' : '') + (muted ? ' muted' : '') + (connected ? ' connected' : '') + (liveEvent ? ' event-live' : '')}
         onContextMenu={(e) => useUIStore.getState().openContextMenu(e, buildChannelMenu(channel))}
       >
         {unread && !muted && !active && <span className="unread-pill" />}
@@ -139,6 +171,7 @@ function ChannelRow({ channel, active, hideParticipants }: { channel: Channel; a
             {priv && <span className="channel-lock"><IconLock size={9} strokeWidth={3} /></span>}
           </span>
           <span className="channel-name truncate">{channel.name}</span>
+          {liveEvent && <span className="event-live-pill" title={`Live: ${liveEvent.name}`}>LIVE</span>}
           {muted && <IconBellOff size={14} className="channel-muted-icon" />}
         </button>
         <span className="channel-actions">

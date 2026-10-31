@@ -20,6 +20,9 @@ import { ApiError } from '../../api/client';
 import { openModal, type MenuItem } from '../../stores/ui';
 import { IconPoll, IconUpload } from '../common/icons';
 import { MicButton, RecordingBar, useVoiceRecording } from './VoiceMessage';
+import { GifPicker, IconGif, IconSticker, StickerPicker } from './MediaPickers';
+import { ensureServerConfig, useServerConfig } from '../../stores/stickers';
+import { sendGif, sendSticker } from '../../lib/stickers';
 
 // Custom emoji picks show as ":name:" in the textarea; submit turns them into tokens.
 const pickedToText = (e: string) => { const t = parseEmojiToken(e); return t ? `:${t.name}: ` : e; };
@@ -82,6 +85,11 @@ export function Composer({ channel }: { channel: Channel }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const emojiBtn = useRef<HTMLButtonElement>(null);
+  const stickerBtn = useRef<HTMLButtonElement>(null);
+  const gifBtn = useRef<HTMLButtonElement>(null);
+  const [media, setMedia] = useState<'sticker' | 'gif' | null>(null);
+  const gifsOn = useServerConfig((s) => !!s.config?.gifs);
+  useEffect(ensureServerConfig, []);
   const voice = useVoiceRecording(channelId);
 
   const canSend = has(perms, Permissions.SEND_MESSAGES);
@@ -302,6 +310,16 @@ export function Composer({ channel }: { channel: Channel }) {
             onKeyDown={onKeyDown}
             onPaste={onPaste}
           />
+          {!disabledReason && gifsOn && (
+            <Tooltip label="Send a GIF">
+              <button ref={gifBtn} className={'composer-btn gif-btn' + (media === 'gif' ? ' active' : '')} aria-label="Send a GIF" onClick={() => setMedia((v) => (v === 'gif' ? null : 'gif'))}><IconGif size={22} /></button>
+            </Tooltip>
+          )}
+          {!disabledReason && (
+            <Tooltip label="Send a sticker">
+              <button ref={stickerBtn} className={'composer-btn sticker-btn' + (media === 'sticker' ? ' active' : '')} aria-label="Send a sticker" onClick={() => setMedia((v) => (v === 'sticker' ? null : 'sticker'))}><IconSticker size={22} /></button>
+            </Tooltip>
+          )}
           {!disabledReason && (
             <Tooltip label="Select emoji">
               <button ref={emojiBtn} className={'composer-btn emoji-btn' + (pickerOpen ? ' active' : '')} aria-label="Select emoji" onClick={() => setPickerOpen((v) => !v)}><IconSmile size={22} /></button>
@@ -319,6 +337,14 @@ export function Composer({ channel }: { channel: Channel }) {
           </span>
         )}
       </div>
+      {media === 'sticker' && (
+        <StickerPicker anchor={stickerBtn.current} guildId={channel.guild_id} close={() => setMedia(null)}
+          onPick={(st) => { if (cooldownLeft > 0) return; void sendSticker(channelId, st, replyToId); useUIStore.getState().setReplyTo(channelId, null); if (slow) { cooldowns.set(channelId, Date.now() + slow * 1000); setNow(Date.now()); } }} />
+      )}
+      {media === 'gif' && (
+        <GifPicker anchor={gifBtn.current} close={() => setMedia(null)}
+          onPick={(g) => { if (cooldownLeft > 0) return; void sendGif(channelId, g.url, replyToId); useUIStore.getState().setReplyTo(channelId, null); if (slow) { cooldowns.set(channelId, Date.now() + slow * 1000); setNow(Date.now()); } }} />
+      )}
       {pickerOpen && <EmojiPicker anchor={emojiBtn.current} placement="above" guildId={channel.guild_id} onPick={(e) => insertAtCursor(pickedToText(e))} close={() => setPickerOpen(false)} />}
     </div>
   );

@@ -45,7 +45,7 @@
 /* hero: deep category tones fading into the page, big uppercase display type */
 .discover-hero {
   --hero-fade: var(--bg-chat);
-  position: relative; border-radius: var(--radius-lg); padding: 52px 40px; overflow: hidden; min-height: 200px;
+  position: relative; border-radius: var(--radius-lg); padding: 48px 56px; overflow: hidden; min-height: 288px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start; color: #fff; isolation: isolate;
   background:
     radial-gradient(ellipse 60% 90% at 88% 20%, color-mix(in srgb, var(--cat-accent) 30%, transparent), transparent 70%),
@@ -54,15 +54,15 @@
 }
 [data-theme="light"] .discover-hero { --hero-fade: color-mix(in srgb, var(--cat-deep-2) 70%, #fff); }
 .discover-hero::after { /* faint rings for texture */
-  content: ''; position: absolute; right: -60px; top: 50%; width: 320px; height: 320px; border-radius: 50%; z-index: -1; translate: 0 -50%;
+  content: ''; position: absolute; right: -60px; top: 50%; width: 400px; height: 400px; border-radius: 50%; z-index: -1; translate: 0 -50%;
   border: 36px solid color-mix(in srgb, #fff 6%, transparent); box-shadow: 0 0 0 46px color-mix(in srgb, #fff 3%, transparent);
 }
 .discover-hero h1 {
   font-family: "Unbounded", var(--font); font-weight: 800; text-transform: uppercase; letter-spacing: -.025em; line-height: .98;
-  font-size: clamp(36px, 6.4cqi, 72px); overflow-wrap: anywhere; text-shadow: 0 2px 24px rgba(0, 0, 0, .25);
+  font-size: clamp(40px, 7.2cqi, 72px); overflow-wrap: anywhere; text-shadow: 0 2px 24px rgba(0, 0, 0, .25);
   animation: heroIn 420ms var(--ease-out) backwards;
 }
-.discover-hero p { margin-top: 14px; font-size: 16px; color: rgba(255, 255, 255, .9); max-width: 560px; animation: heroIn 420ms 70ms var(--ease-out) backwards; }
+.discover-hero p { margin-top: 18px; font-size: 17px; color: rgba(255, 255, 255, .9); max-width: 600px; animation: heroIn 420ms 70ms var(--ease-out) backwards; }
 @keyframes heroIn { from { opacity: 0; transform: translateY(14px); } }
 
 .discover-section-head { display: flex; align-items: center; gap: 12px; margin: 30px 0 14px; }

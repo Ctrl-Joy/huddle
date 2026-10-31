@@ -3,6 +3,9 @@ import type {
   Relationship, Role, User, UserGuildSettings, UserSettings, VoiceState,
 } from './models';
 import type { CustomEmojiRef } from './emojis';
+import type { GuildSticker } from './stickers';
+import type { ScheduledEvent } from './scheduledEvents';
+import type { SoundboardPlayEvent, SoundboardSound } from './soundboard';
 
 export enum GatewayOp {
   DISPATCH = 0,
@@ -88,6 +91,8 @@ export interface DispatchEvents {
   GUILD_ROLE_DELETE: { guild_id: string; role_id: string };
   /** Full replacement list after any emoji create / rename / delete. */
   GUILD_EMOJIS_UPDATE: { guild_id: string; emojis: GuildEmoji[] };
+  /** Full replacement list after any sticker create / edit / delete. */
+  GUILD_STICKERS_UPDATE: { guild_id: string; stickers: GuildSticker[] };
 
   CHANNEL_CREATE: Channel;
   CHANNEL_UPDATE: Channel;
@@ -116,6 +121,13 @@ export interface DispatchEvents {
   RELATIONSHIP_REMOVE: { id: string; type: number };
 
   USER_GUILD_SETTINGS_UPDATE: UserGuildSettings;
+
+  /** Scheduled events go to members who can see the server (and the event's voice channel, if any). */
+  SCHEDULED_EVENT_CREATE: ScheduledEvent;
+  SCHEDULED_EVENT_UPDATE: ScheduledEvent;
+  SCHEDULED_EVENT_DELETE: { id: string; guild_id: string };
+  SCHEDULED_EVENT_INTEREST_ADD: { event_id: string; guild_id: string; user_id: string; user_count: number };
+  SCHEDULED_EVENT_INTEREST_REMOVE: { event_id: string; guild_id: string; user_id: string; user_count: number };
   /** Sent to all of the user's own sessions after PATCH /users/@me/settings. */
   USER_SETTINGS_UPDATE: UserSettings;
 
@@ -123,6 +135,10 @@ export interface DispatchEvents {
   VOICE_SIGNAL: VoiceSignalPayload & { from_user_id: string };
   CALL_CREATE: { channel_id: string; ringing: string[]; initiator_id: string };
   CALL_DELETE: { channel_id: string };
+  /** Sent only to the members connected to that voice channel / DM call. */
+  SOUNDBOARD_SOUND_PLAY: SoundboardPlayEvent;
+  /** Full replacement list after any uploaded soundboard sound create / edit / delete. */
+  GUILD_SOUNDBOARD_SOUNDS_UPDATE: { guild_id: string; sounds: SoundboardSound[] };
 }
 
 export type DispatchEventName = keyof DispatchEvents;

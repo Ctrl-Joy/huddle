@@ -251,6 +251,33 @@ CREATE TABLE IF NOT EXISTS emojis (
 );
 CREATE INDEX IF NOT EXISTS idx_emojis_guild ON emojis(guild_id);
 
+-- Custom server stickers (PNG / APNG / GIF / WebP under /uploads/stickers/). tags = related unicode emoji.
+CREATE TABLE IF NOT EXISTS stickers (
+  id          TEXT PRIMARY KEY,
+  guild_id    TEXT NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  description TEXT,
+  tags        TEXT NOT NULL,
+  format      TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  creator_id  TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stickers_guild ON stickers(guild_id);
+
+-- Uploaded soundboard sounds (MP3/OGG/WAV under /uploads/sounds/). Built-in sounds live in the client.
+CREATE TABLE IF NOT EXISTS soundboard_sounds (
+  id          TEXT PRIMARY KEY,
+  guild_id    TEXT NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  emoji       TEXT,
+  url         TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  creator_id  TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_soundboard_sounds_guild ON soundboard_sounds(guild_id);
+
 -- Per-user settings document (server folders + rail order), JSON-encoded.
 CREATE TABLE IF NOT EXISTS user_settings (
   user_id         TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -264,4 +291,32 @@ CREATE TABLE IF NOT EXISTS mention_dismissals (
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   message_id TEXT NOT NULL,
   PRIMARY KEY (user_id, message_id)
+);
+
+-- Scheduled server events. Voice events point at a voice channel; external ones carry a text location.
+-- status: scheduled | active | completed | cancelled
+CREATE TABLE IF NOT EXISTS scheduled_events (
+  id            TEXT PRIMARY KEY,
+  guild_id      TEXT NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+  channel_id    TEXT REFERENCES channels(id) ON DELETE CASCADE,
+  creator_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+  name          TEXT NOT NULL,
+  description   TEXT,
+  start_time    TEXT NOT NULL,
+  end_time      TEXT,
+  location_type TEXT NOT NULL,
+  location      TEXT,
+  image         TEXT,
+  status        TEXT NOT NULL DEFAULT 'scheduled',
+  created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scheduled_events_guild ON scheduled_events(guild_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_events_status ON scheduled_events(status);
+
+-- Members interested in a scheduled event.
+CREATE TABLE IF NOT EXISTS scheduled_event_users (
+  event_id   TEXT NOT NULL REFERENCES scheduled_events(id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (event_id, user_id)
 );

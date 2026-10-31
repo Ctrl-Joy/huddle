@@ -20,9 +20,13 @@ import { Field, Modal, Toggle } from '../modals/Modal';
 import { IconArrowDown, IconArrowUp, IconClose, IconPlus, IconSearch, IconTrash, IconShield } from '../common/icons';
 import { inviteUrl } from '../modals/InviteModal';
 import { EmojiTab } from './EmojiSettings';
+import { StickerTab } from './StickerSettings';
+import { useStickerStore } from '../../stores/stickers';
+import { SoundboardTab } from './SoundboardSettings';
+import { useEventStore } from '../../stores/scheduledEvents';
 import { DiscoverBanner, ServerCardView } from '../discover/Discover';
 
-type Tab = 'overview' | 'discovery' | 'roles' | 'emoji' |'members' | 'invites' | 'bans' | 'audit';
+type Tab = 'overview' | 'discovery' | 'roles' | 'emoji' | 'stickers' | 'soundboard' |'members' | 'invites' | 'bans' | 'audit';
 
 export function ServerSettings({ close, guildId, tab: initial }: { close: () => void; guildId: string; tab?: Tab }) {
   const guild = useGuildStore((s) => s.guilds[guildId]);
@@ -45,6 +49,8 @@ export function ServerSettings({ close, guildId, tab: initial }: { close: () => 
             { id: 'overview', label: 'Overview', hidden: !can(Permissions.MANAGE_GUILD) },
             { id: 'roles', label: 'Roles', hidden: !can(Permissions.MANAGE_ROLES) },
             { id: 'emoji', label: 'Emoji' },
+            { id: 'stickers', label: 'Stickers' },
+            { id: 'soundboard', label: 'Soundboard' },
             { id: 'discovery', label: 'Discovery', hidden: !can(Permissions.MANAGE_GUILD) },
           ],
         },
@@ -63,6 +69,8 @@ export function ServerSettings({ close, guildId, tab: initial }: { close: () => 
       {tab === 'overview' && <OverviewTab guildId={guildId} />}
       {tab === 'roles' && <RolesTab guildId={guildId} />}
       {tab === 'emoji' && <EmojiTab guildId={guildId} />}
+      {tab === 'stickers' && <StickerTab guildId={guildId} />}
+      {tab === 'soundboard' && <SoundboardTab guildId={guildId} />}
       {tab === 'discovery' && <DiscoveryTab guildId={guildId} />}
       {tab === 'members' && <MembersTab guildId={guildId} />}
       {tab === 'invites' && <InvitesTab guildId={guildId} />}
@@ -604,6 +612,12 @@ const ACTION_TEXT: Record<number, string> = {
   [AuditLogAction.EMOJI_CREATE]: 'added emoji',
   [AuditLogAction.EMOJI_UPDATE]: 'renamed emoji',
   [AuditLogAction.EMOJI_DELETE]: 'removed emoji',
+  [AuditLogAction.STICKER_CREATE]: 'added sticker',
+  [AuditLogAction.STICKER_UPDATE]: 'edited sticker',
+  [AuditLogAction.STICKER_DELETE]: 'removed sticker',
+  [AuditLogAction.SCHEDULED_EVENT_CREATE]: 'scheduled event',
+  [AuditLogAction.SCHEDULED_EVENT_UPDATE]: 'updated event',
+  [AuditLogAction.SCHEDULED_EVENT_DELETE]: 'deleted event',
 };
 
 function targetName(guildId: string, e: AuditLogEntry, users: Record<string, PublicUser>): string {
@@ -613,7 +627,9 @@ function targetName(guildId: string, e: AuditLogEntry, users: Record<string, Pub
   if (e.action_type >= 10 && e.action_type < 20) { const c = s.channels[e.target_id]; return '#' + (c?.name ?? (nameChange?.old_value as string) ?? (nameChange?.new_value as string) ?? 'deleted-channel'); }
   if (e.action_type >= 30 && e.action_type < 40) { const r = s.roles[guildId]?.[e.target_id]; return '@' + (r?.name ?? (nameChange?.new_value as string) ?? (nameChange?.old_value as string) ?? 'deleted-role'); }
   if (e.action_type >= 40 && e.action_type < 50) return e.target_id;
+  if (e.action_type >= 90 && e.action_type < 100) { const st = useStickerStore.getState().byGuild[guildId]?.find((x) => x.id === e.target_id); return '“' + (st?.name ?? (nameChange?.new_value as string) ?? (nameChange?.old_value as string) ?? 'sticker') + '”'; }
   if (e.action_type >= 80 && e.action_type < 90) { const em = s.emojis[guildId]?.find((x) => x.id === e.target_id); return ':' + (em?.name ?? (nameChange?.new_value as string) ?? (nameChange?.old_value as string) ?? 'emoji') + ':'; }
+  if (e.action_type >= 100 && e.action_type < 110) return (nameChange?.new_value as string) ?? (nameChange?.old_value as string) ?? useEventStore.getState().byId[e.target_id]?.name ?? 'an event';
   if (e.action_type === 1) return '';
   const u = users[e.target_id] || s.users[e.target_id];
   return u ? userDisplayName(u) : displayName(e.target_id, guildId);

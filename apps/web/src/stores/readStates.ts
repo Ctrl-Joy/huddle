@@ -38,7 +38,7 @@ export const useReadStateStore = create<ReadStateStore>()((set) => ({
 }));
 
 export function defaultGuildSettings(guildId: string): UserGuildSettings {
-  return { guild_id: guildId, muted: false, message_notifications: NotificationLevel.ALL_MESSAGES, suppress_everyone: false, channel_overrides: [] };
+  return { guild_id: guildId, muted: false, message_notifications: NotificationLevel.ALL_MESSAGES, suppress_everyone: false, channel_overrides: [], hide_muted_channels: false };
 }
 
 export function getGuildSettings(guildId: string): UserGuildSettings {

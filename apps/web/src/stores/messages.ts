@@ -1,6 +1,6 @@
 // Messages per channel, with pagination flags and optimistic (nonce-keyed) pending messages.
 import { create } from 'zustand';
-import { LIMITS, MessageType, type CustomEmojiRef, type Message, type PublicUser } from '@huddle/shared';
+import { LIMITS, MessageType, type CustomEmojiRef, type Message, type PublicUser, type StickerItem } from '@huddle/shared';
 import { api, errorMessage, uploadWithProgress } from '../api/client';
 import { useGuildStore } from './guilds';
 
@@ -269,7 +269,7 @@ export function makeNonce(): string {
   return (BigInt(Date.now() - 1735689600000) * 4194304n + BigInt(nonceCounter++ % 4194304)).toString();
 }
 
-export interface SendOptions { content: string; replyToId?: string | null; files?: PendingFile[] }
+export interface SendOptions { content: string; replyToId?: string | null; files?: PendingFile[]; /** Sticker message (built-in or server sticker). */ sticker?: StickerItem }
 
 export async function sendMessage(channelId: string, opts: SendOptions, author: PublicUser, existingNonce?: string): Promise<void> {
   const store = useMessageStore.getState();
@@ -289,6 +289,7 @@ export async function sendMessage(channelId: string, opts: SendOptions, author: 
       })),
       message_reference: opts.replyToId ? { message_id: opts.replyToId, channel_id: channelId } : null,
       referenced_message: replyMsg,
+      ...(opts.sticker ? { sticker_items: [opts.sticker] } : {}),
       _state: 'pending', _files: opts.files, _progress: opts.files?.length ? 0 : undefined,
     });
   } else {
@@ -299,6 +300,7 @@ export async function sendMessage(channelId: string, opts: SendOptions, author: 
     let msg: Message;
     const payload: Record<string, unknown> = { content: opts.content, nonce };
     if (opts.replyToId) payload.reply_to_id = opts.replyToId;
+    if (opts.sticker) payload.sticker_ids = [opts.sticker.id];
     if (opts.files && opts.files.length) {
       const form = new FormData();
       form.append('payload_json', JSON.stringify(payload));
@@ -324,5 +326,5 @@ export async function sendMessage(channelId: string, opts: SendOptions, author: 
 
 export function retryMessage(m: ClientMessage, author: PublicUser) {
   if (!m.nonce) return;
-  return sendMessage(m.channel_id, { content: m.content, replyToId: m.message_reference?.message_id, files: m._files }, author, m.nonce).catch(() => {});
+  return sendMessage(m.channel_id, { content: m.content, replyToId: m.message_reference?.message_id, files: m._files, sticker: m.sticker_items?.[0] }, author, m.nonce).catch(() => {});
 }

@@ -26,7 +26,7 @@ const me = () => useAuthStore.getState().user?.id ?? '';
 export function canForward(m: Message & { _state?: string }): boolean {
   if (m._state || m.poll) return false;
   if (m.type !== MessageType.DEFAULT && m.type !== MessageType.REPLY) return false;
-  return !!(m.content || m.attachments.length || m.forward || m.embeds?.length);
+  return !!(m.content || m.attachments.length || m.forward || m.embeds?.length || m.sticker_items?.length);
 }
 
 const copyId = (id: string): MenuItem => ({ label: 'Copy ID', hint: 'ID', onClick: () => { void copyText(id); toast('Copied ID', 'success'); } });
@@ -51,12 +51,17 @@ export function buildGuildMenu(guildId: string): MenuItem[] {
   items.push(
     { label: gs.muted ? 'Unmute Server' : 'Mute Server', onClick: () => void updateGuildSettings(guildId, { muted: !gs.muted }) },
     { label: 'Notification Settings', onClick: () => openModal('notificationSettings', { guildId }) },
+    { label: 'Hide Muted Channels', checked: !!gs.hide_muted_channels, onClick: () => void updateGuildSettings(guildId, { hide_muted_channels: !gs.hide_muted_channels }) },
   );
   if (canSettings || has(perms, Permissions.MANAGE_CHANNELS)) items.push({ separator: true });
   if (canSettings) items.push({ label: 'Server Settings', onClick: () => openModal('serverSettings', { guildId }) });
   if (has(perms, Permissions.MANAGE_CHANNELS)) {
     items.push({ label: 'Create Channel', onClick: () => openModal('createChannel', { guildId }) });
     items.push({ label: 'Create Category', onClick: () => openModal('createCategory', { guildId }) });
+  }
+  if (has(perms, Permissions.MANAGE_EVENTS)) {
+    if (!canSettings && !has(perms, Permissions.MANAGE_CHANNELS)) items.push({ separator: true });
+    items.push({ label: 'Create Event', onClick: () => openModal('createEvent', { guildId }) });
   }
   if (g.owner_id !== me()) {
     items.push({ separator: true }, {

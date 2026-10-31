@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Field } from '../modals/Modal';
+import { DEFAULT_SOUNDBOARD_VOLUME, playSoundboardAudio } from '../../voice/soundboard';
 
 /** Persisted media device choices — read by the WebRTC engine. */
-export interface MediaPrefs { inputDeviceId?: string; outputDeviceId?: string; videoDeviceId?: string }
+export interface MediaPrefs { inputDeviceId?: string; outputDeviceId?: string; videoDeviceId?: string; soundboardVolume?: number }
 const MEDIA_KEY = 'huddle.media';
 export function getMediaPrefs(): MediaPrefs {
   try { return JSON.parse(localStorage.getItem(MEDIA_KEY) || '{}'); } catch { return {}; }
@@ -123,6 +124,16 @@ export function VoiceVideoSettings() {
           </select>
         </Field>
       </div>
+      <Field label="Soundboard Volume" hint="How loud soundboard sounds play for you. Nothing plays while you're deafened.">
+        <div className="sb-volume">
+          <input type="range" className="range" min={0} max={100} step={1} aria-label="Soundboard volume"
+            value={prefs.soundboardVolume ?? DEFAULT_SOUNDBOARD_VOLUME}
+            onChange={(e) => update({ soundboardVolume: Number(e.target.value) })}
+            onPointerUp={(e) => void playSoundboardAudio('builtin:ding', null, Number(e.currentTarget.value))}
+            onKeyUp={(e) => void playSoundboardAudio('builtin:ding', null, Number(e.currentTarget.value))} />
+          <span className="sb-volume-value">{prefs.soundboardVolume ?? DEFAULT_SOUNDBOARD_VOLUME}%</span>
+        </div>
+      </Field>
       <div className="field-label">Mic Test</div>
       <p className="setting-desc">Having mic issues? Start a test and say something silly — we'll play your voice back to you.</p>
       <div className="mic-test">

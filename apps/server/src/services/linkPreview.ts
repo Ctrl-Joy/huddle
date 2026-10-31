@@ -9,6 +9,7 @@ import type { Ctx } from '../context';
 import { getMessageRow, type ChannelRow } from '../serializers';
 import { parseEmbeds } from '../messageExtras';
 import { dispatchMessageUpdate } from './messages';
+import { gifEmbedFor } from './gifs';
 
 export interface FetchedPage { url: string; html: string }
 /** Swappable in tests (no network): resolves the page or throws / returns null. */
@@ -307,6 +308,17 @@ export class LinkPreviews {
     this.pending.add(p);
   }
 
+  /**
+   * Stores embeds that need no fetch (GIF provider media links) straight away, without a dispatch: called
+   * by createMessage before the message is serialised, so MESSAGE_CREATE and the POST response carry them.
+   */
+  attachInstant(messageId: string, content: string): void {
+    const urls = extractUrls(content);
+    const embeds = urls.map((u) => gifEmbedFor(u));
+    if (!urls.length || !embeds.every((e) => !!e)) return;
+    this.ctx.db.run('UPDATE messages SET embeds = ? WHERE id = ?', JSON.stringify(embeds), messageId);
+  }
+
   /** Resolves once every queued preview has been stored (tests). */
   async settle(): Promise<void> {
     while (this.pending.size) await Promise.allSettled([...this.pending]);
@@ -318,6 +330,8 @@ export class LinkPreviews {
   }
 
   private async preview(url: string): Promise<Embed | null> {
+    const gif = gifEmbedFor(url); // GIF provider media: no page to fetch
+    if (gif) return gif;
     const hit = this.cache.get(url);
     if (hit && Date.now() - hit.at < CACHE_MS) return hit.embed;
     let embed: Embed | null = null;

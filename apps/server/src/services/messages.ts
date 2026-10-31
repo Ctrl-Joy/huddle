@@ -1,4 +1,4 @@
-import { MessageType, Permissions, has, parseMentions, type Message } from '@huddle/shared';
+import { MessageType, Permissions, has, parseMentions, type Message, type StickerItem } from '@huddle/shared';
 import { now, type Ctx } from '../context';
 import { placeholders } from '../db';
 import {
@@ -35,6 +35,8 @@ export interface CreateMessageOpts {
   flags?: number;
   poll?: PollInput;
   forward?: ForwardData;
+  /** Sticker message: frozen copies of the stickers (resolved and permission-checked by the caller). */
+  stickers?: StickerItem[];
 }
 
 export interface ResolvedMentions { users: string[]; roles: string[]; everyone: boolean }
@@ -138,6 +140,7 @@ export function createMessage(ctx: Ctx, o: CreateMessageOpts): Message {
     if (o.flags || o.forward) {
       db.run('UPDATE messages SET flags = ?, forward_json = ? WHERE id = ?', o.flags ?? 0, o.forward ? JSON.stringify(o.forward) : null, id);
     }
+    if (o.stickers?.length) db.run('UPDATE messages SET stickers = ? WHERE id = ?', JSON.stringify(o.stickers), id);
     if (o.poll) insertPoll(ctx, id, o.poll);
     db.run('UPDATE channels SET last_message_id = ? WHERE id = ?', id, c.id);
     for (const u of targets) {
@@ -164,6 +167,7 @@ export function createMessage(ctx: Ctx, o: CreateMessageOpts): Message {
 
   if (isThread(c) && isUserMessage && !o.threadStarter) onThreadMessage(ctx, c, id, ts);
 
+  if (isUserMessage && o.content) ctx.previews?.attachInstant(id, o.content);
   const row = getMessageRow(db, c.id, id)!;
   const msg = serializeMessage(db, row, o.authorId);
 

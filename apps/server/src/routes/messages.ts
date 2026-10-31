@@ -18,6 +18,7 @@ import { auditReason, body, isMultipart, isSnowflake, queryInt, queryStr, readMu
 import { isBlocked } from './users';
 import { parsePoll } from '../services/polls';
 import { parseVoiceMessage } from '../services/voiceMessages';
+import { resolveStickers } from '../services/stickers';
 
 const MAX_PINS = 50;
 
@@ -108,7 +109,8 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
       throw invalidField('content', `Message must be ${LIMITS.MESSAGE_LENGTH} characters or fewer`);
     }
     const poll = payload.poll !== undefined && payload.poll !== null ? parsePoll(payload.poll) : undefined;
-    if (!content.trim() && files.length === 0 && !poll) throw invalidField('content', 'Cannot send an empty message');
+    const stickers = resolveStickers(ctx, c, payload.sticker_ids);
+    if (!content.trim() && files.length === 0 && !poll && !stickers.length) throw invalidField('content', 'Cannot send an empty message');
     if (files.length) requirePerm(perms, Permissions.ATTACH_FILES);
     const voice = parseVoiceMessage(payload.voice_message, files);
 
@@ -165,6 +167,7 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
       nonce,
       poll,
       flags,
+      stickers,
     });
   });
 
@@ -182,7 +185,7 @@ export default function messageRoutes(app: FastifyInstance, ctx: Ctx) {
     if (b.content.length > LIMITS.MESSAGE_LENGTH) {
       throw invalidField('content', `Message must be ${LIMITS.MESSAGE_LENGTH} characters or fewer`);
     }
-    const hasAtt = !!db.one('SELECT 1 AS x FROM attachments WHERE message_id = ?', m.id) || !!m.forward_json ||
+    const hasAtt = !!db.one('SELECT 1 AS x FROM attachments WHERE message_id = ?', m.id) || !!m.forward_json || !!m.stickers ||
       !!db.one('SELECT 1 AS x FROM polls WHERE message_id = ?', m.id);
     if (!b.content.trim() && !hasAtt) throw invalidField('content', 'Cannot make a message empty');
     const replyAuthor = m.reference_id ? getMessageRow(db, c.id, m.reference_id)?.author_id ?? null : null;

@@ -9,6 +9,7 @@ import { formatTimestamp } from '../../lib/format';
 import { displayName, memberColor } from '../../stores/guilds';
 import { Avatar, Spinner } from '../common/Avatar';
 import { IconClose, IconPin } from '../common/icons';
+import { stickerPreview } from '../../lib/stickers';
 
 export function PinsPopover({ channel, close }: { channel: Channel; close: () => void }) {
   const entry = usePinsStore((s) => s.pins[channel.id]);
@@ -45,7 +46,7 @@ export function PinsPopover({ channel, close }: { channel: Channel; close: () =>
                 <strong style={{ color: memberColor(m.guild_id, m.author.id) || undefined }}>{displayName(m.author.id, m.guild_id)}</strong>
                 <span className="muted small">{formatTimestamp(m.created_at)}</span>
               </div>
-              <div className="pin-content"><Markdown content={m.content} guildId={m.guild_id} />{m.attachments.length > 0 && <div className="muted small">📎 {m.attachments.length} attachment(s)</div>}</div>
+              <div className="pin-content"><Markdown content={m.content} guildId={m.guild_id} />{!!m.sticker_items?.length && <div className="muted small">{stickerPreview(m)}</div>}{m.attachments.length > 0 && <div className="muted small">📎 {m.attachments.length} attachment(s)</div>}</div>
               <div className="pin-actions">
                 <button className="btn btn-small btn-ghost" onClick={() => { close(); void useMessageStore.getState().jumpTo(channel.id, m.id); }}>Jump</button>
                 {canManage && <button className="icon-btn tiny" aria-label="Unpin" onClick={() => void setPinned(m, false).then(() => usePinsStore.getState().fetch(channel.id))}><IconClose size={14} /></button>}

@@ -13,6 +13,8 @@ import { NicknameModal, TimeoutModal, BanModal, CustomStatusModal } from '../mod
 import { Lightbox } from '../modals/Lightbox';
 import { CreatePollModal } from '../modals/CreatePollModal';
 import { ForwardModal } from '../modals/ForwardModal';
+import { CreateEventModal } from '../events/CreateEventModal';
+import { EventsModal } from '../events/Events';
 import { UserSettings } from '../settings/UserSettings';
 import { ServerSettings } from '../settings/ServerSettings';
 import { ChannelSettings } from '../settings/ChannelSettings';
@@ -40,6 +42,8 @@ const REGISTRY: Record<ModalType, ComponentType<any>> = {
   customStatus: CustomStatusModal,
   createPoll: CreatePollModal,
   forwardMessage: ForwardModal,
+  createEvent: CreateEventModal,
+  events: EventsModal,
 };
 
 export function Layers() {

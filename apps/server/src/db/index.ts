@@ -73,6 +73,10 @@ export class Db {
       flags: 'INTEGER NOT NULL DEFAULT 0', duration_secs: 'REAL', waveform: 'TEXT', snapshot: 'INTEGER NOT NULL DEFAULT 0',
     });
     this.raw.exec('CREATE INDEX IF NOT EXISTS idx_attachments_url ON attachments(url)');
+    // sticker messages: JSON array of frozen StickerItem copies
+    addColumns('messages', { stickers: 'TEXT' });
+    // "Hide Muted Channels" in the server menu
+    addColumns('user_guild_settings', { hide_muted_channels: 'INTEGER NOT NULL DEFAULT 0' });
   }
 
   private stmt(sql: string): StatementSync {

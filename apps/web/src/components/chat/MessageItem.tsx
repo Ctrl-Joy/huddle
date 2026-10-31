@@ -18,6 +18,7 @@ import { ThreadChip, ThreadToolbarButton } from '../threads/ThreadChip';
 import { openThread } from '../../lib/threads';
 import { IconThread } from '../common/icons';
 import { Attachments } from './Attachments';
+import { QuickReactions } from './QuickReactions';
 import { Reactions } from './Reactions';
 import { EditBox } from './EditBox';
 import { EmojiPicker } from './EmojiPicker';
@@ -27,6 +28,9 @@ import { canForward } from '../menus/menus';
 import { PollView, PollResultLine } from './Poll';
 import { Embeds } from './Embeds';
 import { ForwardedMessage } from './ForwardedMessage';
+import { MessageStickers } from './Sticker';
+import { WaveButton } from './WaveButton';
+import { stickerPreview } from '../../lib/stickers';
 
 function useAuthorInfo(m: Message) {
   const guildId = m.guild_id;
@@ -95,7 +99,7 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
           {editing ? (
             <EditBox message={m} />
           ) : (
-            m.content && (
+            m.content && !isGifOnly(m) && (
               <div className="message-content">
                 <Markdown content={m.content} guildId={m.guild_id} />
                 {m.edited_at && <Tooltip label={formatFull(m.edited_at)}><span className="edited-tag">(edited)</span></Tooltip>}
@@ -103,6 +107,7 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
             )
           )}
           {m.forward && <ForwardedMessage message={m} snap={m.forward} />}
+          {!!m.sticker_items?.length && <MessageStickers items={m.sticker_items} />}
           {m.poll && <PollView message={m} canVote={canReadHistory && !m._state} />}
           {m.attachments.length > 0 && <Attachments message={m} />}
           {!!m.embeds?.length && <Embeds message={m} embeds={m.embeds} canSuppress={own || (canManage && !!m.guild_id)} />}
@@ -122,6 +127,7 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
       </div>
       {!m._state && !editing && (
         <div className="message-toolbar" role="toolbar">
+          {canReact && <QuickReactions message={m} />}
           {canReact && (
             <Tooltip label="Add Reaction">
               <button ref={pickerAnchor} className="tb-btn" aria-label="Add Reaction" onClick={() => setPickerOpen((v) => !v)}><IconSmilePlus size={18} /></button>
@@ -169,6 +175,9 @@ export const MessageItem = memo(function MessageItem({ message: m, grouped, high
   );
 });
 
+/** A message that is just a GIF link with its inline GIF embed: show the animation, not the URL. */
+const isGifOnly = (m: Message) => !!m.embeds?.length && m.embeds.every((e) => e.type === 'gifv') && m.content.trim() === m.embeds[0].url;
+
 function ReplyPreview({ m }: { m: Message }) {
   const ref = m.referenced_message;
   const authorInfo = useAuthorInfo(ref ?? m);
@@ -180,7 +189,7 @@ function ReplyPreview({ m }: { m: Message }) {
       <Avatar user={ref.author} size={16} />
       <span className="reply-author" style={authorInfo.color ? { color: authorInfo.color } : undefined}>@{authorInfo.name}</span>
       <span className="reply-content truncate">
-        {ref.content ? <InlineMarkdown content={ref.content} guildId={ref.guild_id} /> : <em className="reply-attach"><IconImage size={14} /> Click to see attachment</em>}
+        {ref.content ? <InlineMarkdown content={ref.content} guildId={ref.guild_id} /> : ref.sticker_items?.length ? <em className="reply-attach">{stickerPreview(ref)}</em> : ref.type === MessageType.GUILD_MEMBER_JOIN ? <em className="reply-attach">joined the server</em> : <em className="reply-attach"><IconImage size={14} /> Click to see attachment</em>}
       </span>
     </div>
   );
@@ -239,6 +248,7 @@ function SystemMessage({ m, name, color, highlighted }: { m: Message; name: stri
         <div className="message-gutter"><span className={'system-icon ' + cls}>{icon}</span></div>
         <div className="message-main system-body">
           {body}<time className="message-time" dateTime={m.created_at}>{formatTimestamp(m.created_at)}</time>
+          {m.type === MessageType.GUILD_MEMBER_JOIN && <WaveButton m={m} />}
         </div>
       </div>
     </div>

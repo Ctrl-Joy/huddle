@@ -2,6 +2,7 @@
 // all permission values decimal bigint strings.
 import type { GuildCategory } from './discovery';
 import type { CustomEmojiRef } from './emojis';
+import type { GuildSticker, StickerItem } from './stickers';
 
 export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline';
 
@@ -190,6 +191,8 @@ export interface FullGuild extends Guild {
   member_count: number;
   /** Custom emoji uploaded to this server. */
   emojis?: GuildEmoji[];
+  /** Custom stickers uploaded to this server (see stickers.ts). */
+  stickers?: GuildSticker[];
   /** Non-archived threads and forum posts (archived ones are fetched per channel). */
   threads?: Channel[];
 }
@@ -224,12 +227,15 @@ export interface Attachment {
 /** Link preview built from a page's OpenGraph / Twitter / meta tags. Images are hot-linked, never proxied. */
 export interface Embed {
   url: string;
-  type: 'link';
+  /** 'gifv': a direct GIF / short video from the GIF provider's media domain, shown as just the animation. */
+  type: 'link' | 'gifv';
   title: string | null;
   description: string | null;
   site_name: string | null;
   color: number | null; // from <meta name="theme-color">
   image: { url: string; width: number | null; height: number | null } | null;
+  /** gifv only: looping muted video version, when the provider URL was an .mp4. */
+  video?: { url: string } | null;
 }
 
 export interface PollAnswer {
@@ -269,6 +275,7 @@ export interface MessageSnapshot {
   edited_at: string | null;
   attachments: Attachment[];
   embeds: Embed[];
+  sticker_items?: StickerItem[];
 }
 
 export interface Reaction {
@@ -312,6 +319,8 @@ export interface Message {
   forward?: MessageSnapshot | null;
   /** The thread started from this message (for THREAD_CREATED system messages: the thread that was started). */
   thread?: Channel | null;
+  /** Sticker message: frozen copies of the stickers sent (see stickers.ts). */
+  sticker_items?: StickerItem[];
 }
 
 export interface Relationship {
@@ -333,6 +342,8 @@ export interface UserGuildSettings {
   message_notifications: NotificationLevel;
   suppress_everyone: boolean;
   channel_overrides: { channel_id: string; muted: boolean }[];
+  /** Hide muted channels (and categories left empty) from this server's channel list. */
+  hide_muted_channels: boolean;
 }
 
 /** A named, coloured group of servers in the server rail. */
@@ -407,6 +418,12 @@ export enum AuditLogAction {
   EMOJI_CREATE = 80,
   EMOJI_UPDATE = 81,
   EMOJI_DELETE = 82,
+  SCHEDULED_EVENT_CREATE = 100,
+  SCHEDULED_EVENT_UPDATE = 101,
+  SCHEDULED_EVENT_DELETE = 102,
+  STICKER_CREATE = 90,
+  STICKER_UPDATE = 91,
+  STICKER_DELETE = 92,
 }
 
 export interface AuditLogEntry {

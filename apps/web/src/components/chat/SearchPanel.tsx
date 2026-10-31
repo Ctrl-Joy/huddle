@@ -9,6 +9,7 @@ import { Markdown } from '../../lib/markdown';
 import { formatTimestamp } from '../../lib/format';
 import { Avatar, Spinner } from '../common/Avatar';
 import { IconClose, IconHash, IconSearch } from '../common/icons';
+import { stickerPreview } from '../../lib/stickers';
 
 const PAGE = 25;
 
@@ -121,6 +122,7 @@ function SearchResult({ m, onJump }: { m: Message; onJump: () => void }) {
             <time className="message-time">{formatTimestamp(m.created_at)}</time>
           </div>
           <div className="message-content"><Markdown content={m.content} guildId={m.guild_id} /></div>
+          {!!m.sticker_items?.length && <div className="muted small">{stickerPreview(m)}</div>}
           {m.attachments.length > 0 && <div className="muted small">📎 {m.attachments.map((a) => a.filename).join(', ')}</div>}
         </div>
         <span className="jump-chip">Jump</span>

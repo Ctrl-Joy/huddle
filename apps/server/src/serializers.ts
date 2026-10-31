@@ -1,6 +1,6 @@
 import {
   ChannelType, MessageType, customReactionId, type Attachment, type AuditLogEntry, type Ban, type Channel, type CustomEmojiRef,
-  type ForumTag, type Guild, type GuildEmoji, type Invite, type Member,
+  type ForumTag, type Guild, type GuildEmoji, type GuildSticker, type Invite, type Member, type StickerFormat,
   type Message, type PermissionOverwrite, type PublicUser, type Reaction, type ReadState, type Relationship, type Role,
   type User, type UserGuildSettings,
 } from '@huddle/shared';
@@ -37,7 +37,7 @@ export interface MessageRow {
   id: string; channel_id: string; guild_id: string | null; author_id: string; content: string; type: number;
   created_at: string; edited_at: string | null; pinned: number; pinned_at: string | null; mention_everyone: number;
   mentions: string; mention_roles: string; reference_id: string | null; reference_channel_id: string | null;
-  flags?: number; embeds?: string | null; forward_json?: string | null;
+  flags?: number; embeds?: string | null; forward_json?: string | null; stickers?: string | null;
 }
 export interface OverwriteRow { channel_id: string; target_id: string; type: number; allow: string; deny: string }
 
@@ -119,6 +119,23 @@ export function emojisOf(db: Db, guildId: string): GuildEmoji[] {
 
 export function emojiRef(e: EmojiRow): CustomEmojiRef {
   return { id: e.id, name: e.name, animated: !!e.animated, url: e.url };
+}
+
+// ---------- stickers ----------
+export interface StickerRow {
+  id: string; guild_id: string; name: string; description: string | null; tags: string; format: string; url: string;
+  creator_id: string | null; created_at: string;
+}
+
+export function sticker(s: StickerRow): GuildSticker {
+  return {
+    id: s.id, guild_id: s.guild_id, name: s.name, format: s.format as StickerFormat, url: s.url, description: s.description,
+    tags: s.tags, creator_id: s.creator_id, created_at: s.created_at,
+  };
+}
+
+export function stickersOf(db: Db, guildId: string): GuildSticker[] {
+  return db.all<StickerRow>('SELECT * FROM stickers WHERE guild_id = ? ORDER BY CAST(id AS INTEGER) ASC', guildId).map(sticker);
 }
 
 export function rolesOf(db: Db, guildId: string): RoleRow[] {
@@ -424,13 +441,14 @@ export function readState(r: { channel_id: string; last_read_message_id: string 
 
 export function guildSettings(db: Db, userId: string, guildId: string): UserGuildSettings {
   const r = db.one<any>('SELECT * FROM user_guild_settings WHERE user_id = ? AND guild_id = ?', userId, guildId);
-  if (!r) return { guild_id: guildId, muted: false, message_notifications: 0, suppress_everyone: false, channel_overrides: [] };
+  if (!r) return { guild_id: guildId, muted: false, message_notifications: 0, suppress_everyone: false, channel_overrides: [], hide_muted_channels: false };
   return {
     guild_id: guildId,
     muted: !!r.muted,
     message_notifications: r.message_notifications,
     suppress_everyone: !!r.suppress_everyone,
     channel_overrides: JSON.parse(r.channel_overrides || '[]'),
+    hide_muted_channels: !!r.hide_muted_channels,
   };
 }
 

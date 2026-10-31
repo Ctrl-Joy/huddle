@@ -46,6 +46,14 @@
   .emoji-row-meta { order: 3; flex-basis: 100%; padding-left: 44px; }
   .emoji-name-input input { font-size: 16px; } /* avoids iOS zoom on focus */
   .emoji-picker .ep-cell .custom-emoji { width: 28px; height: 28px; }
+  /* sticker + GIF pickers become a bottom sheet; stickers shrink a little in the message list */
+  .media-picker { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-width: none; height: min(62vh, 480px); border-radius: 14px 14px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .media-picker .ep-search input { font-size: 16px; }
+  .sp-cells { grid-template-columns: repeat(4, 1fr); }
+  .sticker-img { width: 128px; height: 128px; }
+  .sticker-draft { flex-direction: column; align-items: stretch; }
+  .sticker-draft-fields input, .sticker-card input { font-size: 16px; }
+  .sticker-grid-settings { grid-template-columns: 1fr; }
 }
 @keyframes drawer-in-r { from { transform: translateX(100%); } to { transform: none; } }
 /* an open thread / forum post is a full screen of its own on phones (back button returns) */
@@ -112,4 +120,24 @@
   .voice-rec { justify-content: space-between; }
   .forward-list { max-height: 45dvh; }
   .forward-foot input { font-size: 16px; } /* no zoom-on-focus in mobile Safari */
+}
+
+/* soundboard: six call buttons have to fit a phone width */
+@media (max-width: 800px) {
+  .call-controls { gap: 8px; padding: 12px 8px; }
+  .call-controls .call-btn { width: 48px; height: 48px; }
+  .sb-sound { height: 42px; }
+}
+/* quick reactions are desktop-only; on touch the long-press menu covers reacting */
+@media (max-width: 800px), (hover: none) {
+  .tb-quick { display: none !important; }
+}
+/* Scheduled events: stacked date/time fields, bigger tap targets */
+@media (max-width: 800px) {
+  .events-modal, .create-event-modal { max-height: calc(100dvh - 24px); }
+  .event-time-grid { grid-template-columns: 1fr; }
+  .event-actions .btn-small { height: 34px; }
+  .event-actions .event-interested { flex: 1 0 auto; }
+  .event-name { font-size: 16px; }
+  .event-steps li { font-size: 11px; }
 }

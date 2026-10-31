@@ -14,6 +14,10 @@ import { useThreadStore } from './threads';
 import { useBanStore } from './bans';
 import { usePinsStore } from './pins';
 import { useUserSettingsStore } from './userSettings';
+import { useStickerStore } from './stickers';
+import { stickerPreview } from '../lib/stickers';
+import { useEventStore } from './scheduledEvents';
+import { useSoundboardStore, handleSoundboardPlay } from './soundboard';
 import { notifyUnauthorized } from '../api/client';
 import { mentionsMe } from '../lib/mentionUtil';
 import { navigate, channelPath } from '../lib/nav';
@@ -56,7 +60,7 @@ function handleIncomingMessage(m: Message) {
     const author = displayName(m.author.id, m.guild_id);
     const guild = m.guild_id ? useGuildStore.getState().guilds[m.guild_id] : null;
     const title = guild ? `${author} (#${channel?.name ?? 'channel'}, ${guild.name})` : isDM && channel?.type === ChannelType.GROUP_DM ? `${author} (${channelDisplayName(channel, myId)})` : author;
-    const body = stripMarkdownForPreview(m.content) || (m.attachments.length ? `Sent ${m.attachments.length} attachment(s)` : '');
+    const body = stripMarkdownForPreview(m.content) || stickerPreview(m) || (m.attachments.length ? `Sent ${m.attachments.length} attachment(s)` : '');
     showDesktopNotification(title, body, {
       icon: m.author.avatar || undefined,
       tag: m.channel_id,
@@ -71,6 +75,7 @@ const handlers: Handlers = {
     auth.setUser(d.user);
     const gs = useGuildStore.getState();
     gs.loadGuilds(d.guilds);
+    useStickerStore.getState().load(d.guilds);
     if (d.user_settings) useUserSettingsStore.getState().apply(d.user_settings);
     gs.setPrivateChannels(d.private_channels);
     gs.upsertUsers(d.relationships.map((r) => r.user));
@@ -81,6 +86,7 @@ const handlers: Handlers = {
     usePresenceStore.getState().upsert({ user_id: d.user.id, status: d.user.status === 'invisible' ? 'offline' : d.user.status, custom_status: d.user.custom_status });
     useReadStateStore.getState().setReadStates(d.read_states);
     useReadStateStore.getState().setGuildSettings(d.user_guild_settings);
+    useEventStore.getState().reset(); // refetched when a server is opened
     const vs = [...(d.voice_states || [])];
     for (const g of d.guilds) vs.push(...(g.voice_states || []));
     const voice = useVoiceStore.getState();
@@ -108,6 +114,7 @@ const handlers: Handlers = {
 
   GUILD_CREATE: (g) => {
     useGuildStore.getState().addGuild(g);
+    useStickerStore.getState().set(g.id, g.stickers ?? []);
     usePresenceStore.getState().set(g.presences || []);
     useVoiceStore.getState().setStates(g.voice_states || []);
   },
@@ -115,6 +122,7 @@ const handlers: Handlers = {
   GUILD_DELETE: ({ id }) => {
     const view = useViewStore.getState();
     useGuildStore.getState().removeGuild(id);
+    useEventStore.getState().dropWhere((e) => e.guild_id === id);
     useVoiceStore.getState().removeGuildStates(id);
     if (view.guildId === id) navigate('/channels/@me');
   },
@@ -140,6 +148,7 @@ const handlers: Handlers = {
   GUILD_ROLE_UPDATE: ({ guild_id, role }) => useGuildStore.getState().upsertRole(guild_id, role),
   GUILD_ROLE_DELETE: ({ guild_id, role_id }) => useGuildStore.getState().removeRole(guild_id, role_id),
   GUILD_EMOJIS_UPDATE: ({ guild_id, emojis }) => useGuildStore.getState().setEmojis(guild_id, emojis),
+  GUILD_STICKERS_UPDATE: ({ guild_id, stickers }) => useStickerStore.getState().set(guild_id, stickers),
 
   CHANNEL_CREATE: (c) => useGuildStore.getState().upsertChannel(c),
   CHANNEL_UPDATE: (c) => {
@@ -156,6 +165,7 @@ const handlers: Handlers = {
     if (useThreadStore.getState().panel?.parentId === c.id) useThreadStore.getState().close();
     useGuildStore.getState().removeChannel(c.id);
     useMessageStore.getState().dropChannel(c.id);
+    useEventStore.getState().dropWhere((e) => e.channel_id === c.id); // its events went with it
     const view = useViewStore.getState();
     if (view.channelId === c.id) navigate(c.guild_id ? `/channels/${c.guild_id}` : '/channels/@me');
     const conn = useVoiceStore.getState().connection;
@@ -214,6 +224,12 @@ const handlers: Handlers = {
   RELATIONSHIP_REMOVE: ({ id }) => useRelationshipStore.getState().remove(id),
 
   USER_GUILD_SETTINGS_UPDATE: (s) => useReadStateStore.getState().upsertGuildSettings(s),
+
+  SCHEDULED_EVENT_CREATE: (e) => useEventStore.getState().upsert(e),
+  SCHEDULED_EVENT_UPDATE: (e) => useEventStore.getState().upsert(e),
+  SCHEDULED_EVENT_DELETE: ({ id }) => useEventStore.getState().remove(id),
+  SCHEDULED_EVENT_INTEREST_ADD: (d) => useEventStore.getState().interest(d.event_id, d.user_id, d.user_count, true, me()),
+  SCHEDULED_EVENT_INTEREST_REMOVE: (d) => useEventStore.getState().interest(d.event_id, d.user_id, d.user_count, false, me()),
   USER_SETTINGS_UPDATE: (s) => useUserSettingsStore.getState().apply(s),
 
   VOICE_STATE_UPDATE: (vs) => {
@@ -235,6 +251,8 @@ const handlers: Handlers = {
     }
   },
   CALL_DELETE: ({ channel_id }) => useVoiceStore.getState().removeCall(channel_id),
+  SOUNDBOARD_SOUND_PLAY: (ev) => handleSoundboardPlay(ev),
+  GUILD_SOUNDBOARD_SOUNDS_UPDATE: ({ guild_id, sounds }) => useSoundboardStore.getState().setSounds(guild_id, sounds),
 };
 
 let bound = false;
@@ -262,4 +280,6 @@ export function resetAllStores() {
   useTypingStore.setState({ typing: {} });
   usePinsStore.setState({ pins: {} });
   useUserSettingsStore.getState().reset();
+  useEventStore.getState().reset();
+  useSoundboardStore.getState().reset();
 }

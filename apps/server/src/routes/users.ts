@@ -249,6 +249,8 @@ export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
     if (level !== undefined) next.message_notifications = level;
     const se = optBool(b, 'suppress_everyone');
     if (se !== undefined) next.suppress_everyone = se;
+    const hide = optBool(b, 'hide_muted_channels');
+    if (hide !== undefined) next.hide_muted_channels = hide;
     if (b.channel_overrides !== undefined) {
       if (!Array.isArray(b.channel_overrides)) throw invalidField('channel_overrides', 'channel_overrides must be an array');
       const map = new Map(cur.channel_overrides.map((o) => [o.channel_id, o.muted]));
@@ -261,13 +263,13 @@ export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
       next.channel_overrides = [...map].filter(([, m]) => m).map(([channel_id, m]) => ({ channel_id, muted: m }));
     }
     db.run(
-      `INSERT INTO user_guild_settings (user_id, guild_id, muted, message_notifications, suppress_everyone, channel_overrides)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO user_guild_settings (user_id, guild_id, muted, message_notifications, suppress_everyone, channel_overrides, hide_muted_channels)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (user_id, guild_id) DO UPDATE SET muted = excluded.muted,
          message_notifications = excluded.message_notifications, suppress_everyone = excluded.suppress_everyone,
-         channel_overrides = excluded.channel_overrides`,
+         channel_overrides = excluded.channel_overrides, hide_muted_channels = excluded.hide_muted_channels`,
       me, guildId, next.muted ? 1 : 0, next.message_notifications, next.suppress_everyone ? 1 : 0,
-      JSON.stringify(next.channel_overrides),
+      JSON.stringify(next.channel_overrides), next.hide_muted_channels ? 1 : 0,
     );
     ctx.gw.dispatchToUser(me, 'USER_GUILD_SETTINGS_UPDATE', next);
     return next;

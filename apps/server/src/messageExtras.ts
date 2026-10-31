@@ -1,5 +1,5 @@
 // Message fields that live beside the core columns: flags, link previews (embeds), polls and forwarded snapshots.
-import { MessageFlags, type Attachment, type Embed, type Message, type MessageSnapshot, type Poll, type PublicUser } from '@huddle/shared';
+import { MessageFlags, type Attachment, type Embed, type Message, type MessageSnapshot, type Poll, type PublicUser, type StickerItem } from '@huddle/shared';
 import { placeholders, type Db } from './db';
 import { publicUser, usersById, type MessageRow } from './serializers';
 
@@ -7,6 +7,7 @@ import { publicUser, usersById, type MessageRow } from './serializers';
 export interface ForwardData {
   message_id: string; channel_id: string; guild_id: string | null; author_id: string;
   content: string; created_at: string; edited_at: string | null; embeds: Embed[];
+  sticker_items?: StickerItem[];
 }
 
 export interface PollAnswerRow { answer_id: number; text: string; emoji: string | null }
@@ -35,6 +36,16 @@ export function parseEmbeds(raw: string | null | undefined): Embed[] {
   }
 }
 
+export function parseStickers(raw: string | null | undefined): StickerItem[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
 export function parseForward(raw: string | null | undefined): ForwardData | null {
   if (!raw) return null;
   try { return JSON.parse(raw) as ForwardData; } catch { return null; }
@@ -45,7 +56,7 @@ const missingUser = (id: string): PublicUser => ({
   created_at: new Date(0).toISOString(),
 });
 
-type Extras = Pick<Message, 'flags' | 'embeds' | 'poll' | 'forward'>;
+type Extras = Pick<Message, 'flags' | 'embeds' | 'poll' | 'forward' | 'sticker_items'>;
 
 /** Batch-loads polls (with the viewer's votes) and forward authors; returns a per-row field builder. */
 export function messageExtras(
@@ -86,6 +97,8 @@ export function messageExtras(
     const out: Extras = { flags, embeds: flags & MessageFlags.SUPPRESS_EMBEDS ? [] : parseEmbeds(r.embeds) };
     const poll = polls.get(r.id);
     if (poll) out.poll = poll;
+    const stickers = parseStickers(r.stickers);
+    if (stickers.length) out.sticker_items = stickers;
     const f = forwards.get(r.id);
     if (f) {
       const u = fwdAuthors.get(f.author_id);
@@ -95,6 +108,7 @@ export function messageExtras(
         content: f.content, created_at: f.created_at, edited_at: f.edited_at,
         attachments: snapshotAtts.get(r.id) ?? [], embeds: f.embeds ?? [],
       };
+      if (f.sticker_items?.length) snap.sticker_items = f.sticker_items;
       out.forward = snap;
     }
     return out;

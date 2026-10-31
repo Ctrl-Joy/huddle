@@ -8,6 +8,7 @@ import { formatDuration } from '../../lib/format';
 import { Tooltip } from '../common/Avatar';
 import { IconPhoneOff, IconScreen, IconVideo, IconVideoOff } from '../common/icons';
 import { useMediaDiag } from '../../voice/mediaState';
+import { SoundboardButton } from '../voice/Soundboard';
 
 /** "Voice Connected" panel shown above the user panel while in a voice channel or DM call. */
 export function VoicePanel() {
@@ -58,6 +59,7 @@ export function VoicePanel() {
         <button className={'vp-btn' + (selfStream ? ' on' : '')} onClick={() => voiceActions.toggleScreen()} aria-pressed={selfStream}>
           <IconScreen size={18} /><span>Screen</span>
         </button>
+        <SoundboardButton variant="panel" />
       </div>
     </div>
   );

@@ -7,14 +7,20 @@ export interface RateLimitConfig {
   messages: BucketSpec;
   /** All other authenticated writes per user. */
   writes: BucketSpec;
+  /** Soundboard plays per user (on top of writes). */
+  soundboard: BucketSpec;
   /** Unauthenticated auth attempts (register/login) per IP. */
   auth: BucketSpec;
+  /** GIF search proxy requests per user (cached or not). */
+  gifs: BucketSpec;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimitConfig = {
   messages: { capacity: 5, windowMs: 5_000 },
   writes: { capacity: 30, windowMs: 10_000 },
   auth: { capacity: 20, windowMs: 60_000 },
+  gifs: { capacity: 20, windowMs: 10_000 },
+  soundboard: { capacity: 1, windowMs: 2_000 },
 };
 
 interface Bucket { tokens: number; last: number }

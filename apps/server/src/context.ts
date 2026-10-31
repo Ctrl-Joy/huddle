@@ -4,6 +4,7 @@ import type { RateLimiter } from './ratelimit';
 import type { Gateway } from './gateway';
 import type { VoiceManager } from './gateway/voice';
 import type { LinkPreviews } from './services/linkPreview';
+import type { GifService } from './services/gifs';
 
 export interface Config {
   uploadsDir: string;
@@ -26,6 +27,8 @@ export interface Ctx {
   slowmode: Map<string, number>;
   /** Background link-preview fetcher (swap `previews.fetcher` in tests). */
   previews: LinkPreviews;
+  /** GIF search proxy (disabled without HUDDLE_GIF_API_KEY). */
+  gifs: GifService;
 }
 
 export const now = (): string => new Date().toISOString();

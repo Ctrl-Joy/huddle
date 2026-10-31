@@ -1,4 +1,11 @@
-import { buildApp } from './app';
+import fs from 'node:fs';
+import path from 'node:path';
+import { buildApp, SERVER_ROOT } from './app';
+
+// Local config: apps/server/.env, then the repo-root .env (real environment variables win; see .env.example).
+for (const file of [path.join(SERVER_ROOT, '.env'), path.join(SERVER_ROOT, '..', '..', '.env')]) {
+  if (fs.existsSync(file)) process.loadEnvFile(file);
+}
 
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? '0.0.0.0';

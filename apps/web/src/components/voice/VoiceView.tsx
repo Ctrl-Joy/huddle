@@ -16,6 +16,7 @@ import {
   IconHeadphones, IconHeadphonesOff, IconMenu, IconMic, IconMicOff, IconPhoneOff, IconScreen, IconSpeaker, IconVideo, IconVideoOff,
 } from '../common/icons';
 import { buildMemberMenu, buildUserMenu, openUserPopoutAt } from '../menus/menus';
+import { SoundboardButton, SoundPopBubble } from './Soundboard';
 
 export function VoiceView({ channel }: { channel: Channel }) {
   const conn = useVoiceStore((s) => s.connection);
@@ -142,6 +143,7 @@ export function VoiceTile({ state, guildId, kind, focused, onSelect }: {
         {kind === 'camera' && state.self_video && !stream && <IconVideo size={14} aria-label="Camera on" />}
         {(kind === 'screen' || state.self_stream) && <span className="live-pill">LIVE</span>}
       </div>
+      {kind === 'camera' && <SoundPopBubble userId={state.user_id} />}
       {connecting && <div className="tile-status">Connecting…</div>}
       {stream && (
         <button className="tile-fs" aria-label="Fullscreen" title="Fullscreen" onClick={fullscreen}>
@@ -206,6 +208,7 @@ export function CallControls() {
       <Tooltip label={serverDeaf ? 'Server deafened' : s.selfDeaf ? 'Undeafen' : 'Deafen'}>
         <button className={'call-btn' + (s.selfDeaf || serverDeaf ? ' off' : '') + (serverDeaf ? ' server' : '')} aria-pressed={s.selfDeaf} aria-label="Toggle deafen" onClick={() => voiceActions.toggleDeafen()}>{s.selfDeaf || serverDeaf ? <IconHeadphonesOff size={22} /> : <IconHeadphones size={22} />}</button>
       </Tooltip>
+      <SoundboardButton variant="call" />
       <Tooltip label="Disconnect">
         <button className="call-btn hangup" aria-label="Disconnect" onClick={() => voiceActions.leave()}><IconPhoneOff size={22} /></button>
       </Tooltip>

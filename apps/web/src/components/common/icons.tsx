@@ -99,3 +99,4 @@ export const IconForum = (p: P) => <Svg {...p}><path d="M3 5a2 2 0 0 1 2-2h9a2 2
 export const IconMegaphone = (p: P) => <Svg {...p}><path d="M3 10.5v3a1 1 0 0 0 1 1h3l10 5.5V4L7 9.5H4a1 1 0 0 0-1 1z" /><path d="M20 9.5a3 3 0 0 1 0 5" /><path d="M7 14.5V19a1.5 1.5 0 0 0 1.5 1.5h1A1.5 1.5 0 0 0 11 19v-2.5" /></Svg>;
 export const IconArchive = (p: P) => <Svg {...p}><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" /></Svg>;
 export const IconArrowLeft = (p: P) => <Svg {...p}><path d="M19 12H5M12 19l-7-7 7-7" /></Svg>;
+export const IconCalendar = (p: P) => <Svg {...p}><rect x="3" y="4.5" width="18" height="16.5" rx="2" /><path d="M16 2.5v4M8 2.5v4M3 10h18" /></Svg>;

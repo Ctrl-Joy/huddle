@@ -18,6 +18,7 @@ import { formatTimestamp } from '../../lib/format';
 import { Markdown } from '../../lib/markdown';
 import { Avatar, Badge, GuildIcon, Spinner, Tooltip } from '../common/Avatar';
 import { IconAt, IconCheck, IconClose, IconHash, IconInbox, IconMore } from '../common/icons';
+import { stickerPreview } from '../../lib/stickers';
 
 const PAGE = 25;
 const FILTER_KEY = 'huddle.inboxFilters';
@@ -187,6 +188,7 @@ function MentionItem({ m, onJump, onDismiss }: { m: Message; onJump: () => void;
       </div>
       <div className="pin-content">
         <Markdown content={m.content} guildId={m.guild_id} />
+        {!!m.sticker_items?.length && <div className="muted small">{stickerPreview(m)}</div>}
         {m.attachments.length > 0 && <div className="muted small">📎 {m.attachments.length} attachment(s)</div>}
       </div>
     </div>

@@ -10,6 +10,7 @@ import { Avatar, Tooltip } from '../common/Avatar';
 import { IconForward } from '../common/icons';
 import { Attachments } from './Attachments';
 import { Embeds } from './Embeds';
+import { MessageStickers } from './Sticker';
 
 /** The quoted copy inside a forwarded message: "Forwarded" header, original content + files, and where it came from. */
 export function ForwardedMessage({ message, snap }: { message: ClientMessage; snap: MessageSnapshot }) {
@@ -32,6 +33,7 @@ export function ForwardedMessage({ message, snap }: { message: ClientMessage; sn
           <span>{userDisplayName(snap.author)}</span>
         </div>
         {snap.content && <div className="message-content"><Markdown content={snap.content} guildId={snap.guild_id} /></div>}
+        {!!snap.sticker_items?.length && <MessageStickers items={snap.sticker_items} />}
         {snap.attachments.length > 0 && <Attachments message={message} list={snap.attachments} />}
         {snap.embeds.length > 0 && <Embeds message={message} embeds={snap.embeds} canSuppress={false} />}
         <div className="forwarded-meta">

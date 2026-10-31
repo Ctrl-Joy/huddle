@@ -53,6 +53,28 @@ export function getRecentEmoji(): string[] {
 export function pushRecentEmoji(e: string) {
   const list = [e, ...getRecentEmoji().filter((x) => x !== e)].slice(0, 24);
   try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+  recentVersion++;
+  for (const l of recentListeners) l();
+}
+
+// Quick reactions (message hover toolbar): the first few recent emoji, topped up with defaults.
+const QUICK_DEFAULTS = ['👍', '❤️', '😂'];
+let recentVersion = 0;
+const recentListeners = new Set<() => void>();
+export function subscribeRecentEmoji(fn: () => void): () => void {
+  recentListeners.add(fn);
+  return () => { recentListeners.delete(fn); };
+}
+export const recentEmojiVersion = () => recentVersion;
+
+/** Recent emoji usable as one-click reactions (custom emoji we can't resolve any more are skipped). */
+export function getQuickReactions(n = 3): string[] {
+  const out = getRecentEmoji().filter((e) => {
+    const id = customReactionId(normalizeReactionKey(e));
+    return !id || !!findCustomEmoji(id);
+  });
+  for (const d of QUICK_DEFAULTS) if (!out.includes(d)) out.push(d);
+  return out.slice(0, n);
 }
 
 // ---- custom server emoji ----

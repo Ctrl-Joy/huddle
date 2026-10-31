@@ -6,7 +6,7 @@ export type ModalType =
   | 'createServer' | 'joinServer' | 'createChannel' | 'createCategory' | 'invite' | 'userSettings'
   | 'serverSettings' | 'channelSettings' | 'notificationSettings' | 'confirm' | 'createGroupDM'
   | 'quickSwitcher' | 'nickname' | 'timeout' | 'ban' | 'lightbox' | 'customStatus'
-  | 'createPoll' | 'forwardMessage';
+  | 'createPoll' | 'forwardMessage' | 'createEvent' | 'events';
 
 export interface ModalEntry { key: number; type: ModalType; props: Record<string, any> }
 
