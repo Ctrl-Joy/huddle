@@ -4,6 +4,8 @@ import { formatTime } from '../../lib/format';
 import { Field, Toggle } from '../modals/Modal';
 import { Markdown } from '../../lib/markdown';
 import { LogoMark } from '../common/icons';
+import { useT } from '../../i18n';
+import { LangPicker } from '../../i18n/LangPicker';
 
 function RadioCards<T extends string>({ value, options, onChange }: { value: T; options: { id: T; title: string; desc: string }[]; onChange: (v: T) => void }) {
   return (
@@ -105,14 +107,16 @@ const sampleTime = (hour12: boolean) => new Intl.DateTimeFormat(undefined, { hou
 export function LanguageTab() {
   const clock = usePrefs((s) => s.clock);
   const set = usePrefs((s) => s.set);
+  const t = useT();
   return (
     <div>
       <h1 className="settings-title">Language &amp; Time</h1>
-      <Field label="Language" hint="More languages coming.">
-        <select value="en" onChange={() => {}}>
-          <option value="en">English</option>
-        </select>
-      </Field>
+      {/* same store and list as the website footer; only the public site and sign-in screens are translated so far */}
+      <div className="field">
+        <span className="field-label" id="settings-lang-label">{t('settings.lang.label')}</span>
+        <LangPicker variant="app" id="settings-lang" labelledBy="settings-lang-label" />
+        <span className="field-hint">{t('settings.lang.hint')}</span>
+      </div>
       <div className="divider" />
       <div className="field-label">Time Format</div>
       <RadioCards<ClockPref>

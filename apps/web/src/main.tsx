@@ -4,6 +4,7 @@ import { App } from './App';
 import { installVoiceEngine } from './voice';
 import { installLongPress } from './lib/longPress';
 import { installPrefs } from './stores/prefs';
+import { installLang } from './i18n';
 import './styles/base.css';
 import './styles/layout.css';
 import './styles/chat.css';
@@ -24,6 +25,8 @@ installVoiceEngine();
 installLongPress();
 // chat font size, reduce motion, compact messages, … from localStorage
 installPrefs();
+// website + sign-in language (stored choice, else the browser's)
+installLang();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

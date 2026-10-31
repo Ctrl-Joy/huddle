@@ -4,102 +4,77 @@ import { useAuthStore } from '../stores/auth';
 import { POSTS, fmtDate, type Post } from './posts';
 import { Buddy, Cube, CubeBot, Huddy, Logo, Orb, Ring, Sparkle, type Hue } from './Buddies';
 import { AppMock, CallStory, DropInStory, FlairStory, MembersStory, PhoneMock, WatchStory } from './Mocks';
+import { useDocTitle, useLocale, useT, type Key, type T } from '../i18n';
+import { en } from '../i18n/en';
+import { Lines } from '../i18n/Rich';
+import { I, ICONS } from './icons';
+import { SECTIONS, SiteFooter } from './SiteChrome';
 import './hero.css';
 
 const SKY_VIDEO = 'https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/4b73c700-3112-4c07-bd48-0af2893dff7c.mp4';
 const SKY_POSTER = 'https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/0bf7409c-9fa2-4bef-a49d-34903dcc91ad.png';
 
-const SECTIONS = [
-  { id: 'features', label: 'Features' },
-  { id: 'safety', label: 'Safety' },
-  { id: 'support', label: 'Support' },
-  { id: 'blog', label: 'Blog' },
-] as const;
-
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// ---------- icons (stroke, 24×24) ----------
-const I = ({ d }: { d: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
-);
-const ICONS = {
-  block: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8',
-  lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
-  gavel: 'M14 4l6 6M11 7l6 6M4 20l7-7M9 9l6-6 6 6-6 6z',
-  server: 'M4 4h16v7H4zM4 13h16v7H4zM8 8h.01M8 17h.01',
-  search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
-  plus: 'M12 5v14M5 12h14',
-  close: 'M18 6 6 18M6 6l12 12',
-  arrow: 'M5 12h14M13 6l6 6-6 6',
-  globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18',
-  chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z',
-  play: 'M8 5v14l11-7z',
-  camera: 'M4 7h4l2-3h4l2 3h4v13H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
-  at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-4 7.5',
-  music: 'M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
-  chev: 'M6 9l6 6 6-6',
-  check: 'M5 12l5 5 9-10',
+const SAFETY: { icon: string; title: Key; text: Key; hue: Hue }[] = [
+  { icon: ICONS.block, title: 'home.safety.1.t', text: 'home.safety.1.d', hue: 'coral' },
+  { icon: ICONS.lock, title: 'home.safety.2.t', text: 'home.safety.2.d', hue: 'violet' },
+  { icon: ICONS.gavel, title: 'home.safety.3.t', text: 'home.safety.3.d', hue: 'amber' },
+  { icon: ICONS.server, title: 'home.safety.4.t', text: 'home.safety.4.d', hue: 'mint' },
+];
+
+const FAQ: { q: Key; a: Key }[] = [1, 2, 3, 4, 5, 6].map((n) => ({ q: `home.faq.${n}.q` as Key, a: `home.faq.${n}.a` as Key }));
+
+/** Post title / excerpt in the current language when translated (bodies stay in English). */
+const postText = (t: T, p: Post, field: 'title' | 'excerpt') => {
+  const k = `post.${p.slug}.${field}`;
+  return k in en ? t(k as Key) : p[field];
 };
 
-const SAFETY = [
-  { icon: ICONS.block, title: 'You choose who reaches you', text: 'Friend requests, blocking and DMs only from people you share a space with.', hue: 'coral' as Hue },
-  { icon: ICONS.lock, title: 'Private when you want it', text: 'Lock channels to the roles or members that should be there. Everyone else never sees them.', hue: 'violet' as Hue },
-  { icon: ICONS.gavel, title: 'Moderation built in', text: 'Timeouts, kicks, bans and a full audit log for every change.', hue: 'amber' as Hue },
-  { icon: ICONS.server, title: 'Your server, your data', text: 'Huddle is self-hostable. No ads, and nothing is sold to anyone.', hue: 'mint' as Hue },
-];
-
-const FAQ = [
-  { q: 'How do I create a server?', a: 'Click the + at the bottom of the server list, give it a name and an optional icon. Huddle sets up #general and a General voice room for you.' },
-  { q: 'How do I invite people?', a: 'Open the server menu and choose Invite People. Copy the link, and optionally limit how many times it can be used or when it expires.' },
-  { q: 'How do roles and permissions work?', a: 'Create roles in Server Settings → Roles and toggle what each can do. For a single channel, use Channel Settings → Permissions to allow or deny a role or a member.' },
-  { q: 'Why can’t people hear me in voice?', a: 'Check that your browser has microphone access, pick the right input in User Settings → Voice & Video, and make sure you are not muted or server-muted.' },
-  { q: 'How do I share my screen?', a: 'Join a voice channel or start a DM call, then press the screen button. Your browser lets you pick a screen, a window or a tab.' },
-  { q: 'How do I control notifications?', a: 'Right-click a server and open Notification Settings: all messages, only @mentions, or nothing. You can also mute single channels.' },
-];
-
 // ---------- feature cards ----------
-interface Feature { key: string; hue: number; lines: string[]; body: string; mock: ReactNode; deco: ReactNode }
+interface Feature { key: string; hue: number; title: Key; body: Key; mock: ReactNode; deco: ReactNode }
 const FEATURES: Feature[] = [
   {
-    key: 'flair', hue: 312, lines: ['Say it with', 'a little', 'flair'],
-    body: 'Set a custom status, react to anything and sprinkle emoji over the chat. Your group’s inside jokes finally have a home.',
+    key: 'flair', hue: 312, title: 'home.f.flair.title',
+    body: 'home.f.flair.body',
     mock: <FlairStory />,
     deco: <><Orb hue="pink" className="peek p-tr" /><Sparkle className="peek p-bl s-sm" color="#ffd1ec" /></>,
   },
   {
-    key: 'faces', hue: 168, lines: ['Faces on,', 'screens up,', 'no installs'],
-    body: 'Flip on your camera or share a tab, a window or your whole screen, right from the browser. Everyone sees it live.',
+    key: 'faces', hue: 168, title: 'home.f.faces.title',
+    body: 'home.f.faces.body',
     mock: <CallStory />,
     deco: <><Cube className="peek p-tl" /><Buddy hue="mint" mood="wow" className="peek p-br b-peek" /></>,
   },
   {
-    key: 'door', hue: 262, lines: ['The door’s', 'always', 'open'],
-    body: 'Voice rooms never hang up. Click one to drop in, click away to leave. No ringing, no invites, no scheduling.',
+    key: 'door', hue: 262, title: 'home.f.door.title',
+    body: 'home.f.door.body',
     mock: <DropInStory />,
     deco: <><Buddy hue="violet" mood="wink" topper="antenna" className="peek p-tl b-peek" /><Ring className="peek p-br" /></>,
   },
   {
-    key: 'who', hue: 336, lines: ['Spot who’s', 'up for', 'something'],
-    body: 'Status dots and voice badges show who’s free, who’s heads-down and who’s already hanging out, all at a glance.',
+    key: 'who', hue: 336, title: 'home.f.who.title',
+    body: 'home.f.who.body',
     mock: <MembersStory />,
     deco: <><Orb hue="amber" className="peek p-tl" /><Sparkle className="peek p-br s-sm" color="#ffe08a" /></>,
   },
   {
-    key: 'watch', hue: 145, lines: ['Movie night', 'from any', 'couch'],
-    body: 'Stream something to the call and watch, react and heckle together, even when you’re miles apart.',
+    key: 'watch', hue: 145, title: 'home.f.watch.title',
+    body: 'home.f.watch.body',
     mock: <WatchStory />,
     deco: <><Buddy hue="amber" mood="grin" topper="sprout" className="peek p-tl b-peek" /><Cube className="peek p-br c-sm" /></>,
   },
 ];
 
 function FeatureCard({ f, i }: { f: Feature; i: number }) {
+  const t = useT();
   const flip = i % 2 === 1;
   return (
     <article className={'fcard-wrap rv' + (flip ? ' flip' : '')} style={{ '--h': f.hue } as CSSProperties} aria-labelledby={`f-${f.key}`}>
       <div className="fcard tilt">
         <div className="f-text">
-          <h3 className="disp" id={`f-${f.key}`}>{f.lines.map((l) => <span key={l}>{l}</span>)}</h3>
-          <p>{f.body}</p>
+          <h3 className="disp" id={`f-${f.key}`}><Lines text={t(f.title)} /></h3>
+          <p>{t(f.body)}</p>
         </div>
         <div className={'f-panel rv ' + (flip ? 'from-l' : 'from-r')}>
           <div className="f-mock">{f.mock}</div>
@@ -111,19 +86,22 @@ function FeatureCard({ f, i }: { f: Feature; i: number }) {
 }
 
 function Reader({ post, onClose }: { post: Post; onClose: () => void }) {
+  const t = useT();
+  const locale = useLocale();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div className="reader" role="dialog" aria-modal="true" aria-label={post.title} onClick={onClose}>
+    <div className="reader" role="dialog" aria-modal="true" aria-label={postText(t, post, 'title')} onClick={onClose}>
       <article className="reader-box" onClick={(e) => e.stopPropagation()}>
         <div className="reader-cover" style={coverStyle(post)} />
-        <button className="reader-close" aria-label="Close article" onClick={onClose}><I d={ICONS.close} /></button>
+        <button className="reader-close" aria-label={t('home.blog.close')} onClick={onClose}><I d={ICONS.close} /></button>
         <div className="reader-body">
-          <div className="post-meta"><span>{post.tag}</span> · {fmtDate(post.date)} · {post.minutes} min read</div>
-          <h3>{post.title}</h3>
+          <div className="post-meta"><span>{t(`home.blog.tag.${post.tag}`)}</span> · {fmtDate(post.date, locale)} · {t('home.blog.minutes', { n: post.minutes })}</div>
+          <h3>{postText(t, post, 'title')}</h3>
+          {t('home.blog.bodyNote') !== en['home.blog.bodyNote'] && <p className="reader-note">{t('home.blog.bodyNote')}</p>}
           {post.body.map((b, i) =>
             b.t === 'p' ? <p key={i}>{b.text}</p>
             : b.t === 'h2' ? <h4 key={i}>{b.text}</h4>
@@ -147,25 +125,6 @@ const STARS = Array.from({ length: 34 }, (_, i) => {
   return { left: `${(r(1) * 100).toFixed(2)}%`, top: `${(r(2) * 100).toFixed(2)}%`, size: 2 + Math.round(r(3) * 3), delay: `${(r(4) * 4).toFixed(2)}s`, dur: `${(2.6 + r(5) * 3).toFixed(2)}s` };
 });
 
-const MARQUEE = ['Talk', 'Play', 'Share', 'Hang out', 'Huddle'];
-
-/** Buddies standing on the footer horizon; m2 sits in the middle, over the line. */
-const LINEUP: { hue: Hue; mood: 'happy' | 'grin' | 'wow' | 'wink' | 'sleepy'; topper: 'none' | 'headset' | 'sprout' | 'antenna' | 'bow' | 'beanie'; wave?: boolean }[] = [
-  { hue: 'sky', mood: 'sleepy', topper: 'beanie' },
-  { hue: 'coral', mood: 'grin', topper: 'bow' },
-  { hue: 'teal', mood: 'happy', topper: 'headset', wave: true },
-  { hue: 'amber', mood: 'wow', topper: 'sprout' },
-  { hue: 'violet', mood: 'wink', topper: 'none' },
-  { hue: 'mint', mood: 'grin', topper: 'none', wave: true },
-];
-
-const SOCIAL = [
-  { label: 'Community chat', icon: ICONS.chat },
-  { label: 'Photos', icon: ICONS.camera },
-  { label: 'Videos', icon: ICONS.play },
-  { label: 'Music', icon: ICONS.music },
-  { label: 'Mentions', icon: ICONS.at },
-];
 
 /** Scrolling home: hero, feature cards, marquee, Safety / Support / Blog, closing CTA, footer. */
 export default function HeroHome() {
@@ -181,13 +140,10 @@ export default function HeroHome() {
   const [query, setQuery] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [post, setPost] = useState<Post | null>(null);
-  const [lang, setLang] = useState('en');
+  const t = useT();
+  const locale = useLocale();
 
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Huddle — Your people. Your space.';
-    return () => { document.title = prev; };
-  }, []);
+  useDocTitle('home.title', false);
 
   // Entrance: hide before first paint, play once fonts are ready, then strip the classes.
   useLayoutEffect(() => {
@@ -371,7 +327,8 @@ export default function HeroHome() {
 
   const appLink = loggedIn ? '/channels/@me' : '/login';
   const startLink = loggedIn ? '/channels/@me' : '/register';
-  const faq = FAQ.map((f, i) => ({ ...f, i })).filter((f) => !query || (f.q + ' ' + f.a).toLowerCase().includes(query.toLowerCase()));
+  const faq = FAQ.map((f, i) => ({ q: t(f.q), a: t(f.a), i })).filter((f) => !query || (f.q + ' ' + f.a).toLocaleLowerCase(locale).includes(query.toLocaleLowerCase(locale)));
+  const marquee = t('home.marquee').split('\n');
   const d = (s: number) => ({ '--d': `${s}s` }) as CSSProperties;
 
   return (
@@ -380,20 +337,20 @@ export default function HeroHome() {
 
       <header className="bar" ref={barRef} data-open={open ? 'true' : 'false'} data-scrolled={scrolled ? 'true' : 'false'}>
         <div className="bar-in">
-          <a className="brand in-el" style={d(0)} href="/" onClick={goTo('top')} aria-label="Huddle — home">
+          <a className="brand in-el" style={d(0)} href="/" onClick={goTo('top')} aria-label={t('nav.home')}>
             <span className="brand-mark"><Logo /></span>
             <span className="brand-word">Huddle</span>
           </a>
-          <nav className="links" aria-label="Primary">
+          <nav className="links" aria-label={t('nav.primary')}>
             {SECTIONS.map((s, i) => (
-              <a key={s.id} className="in-el" style={d(0.06 + i * 0.04)} href={`#${s.id}`} onClick={goTo(s.id)} aria-current={active === s.id ? 'true' : undefined}>{s.label}</a>
+              <a key={s.id} className="in-el" style={d(0.06 + i * 0.04)} href={`#${s.id}`} onClick={goTo(s.id)} aria-current={active === s.id ? 'true' : undefined}>{t(s.label)}</a>
             ))}
           </nav>
           <div className="actions in-el" style={d(0.24)}>
-            {!loggedIn && <Link className="nav-ghost" to="/register">Sign up</Link>}
-            <Link className="btn pill-w" to={appLink}>{loggedIn ? 'Open Huddle' : 'Log in'}</Link>
+            {!loggedIn && <Link className="nav-ghost" to="/register">{t('nav.signup')}</Link>}
+            <Link className="btn pill-w" to={appLink}>{loggedIn ? t('nav.open') : t('nav.login')}</Link>
             <button
-              className="menu" aria-label={open ? 'Close menu' : 'Menu'} aria-expanded={open} aria-controls="menu-sheet"
+              className="menu" aria-label={open ? t('nav.closeMenu') : t('nav.menu')} aria-expanded={open} aria-controls="menu-sheet"
               onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
             >
               <svg viewBox="0 0 20 14" aria-hidden="true">
@@ -402,11 +359,11 @@ export default function HeroHome() {
             </button>
           </div>
         </div>
-        <nav className="sheet" id="menu-sheet" aria-label="Menu">
-          {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} onClick={goTo(s.id)} aria-current={active === s.id ? 'true' : undefined}>{s.label}<I d={ICONS.arrow} /></a>)}
+        <nav className="sheet" id="menu-sheet" aria-label={t('nav.menu')}>
+          {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} onClick={goTo(s.id)} aria-current={active === s.id ? 'true' : undefined}>{t(s.label)}<I d={ICONS.arrow} /></a>)}
           <div className="sheet-cta">
-            {!loggedIn && <Link className="btn ghost-w" to={appLink}>Log in</Link>}
-            <Link className="btn pill-w" to={startLink}>{loggedIn ? 'Open Huddle' : 'Sign up'}</Link>
+            {!loggedIn && <Link className="btn ghost-w" to={appLink}>{t('nav.login')}</Link>}
+            <Link className="btn pill-w" to={startLink}>{loggedIn ? t('nav.open') : t('nav.signup')}</Link>
           </div>
         </nav>
       </header>
@@ -431,14 +388,14 @@ export default function HeroHome() {
         <div className="hero-in">
           <div className="hero-copy">
             <h1 className="disp" id="h-hero">
-              <span className="ln"><span className="ln-i in-el" style={d(0.2)}>Your people.</span></span>
-              <span className="ln"><span className="ln-i in-el" style={d(0.3)}>Your space.</span></span>
-              <span className="ln"><span className="ln-i in-el grad" style={d(0.4)}>Let’s huddle.</span></span>
+              <span className="ln"><span className="ln-i in-el" style={d(0.2)}>{t('home.hero.l1')}</span></span>
+              <span className="ln"><span className="ln-i in-el" style={d(0.3)}>{t('home.hero.l2')}</span></span>
+              <span className="ln"><span className="ln-i in-el grad" style={d(0.4)}>{t('home.hero.l3')}</span></span>
             </h1>
-            <p className="in-el" style={d(0.6)}>Servers, channels, drop-in voice, video and screen share for the groups you love. Right in your browser, free to start.</p>
+            <p className="in-el" style={d(0.6)}>{t('home.hero.sub')}</p>
             <div className="cta in-el" style={d(0.72)} ref={lastCtaRef}>
-              <Link className="btn big white" to={startLink}>{loggedIn ? 'Open Huddle' : 'Get started'}<I d={ICONS.arrow} /></Link>
-              {!loggedIn && <Link className="btn big accent" to={appLink}>Open Huddle in your browser</Link>}
+              <Link className="btn big white" to={startLink}>{loggedIn ? t('nav.open') : t('home.cta.start')}<I d={ICONS.arrow} /></Link>
+              {!loggedIn && <Link className="btn big accent" to={appLink}>{t('home.cta.browser')}</Link>}
             </div>
           </div>
           <div className="hero-art in-el" style={d(0.35)} aria-hidden="true">
@@ -459,7 +416,7 @@ export default function HeroHome() {
       </section>
 
       <main>
-        <section className="sec feats" id="features" aria-label="Features">
+        <section className="sec feats" id="features" aria-label={t('home.features')}>
           <div className="wrap">
             {FEATURES.map((f, i) => <FeatureCard key={f.key} f={f} i={i} />)}
           </div>
@@ -471,7 +428,7 @@ export default function HeroHome() {
               <div className="mq-track">
                 {[0, 1].map((copy) => (
                   <div key={copy} className="mq-set">
-                    {MARQUEE.map((w, i) => (
+                    {marquee.map((w, i) => (
                       <span key={w} className="mq-item">
                         <span className={'disp ' + ((i + row) % 2 ? 'outline' : 'solid')}>{w}</span>
                         <Sparkle className="mq-star" color={['#5df2d6', '#ff9bd2', '#ffe08a', '#c4b1ff', '#a6f7b4'][(i + row * 2) % 5]} />
@@ -489,15 +446,15 @@ export default function HeroHome() {
             <div className="fcard-wrap rv solo" style={{ '--h': 280 } as CSSProperties}>
               <div className="fcard tilt">
                 <div className="f-text center">
-                  <h2 className="disp" id="h-safety"><span>Your space.</span><span>Your rules.</span></h2>
-                  <p>Tools that keep you and your community in control, from who can message you to who can see each channel.</p>
+                  <h2 className="disp" id="h-safety"><Lines text={t('home.safety.title')} /></h2>
+                  <p>{t('home.safety.sub')}</p>
                 </div>
                 <div className="safety">
                   {SAFETY.map((s, i) => (
                     <div key={s.title} className={'safe rv h-' + s.hue} style={{ transitionDelay: `${0.07 * i}s` }}>
                       <div className="safe-ic"><I d={s.icon} /></div>
-                      <h3>{s.title}</h3>
-                      <p>{s.text}</p>
+                      <h3>{t(s.title)}</h3>
+                      <p>{t(s.text)}</p>
                     </div>
                   ))}
                 </div>
@@ -512,15 +469,15 @@ export default function HeroHome() {
             <div className="fcard-wrap rv solo" style={{ '--h': 165 } as CSSProperties}>
               <div className="fcard tilt support">
                 <div className="f-text">
-                  <h2 className="disp" id="h-support"><span>Stuck?</span><span>We’ve got</span><span>your back.</span></h2>
-                  <p>Quick answers to the questions we hear most. Type a word or two to narrow them down.</p>
+                  <h2 className="disp" id="h-support"><Lines text={t('home.support.title')} /></h2>
+                  <p>{t('home.support.sub')}</p>
                   <div className="help-buddy" aria-hidden="true"><Huddy wave mood="happy" /></div>
                 </div>
                 <div className="help">
                   <label className="search">
                     <I d={ICONS.search} />
-                    <span className="sr">Search help</span>
-                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search help articles" />
+                    <span className="sr">{t('home.support.searchLabel')}</span>
+                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('home.support.search')} />
                   </label>
                   <div className="faq">
                     {faq.map((f) => (
@@ -531,7 +488,7 @@ export default function HeroHome() {
                         <div className="faq-a"><div><p>{f.a}</p></div></div>
                       </div>
                     ))}
-                    {faq.length === 0 && <p className="faq-empty">No articles match “{query}”.</p>}
+                    {faq.length === 0 && <p className="faq-empty">{t('home.support.none', { q: query })}</p>}
                   </div>
                 </div>
               </div>
@@ -545,8 +502,8 @@ export default function HeroHome() {
             <div className="fcard-wrap rv solo" style={{ '--h': 330 } as CSSProperties}>
               <div className="fcard">
                 <div className="f-text center">
-                  <h2 className="disp" id="h-blog"><span>Fresh from</span><span>the Huddle</span></h2>
-                  <p>Notes on what we’re building, why, and how to get the most out of your server.</p>
+                  <h2 className="disp" id="h-blog"><Lines text={t('home.blog.title')} /></h2>
+                  <p>{t('home.blog.sub')}</p>
                 </div>
                 <div className="posts">
                   {POSTS.map((p, i) => (
@@ -555,10 +512,10 @@ export default function HeroHome() {
                         <span className={'shape ' + p.shape}><i /><i /><i /></span>
                       </div>
                       <div className="post-body">
-                        <div className="post-meta"><span>{p.tag}</span> · {fmtDate(p.date)}</div>
-                        <h3>{p.title}</h3>
-                        <p>{p.excerpt}</p>
-                        <span className="read">Read <I d={ICONS.arrow} /></span>
+                        <div className="post-meta"><span>{t(`home.blog.tag.${p.tag}`)}</span> · {fmtDate(p.date, locale)}</div>
+                        <h3>{postText(t, p, 'title')}</h3>
+                        <p>{postText(t, p, 'excerpt')}</p>
+                        <span className="read">{t('home.blog.read')} <I d={ICONS.arrow} /></span>
                       </div>
                     </button>
                   ))}
@@ -571,98 +528,15 @@ export default function HeroHome() {
 
         <section className="closing" aria-labelledby="h-closing">
           <div className="wrap">
-            <h2 className="disp rv" id="h-closing"><span>Your crew’s online.</span><span className="grad">Come say hi.</span></h2>
+            <h2 className="disp rv" id="h-closing"><Lines text={t('home.closing')} gradLast /></h2>
             <div className="rv closing-cta" style={{ transitionDelay: '.08s' }}>
-              <Link className="btn big white" to={startLink}>{loggedIn ? 'Open Huddle' : 'Get started'}<I d={ICONS.arrow} /></Link>
+              <Link className="btn big white" to={startLink}>{loggedIn ? t('nav.open') : t('home.cta.start')}<I d={ICONS.arrow} /></Link>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="foot">
-        <div className="horizon" aria-hidden="true">
-          <div className="lineup">
-            {[[0, 1], [2], [3, 4, 5]].map((group, g) => (
-              <div key={g} className={g === 1 ? 'lu-mid' : 'lu-side ' + (g ? 'r' : 'l')}>
-                {group.map((i) => {
-                  const c = LINEUP[i];
-                  return (
-                    <div key={c.hue} className={'mate m' + i}>
-                      <Buddy hue={c.hue} mood={c.mood} topper={c.topper} wave={c.wave} />
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          <div className="hover-mate"><Buddy hue="pink" mood="wink" topper="antenna" wave /></div>
-        </div>
-        <div className="foot-band">
-          <div className="wrap foot-grid">
-            <div className="foot-left">
-              <a className="foot-mark" href="/" onClick={goTo('top')} aria-label="Huddle — home">
-                <span className="brand-mark"><Logo /></span>
-                <span className="word-pill">Huddle</span>
-              </a>
-              <p className="foot-tag">A home for your groups: channels, drop-in voice, video and screen share.</p>
-              <label className="f-label" htmlFor="foot-lang">Language</label>
-              <div className="lang">
-                <I d={ICONS.globe} />
-                <select id="foot-lang" value={lang} onChange={(e) => setLang(e.target.value)}>
-                  <option value="en">English</option>
-                  <option value="es">Español</option>
-                  <option value="fr">Français</option>
-                  <option value="de">Deutsch</option>
-                  <option value="pt">Português</option>
-                  <option value="hi">हिन्दी</option>
-                </select>
-                <I d={ICONS.chev} />
-              </div>
-              <span className="f-label">Social</span>
-              <div className="social">
-                {SOCIAL.map((s) => (
-                  <a key={s.label} href="#" aria-label={s.label} onClick={(e) => e.preventDefault()}><I d={s.icon} /></a>
-                ))}
-              </div>
-            </div>
-            <div className="foot-right">
-              <div className="foot-cta"><Link className="btn pill-w" to={appLink}>Open Huddle</Link></div>
-              <nav className="foot-cols" aria-label="Footer">
-                <div>
-                  <h4>Product</h4>
-                  <a href="#features" onClick={goTo('features')}>Features</a>
-                  <a href="#">Status</a>
-                  <Link to={appLink}>Web app</Link>
-                </div>
-                <div>
-                  <h4>Company</h4>
-                  <a href="#">About</a>
-                  <a href="#blog" onClick={goTo('blog')}>Blog</a>
-                  <a href="#">Brand</a>
-                  <a href="#">Careers</a>
-                </div>
-                <div>
-                  <h4>Resources</h4>
-                  <a href="#support" onClick={goTo('support')}>Support</a>
-                  <a href="#safety" onClick={goTo('safety')}>Safety</a>
-                  <a href="#">Community guidelines</a>
-                  <a href="#">Developers</a>
-                  <a href="#">Feedback</a>
-                </div>
-                <div>
-                  <h4>Policies</h4>
-                  <a href="#">Terms</a>
-                  <a href="#">Privacy</a>
-                  <a href="#">Cookies</a>
-                  <a href="#">Licenses</a>
-                </div>
-              </nav>
-            </div>
-          </div>
-          <div className="wrap foot-legal"><small>© {new Date().getFullYear()} Huddle. Made for people who like each other.</small></div>
-          <div className="foot-word" aria-hidden="true"><span>Huddle</span></div>
-        </div>
-      </footer>
+      <SiteFooter onSection={goTo} />
 
       {post && <Reader post={post} onClose={() => setPost(null)} />}
     </div>

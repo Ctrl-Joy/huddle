@@ -9,6 +9,8 @@ export interface OutgoingMail {
   subject: string;
   text: string;
   html: string;
+  /** Optional Reply-To address. */
+  replyTo?: string;
 }
 
 export interface MailTransport {
@@ -62,7 +64,8 @@ export function smtpTransportFromEnv(env: SmtpEnv = process.env): MailTransport 
   return {
     async send(mail) {
       // address object: nodemailer must not parse the recipient as an address list
-      await t.sendMail({ from: mail.from, to: { name: '', address: mail.to }, subject: mail.subject, text: mail.text, html: mail.html });
+      await t.sendMail({ from: mail.from, to: { name: '', address: mail.to }, subject: mail.subject, text: mail.text, html: mail.html,
+        replyTo: mail.replyTo ? { name: '', address: mail.replyTo } : undefined });
     },
   };
 }
@@ -83,6 +86,8 @@ export interface MailContent {
   kind: string;
   /** Shown in the dev console when there's no SMTP (e.g. "code 123456"). Never logged otherwise. */
   devNote?: string;
+  /** Optional Reply-To address. */
+  replyTo?: string;
 }
 
 export class Mailer {
@@ -130,6 +135,6 @@ export class Mailer {
       }
       return;
     }
-    await t.send({ from: this.opts.from, to: m.to, subject: m.subject, text: m.text, html: m.html });
+    await t.send({ from: this.opts.from, to: m.to, subject: m.subject, text: m.text, html: m.html, replyTo: m.replyTo });
   }
 }

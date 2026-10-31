@@ -19,6 +19,10 @@ export interface RateLimitConfig {
   codesPerIp: BucketSpec;
   /** Verification emails requested by one account. */
   codesPerUser: BucketSpec;
+  /** Feedback messages from one IP. */
+  feedbackPerIp: BucketSpec;
+  /** Feedback messages from one signed-in account. */
+  feedbackPerUser: BucketSpec;
 }
 
 const HOUR = 60 * 60_000;
@@ -32,6 +36,8 @@ export const DEFAULT_RATE_LIMITS: RateLimitConfig = {
   codesPerEmail: { capacity: 5, windowMs: HOUR },
   codesPerIp: { capacity: 30, windowMs: HOUR },
   codesPerUser: { capacity: 10, windowMs: HOUR },
+  feedbackPerIp: { capacity: 5, windowMs: HOUR },
+  feedbackPerUser: { capacity: 5, windowMs: HOUR },
 };
 
 interface Bucket { tokens: number; last: number; capacity: number; rate: number }

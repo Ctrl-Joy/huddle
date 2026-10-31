@@ -7,14 +7,15 @@ import { ApiError, errorMessage } from '../api/client';
 import { LogoMark } from '../components/common/icons';
 import { CodeInput } from '../components/common/CodeInput';
 import { useCountdown } from './VerifyEmailPage';
+import { tNow, useT } from '../i18n';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function rateLimitText(e: unknown): string {
   if (e instanceof ApiError && e.status === 429) {
     const s = Math.ceil(e.retryAfter ?? 0);
-    if (s > 120) return `Too many requests. Please try again in about ${Math.ceil(s / 60)} minutes.`;
-    if (s > 0) return `Too many requests. Please try again in ${s} second${s === 1 ? '' : 's'}.`;
+    if (s > 120) return tNow('auth.err.rateMinutes', { n: Math.ceil(s / 60) });
+    if (s > 0) return tNow('auth.err.rateSeconds', { n: s });
   }
   return errorMessage(e);
 }
@@ -32,11 +33,12 @@ export function ForgotPassword({ next, adding }: { next: string; adding: boolean
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [left, restart] = useCountdown(0);
+  const t = useT();
 
   const sendCode = async (ev?: FormEvent) => {
     ev?.preventDefault();
     setFormError(''); setNotice('');
-    if (!EMAIL_RE.test(email.trim())) { setErrors({ email: 'Enter a valid email address.' }); return; }
+    if (!EMAIL_RE.test(email.trim())) { setErrors({ email: t('auth.err.email') }); return; }
     setErrors({});
     setBusy(true);
     try {
@@ -44,7 +46,7 @@ export function ForgotPassword({ next, adding }: { next: string; adding: boolean
       restart(resendWait(email.trim()) || VERIFICATION.RESEND_COOLDOWN_SECS);
       setStep('reset');
       setCode('');
-      setNotice(`If an account exists for ${email.trim()}, we sent a code to it. It expires in 10 minutes.`);
+      setNotice(t('auth.forgot.sent', { email: email.trim() }));
     } catch (e) {
       if (e instanceof ApiError && e.errors) setErrors(e.errors);
       setFormError(rateLimitText(e));
@@ -55,10 +57,10 @@ export function ForgotPassword({ next, adding }: { next: string; adding: boolean
     ev?.preventDefault();
     setFormError('');
     const e: Record<string, string> = {};
-    if (code.length !== VERIFICATION.CODE_LENGTH) e.code = 'Enter the 6-digit code.';
-    if (password.length < LIMITS.PASSWORD_MIN) e.new_password = `Must be at least ${LIMITS.PASSWORD_MIN} characters.`;
-    else if (password.length > 128) e.new_password = 'Too long.';
-    if (confirm !== password) e.confirm = "Passwords don't match.";
+    if (code.length !== VERIFICATION.CODE_LENGTH) e.code = t('auth.err.code');
+    if (password.length < LIMITS.PASSWORD_MIN) e.new_password = t('auth.err.passwordLen', { n: LIMITS.PASSWORD_MIN });
+    else if (password.length > 128) e.new_password = t('auth.err.tooLong');
+    if (confirm !== password) e.confirm = t('auth.err.mismatch');
     setErrors(e);
     if (Object.keys(e).length) return;
     setBusy(true);
@@ -84,43 +86,43 @@ export function ForgotPassword({ next, adding }: { next: string; adding: boolean
       {step === 'email' ? (
         <form className="auth-card" onSubmit={sendCode} noValidate>
           <div className="auth-brand"><span className="auth-logo"><LogoMark size={34} /></span><span>Huddle</span></div>
-          <h1>Forgot your password?</h1>
-          <p className="auth-sub">Enter the email on your account and we'll send you a code to choose a new password.</p>
+          <h1>{t('auth.forgot.title')}</h1>
+          <p className="auth-sub">{t('auth.forgot.sub')}</p>
           {formError && <div className="form-error" role="alert">{formError}</div>}
           <label className={'field' + (errors.email ? ' has-error' : '')}>
-            <span className="field-label">Email{errors.email && <em> — {errors.email}</em>}</span>
+            <span className="field-label">{t('auth.email')}{errors.email && <em> — {errors.email}</em>}</span>
             <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
           </label>
-          <button className="btn btn-primary btn-block btn-lg" disabled={busy}>{busy ? 'Please wait…' : 'Send code'}</button>
-          <div className="auth-switch">Remembered it? <Link to={`/login${suffix}`}>Back to log in</Link></div>
+          <button className="btn btn-primary btn-block btn-lg" disabled={busy}>{busy ? t('auth.wait') : t('auth.forgot.send')}</button>
+          <div className="auth-switch">{t('auth.forgot.remembered')} <Link to={`/login${suffix}`}>{t('auth.forgot.back')}</Link></div>
         </form>
       ) : (
         <form className="auth-card verify-card" onSubmit={reset} noValidate>
           <div className="auth-brand"><span className="auth-logo"><LogoMark size={34} /></span><span>Huddle</span></div>
-          <h1>Reset your password</h1>
+          <h1>{t('auth.reset.title')}</h1>
           {notice && <p className="auth-sub">{notice}</p>}
           {formError && <div className="form-error" role="alert">{formError}</div>}
           <div className={'field' + (errors.code ? ' has-error' : '')}>
-            <span className="field-label">Code{errors.code && <em> — {errors.code}</em>}</span>
-            <CodeInput value={code} onChange={(v) => { setCode(v); if (errors.code) setErrors((x) => ({ ...x, code: '' })); }} invalid={!!errors.code} autoFocus label="Reset code" />
+            <span className="field-label">{t('auth.reset.code')}{errors.code && <em> — {errors.code}</em>}</span>
+            <CodeInput value={code} onChange={(v) => { setCode(v); if (errors.code) setErrors((x) => ({ ...x, code: '' })); }} invalid={!!errors.code} autoFocus label={t('auth.reset.codeLabel')} />
           </div>
           <label className={'field' + (errors.new_password ? ' has-error' : '')}>
-            <span className="field-label">New password{errors.new_password && <em> — {errors.new_password}</em>}</span>
+            <span className="field-label">{t('auth.reset.new')}{errors.new_password && <em> — {errors.new_password}</em>}</span>
             <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </label>
           <label className={'field' + (errors.confirm ? ' has-error' : '')}>
-            <span className="field-label">Confirm new password{errors.confirm && <em> — {errors.confirm}</em>}</span>
+            <span className="field-label">{t('auth.reset.confirm')}{errors.confirm && <em> — {errors.confirm}</em>}</span>
             <input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </label>
-          <button className="btn btn-primary btn-block btn-lg" disabled={busy}>{busy ? 'Please wait…' : 'Reset password & log in'}</button>
+          <button className="btn btn-primary btn-block btn-lg" disabled={busy}>{busy ? t('auth.wait') : t('auth.reset.submit')}</button>
           <div className="verify-actions">
             <button type="button" className="btn-link" disabled={left > 0 || busy} onClick={() => void sendCode()}>
-              {left > 0 ? `Resend code in ${left}s` : 'Resend code'}
+              {left > 0 ? t('auth.resendIn', { n: left }) : t('auth.resend')}
             </button>
-            <button type="button" className="btn-link" onClick={() => { setStep('email'); setFormError(''); setErrors({}); }}>Use a different email</button>
+            <button type="button" className="btn-link" onClick={() => { setStep('email'); setFormError(''); setErrors({}); }}>{t('auth.reset.otherEmail')}</button>
           </div>
-          <p className="spam-hint">Didn't get it? Check your Spam or Promotions folder.</p>
-          <div className="auth-switch"><Link to={`/login${suffix}`}>Back to log in</Link></div>
+          <p className="spam-hint">{t('auth.spam')}</p>
+          <div className="auth-switch"><Link to={`/login${suffix}`}>{t('auth.forgot.back')}</Link></div>
         </form>
       )}
     </div>

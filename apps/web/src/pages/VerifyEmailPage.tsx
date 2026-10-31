@@ -5,6 +5,7 @@ import { logout } from '../lib/session';
 import { ApiError, errorMessage } from '../api/client';
 import { LogoMark } from '../components/common/icons';
 import { CodeInput } from '../components/common/CodeInput';
+import { tNow, useDocTitle, useT } from '../i18n';
 
 /** Counts down from `initial` seconds; `restart(n)` starts again. */
 export function useCountdown(initial: number) {
@@ -21,14 +22,20 @@ export function useCountdown(initial: number) {
 export function describeCodeError(e: unknown): { text: string; dead: boolean } {
   if (e instanceof ApiError) {
     switch (e.code) {
-      case ApiErrorCode.VERIFICATION_CODE_EXPIRED: return { text: 'That code has expired. Send yourself a new one.', dead: true };
-      case ApiErrorCode.VERIFICATION_CODE_EXHAUSTED: return { text: 'Too many wrong tries. Send yourself a new code.', dead: true };
-      case ApiErrorCode.VERIFICATION_CODE_MISSING: return { text: 'That code is no longer active. Send yourself a new one.', dead: true };
-      case ApiErrorCode.RATE_LIMITED: return { text: e.message || 'Slow down a little and try again shortly.', dead: false };
+      case ApiErrorCode.VERIFICATION_CODE_EXPIRED: return { text: tNow('auth.err.codeExpired'), dead: true };
+      case ApiErrorCode.VERIFICATION_CODE_EXHAUSTED: return { text: tNow('auth.err.codeExhausted'), dead: true };
+      case ApiErrorCode.VERIFICATION_CODE_MISSING: return { text: tNow('auth.err.codeMissing'), dead: true };
+      case ApiErrorCode.RATE_LIMITED: return { text: e.message || tNow('auth.err.slowDown'), dead: false };
     }
     return { text: e.message, dead: false };
   }
   return { text: errorMessage(e), dead: false };
+}
+
+/** A translated sentence with the address shown in bold where {email} was (marked with \u0000). */
+function withEmail(text: string, email: string) {
+  const [before, after = ''] = text.split('\u0000');
+  return <>{before}<strong className="verify-email">{email}</strong>{after}</>;
 }
 
 /** Full-screen "Check your email" step shown while the signed-in account's email is unverified. */
@@ -40,6 +47,8 @@ export function VerifyEmailPage() {
   const [busy, setBusy] = useState(false);
   const [left, restart] = useCountdown(resendWait(user.email));
   const [changing, setChanging] = useState(false);
+  const t = useT();
+  useDocTitle('auth.verify.title');
 
   const submit = async (c = code) => {
     if (c.length !== VERIFICATION.CODE_LENGTH || busy) return;
@@ -58,7 +67,7 @@ export function VerifyEmailPage() {
       const r = await resendVerification();
       restart(r.resend_after);
       setCode('');
-      setNotice(`We sent a new code to ${r.email}.`);
+      setNotice(t('auth.verify.newSent', { email: r.email }));
     } catch (e) {
       if (e instanceof ApiError && e.retryAfter) restart(e.retryAfter);
       setError(describeCodeError(e).text);
@@ -75,26 +84,26 @@ export function VerifyEmailPage() {
         {changing ? (
           <ChangeEmailForm
             current={user.email}
-            onDone={(email) => { setChanging(false); setCode(''); setError(''); restart(VERIFICATION.RESEND_COOLDOWN_SECS); setNotice(`We sent a code to ${email}.`); }}
+            onDone={(email) => { setChanging(false); setCode(''); setError(''); restart(VERIFICATION.RESEND_COOLDOWN_SECS); setNotice(t('auth.verify.sentTo', { email })); }}
             onCancel={() => setChanging(false)}
           />
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); void submit(); }} noValidate>
-            <h1>Check your email</h1>
-            <p className="auth-sub">We sent a 6-digit code to <strong className="verify-email">{user.email}</strong>. Enter it below to finish setting up your account.</p>
+            <h1>{t('auth.verify.title')}</h1>
+            <p className="auth-sub">{withEmail(t('auth.verify.sub', { email: '\u0000' }), user.email)}</p>
             {notice && <div className="form-success" role="status">{notice}</div>}
             <CodeInput value={code} onChange={(v) => { setCode(v); if (error) setError(''); }} onComplete={(c) => void submit(c)} disabled={busy} invalid={!!error} autoFocus />
             {error && <div className="form-error code-error" role="alert">{error}</div>}
-            <p className="verify-hint">The code expires in 10 minutes.</p>
-            <button className="btn btn-primary btn-block btn-lg" disabled={busy || code.length !== VERIFICATION.CODE_LENGTH}>{busy ? 'Checking…' : 'Verify'}</button>
+            <p className="verify-hint">{t('auth.verify.expires')}</p>
+            <button className="btn btn-primary btn-block btn-lg" disabled={busy || code.length !== VERIFICATION.CODE_LENGTH}>{busy ? t('auth.verify.checking') : t('auth.verify.btn')}</button>
             <div className="verify-actions">
               <button type="button" className="btn-link" onClick={() => void resend()} disabled={left > 0}>
-                {left > 0 ? `Resend code in ${left}s` : 'Resend code'}
+                {left > 0 ? t('auth.resendIn', { n: left }) : t('auth.resend')}
               </button>
-              <button type="button" className="btn-link" onClick={() => { setChanging(true); setError(''); setNotice(''); }}>Wrong email? Change it</button>
+              <button type="button" className="btn-link" onClick={() => { setChanging(true); setError(''); setNotice(''); }}>{t('auth.verify.wrongEmail')}</button>
             </div>
-            <p className="spam-hint">Didn't get it? Check your Spam or Promotions folder.</p>
-            <div className="auth-switch">Not you? <button type="button" className="btn-link" onClick={logout}>Log out</button></div>
+            <p className="spam-hint">{t('auth.spam')}</p>
+            <div className="auth-switch">{t('auth.verify.notYou')} <button type="button" className="btn-link" onClick={logout}>{t('auth.verify.logout')}</button></div>
           </form>
         )}
       </div>
@@ -108,13 +117,14 @@ function ChangeEmailForm({ current, onDone, onCancel }: { current: string; onDon
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
+  const t = useT();
 
   const submit = async (ev: FormEvent) => {
     ev.preventDefault();
     const e: Record<string, string> = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Enter a valid email address.';
-    else if (email.trim().toLowerCase() === current.toLowerCase()) e.email = "That's the address you already have.";
-    if (!password) e.password = 'Required.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = t('auth.err.email');
+    else if (email.trim().toLowerCase() === current.toLowerCase()) e.email = t('auth.err.sameEmail');
+    if (!password) e.password = t('auth.err.required');
     setErrors(e); setFormError('');
     if (Object.keys(e).length) return;
     setBusy(true);
@@ -129,19 +139,19 @@ function ChangeEmailForm({ current, onDone, onCancel }: { current: string; onDon
 
   return (
     <form onSubmit={submit} noValidate>
-      <h1>Change your email</h1>
-      <p className="auth-sub">We'll send a new code to the address you enter. Currently: <strong className="verify-email">{current}</strong></p>
+      <h1>{t('auth.change.title')}</h1>
+      <p className="auth-sub">{withEmail(t('auth.change.sub', { email: '\u0000' }), current)}</p>
       {formError && <div className="form-error" role="alert">{formError}</div>}
       <label className={'field' + (errors.email ? ' has-error' : '')}>
-        <span className="field-label">New email{errors.email && <em> — {errors.email}</em>}</span>
+        <span className="field-label">{t('auth.change.new')}{errors.email && <em> — {errors.email}</em>}</span>
         <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
       </label>
       <label className={'field' + (errors.password ? ' has-error' : '')}>
-        <span className="field-label">Password{errors.password && <em> — {errors.password}</em>}</span>
+        <span className="field-label">{t('auth.password')}{errors.password && <em> — {errors.password}</em>}</span>
         <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </label>
-      <button className="btn btn-primary btn-block btn-lg" disabled={busy}>{busy ? 'Sending…' : 'Send code'}</button>
-      <div className="auth-switch"><button type="button" className="btn-link" onClick={onCancel}>Back</button></div>
+      <button className="btn btn-primary btn-block btn-lg" disabled={busy}>{busy ? t('auth.change.sending') : t('auth.forgot.send')}</button>
+      <div className="auth-switch"><button type="button" className="btn-link" onClick={onCancel}>{t('auth.change.back')}</button></div>
     </form>
   );
 }

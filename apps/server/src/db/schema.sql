@@ -334,3 +334,16 @@ CREATE TABLE IF NOT EXISTS verification_codes (
   expires_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_verification_codes_user ON verification_codes(user_id, purpose, created_at);
+
+-- Messages sent from the public Feedback page. The sender's IP is only kept as a keyed hash.
+CREATE TABLE IF NOT EXISTS feedback (
+  id         TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  category   TEXT NOT NULL,              -- bug | idea | question | report | other
+  message    TEXT NOT NULL,
+  email      TEXT,                       -- optional reply-to address
+  user_id    TEXT REFERENCES users(id) ON DELETE SET NULL,  -- only when the sender chose to include it
+  ip_hash    TEXT NOT NULL,
+  user_agent TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at);

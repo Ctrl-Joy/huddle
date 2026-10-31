@@ -96,5 +96,5 @@ export const POSTS: Post[] = [
 
 export const findPost = (slug: string | undefined) => POSTS.find((p) => p.slug === slug);
 
-export const fmtDate = (iso: string) =>
-  new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+export const fmtDate = (iso: string, locale = 'en-GB') =>
+  new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });

@@ -741,15 +741,7 @@
 .hx .word-pill { padding: 9px 18px 8px; border-radius: 999px; background: #fff; color: #1b1440; font-family: var(--disp); font-weight: 800; font-size: 19px; line-height: 1; }
 .hx .foot-tag { margin: 18px 0 28px; max-width: 24em; color: rgba(232, 228, 255, .78); font-size: 15px; line-height: 1.6; }
 .hx .f-label { display: block; margin: 0 0 10px; color: rgba(222, 216, 255, .7); font-size: 12.5px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
-.hx .lang {
-  position: relative; display: flex; align-items: center; gap: 10px; width: min(240px, 100%); height: 48px; padding: 0 14px; margin-bottom: 28px;
-  border-radius: 14px; background: rgba(10, 6, 44, .55); border: 1px solid rgba(255,255,255,.16); color: rgba(230, 226, 255, .8);
-}
-.hx .lang:focus-within { border-color: var(--teal); }
-.hx .lang svg { width: 18px; height: 18px; flex: none; }
-.hx .lang svg:last-child { pointer-events: none; }
-.hx .lang select { flex: 1; min-width: 0; appearance: none; -webkit-appearance: none; background: transparent; border: 0; color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; outline: 0; }
-.hx .lang option { color: #1b1440; background: #fff; }
+.hx .foot-lang { margin-bottom: 28px; }
 .hx .social { display: flex; flex-wrap: wrap; gap: 10px; }
 .hx .social a {
   display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: #fff;
@@ -775,6 +767,8 @@
   font-family: var(--disp); font-weight: 900; letter-spacing: -0.02em; color: #e3dcff;
   font-size: calc(100cqw / 4.7);
 }
+
+.hx .reader-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,.08); color: var(--sub); font-size: 14px; }
 
 /* ---------- a11y ---------- */
 .hx a:focus-visible, .hx button:focus-visible, .hx select:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }

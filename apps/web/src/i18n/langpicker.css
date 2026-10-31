@@ -1,0 +1,65 @@
+/* Language dropdown. .lp-glass = website footer (glass over the blue band); .lp-app = in-app settings. */
+.lp { position: relative; width: min(240px, 100%); }
+.lp-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 48px; padding: 0 14px 0 16px; cursor: pointer;
+  border-radius: 16px; font: inherit; font-size: 15px; font-weight: 600; text-align: left;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.lp-btn svg { flex: none; width: 18px; height: 18px; }
+.lp-current { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-chev { transition: transform .25s cubic-bezier(.22, 1, .36, 1); }
+.lp[data-open="true"] .lp-chev { transform: rotate(180deg); }
+.lp-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 40; margin: 0; padding: 8px; list-style: none;
+  max-height: 260px; overflow-y: auto; overscroll-behavior: contain; border-radius: 20px; outline: 0;
+  scrollbar-width: thin;
+  animation: lp-in .2s cubic-bezier(.22, 1, .36, 1) both;
+}
+.lp[data-up="true"] .lp-list { top: auto; bottom: calc(100% + 8px); animation-name: lp-in-up; }
+.lp-list[hidden] { display: none; }
+.lp-list::-webkit-scrollbar { width: 6px; }
+.lp-list::-webkit-scrollbar-thumb { border-radius: 6px; }
+@keyframes lp-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes lp-in-up { from { opacity: 0; transform: translateY(6px); } }
+.lp-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 20px; border-radius: 12px;
+  cursor: pointer; font-size: 15px; font-weight: 550; line-height: 1.2; user-select: none;
+}
+.lp-check { width: 18px; height: 18px; flex: none; }
+@media (max-width: 600px) { .lp-opt { padding: 14px 16px; } }
+@media (prefers-reduced-motion: reduce) {
+  .lp-list { animation: none; }
+  .lp-chev { transition: none; }
+}
+
+/* glass on the blue footer */
+.lp-glass .lp-btn {
+  color: #fff; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .18);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.lp-glass .lp-btn:hover, .lp-glass[data-open="true"] .lp-btn { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .3); }
+.lp-glass .lp-btn:focus-visible { outline: 3px solid #5df2d6; outline-offset: 3px; }
+.lp-glass .lp-list {
+  color: #fff; background: rgba(58, 52, 168, .72); border: 1px solid rgba(255, 255, 255, .18);
+  -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 24px 60px rgba(8, 4, 40, .5), inset 0 1px 0 rgba(255, 255, 255, .12);
+  scrollbar-color: rgba(255, 255, 255, .3) transparent;
+}
+.lp-glass .lp-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .3); }
+.lp-glass .lp-opt.active { background: rgba(255, 255, 255, .14); }
+.lp-glass .lp-opt[aria-selected="true"] { color: #fff; }
+.lp-glass .lp-check { color: #5df2d6; }
+
+/* in-app settings (dark app theme tokens) */
+.lp-app { width: 100%; max-width: 360px; }
+.lp-app .lp-btn { height: 42px; border-radius: var(--radius, 10px); color: var(--text); background: var(--bg-input); border: 1px solid var(--border); }
+.lp-app .lp-btn:hover, .lp-app[data-open="true"] .lp-btn { border-color: var(--border-strong); }
+.lp-app .lp-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lp-app .lp-list {
+  border-radius: 14px; color: var(--text); background: var(--bg-elevated); border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg); scrollbar-color: var(--border-strong) transparent;
+}
+.lp-app .lp-list::-webkit-scrollbar-thumb { background: var(--border-strong); }
+.lp-app .lp-opt { padding: 11px 14px; }
+.lp-app .lp-opt.active { background: var(--bg-hover); }
+.lp-app .lp-check { color: var(--accent); }

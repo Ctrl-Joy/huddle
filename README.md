@@ -127,6 +127,8 @@ The `Dockerfile` builds one container that serves everything on port 8080. The h
 | `HUDDLE_MAIL_FROM` | with SMTP | Sender, e.g. `Huddle <no-reply@huddlechat.duckdns.org>` (must be allowed by your provider) |
 | `HUDDLE_PUBLIC_URL` | with SMTP | The site address used in email links, e.g. `https://huddlechat.duckdns.org` |
 | `HUDDLE_REQUIRE_EMAIL_VERIFICATION` | optional | `1` forces verification on without SMTP (dev only: codes print to the server console) |
+| `HUDDLE_CONTACT_EMAIL` | optional | Where messages from the website's Feedback page are emailed (needs SMTP). Never shown to visitors; without it feedback is only stored in the `feedback` table |
+| `HUDDLE_VERSION` | optional | Version shown on the Status page (e.g. a commit hash passed at build time); otherwise read from `.git`, else the package version |
 
 **Railway or Fly.io** (both support volumes and WebSockets): create an app from this repo, let it
 build the Dockerfile, attach a volume mounted at `/data`, set the variables above, and open the
@@ -135,3 +137,19 @@ generated `https://` address. **A VPS**: `docker build -t huddle . && docker run
 
 For TURN, a managed relay (Metered, Twilio, Cloudflare Calls) is quickest; self-hosting means
 running coturn on a VPS with UDP 3478 and a relay port range open.
+
+## Website pages
+
+The footer links to /status, /about, /brand, /careers, /guidelines, /developers, /feedback, /terms,
+/privacy, /cookies and /licenses. The Status page reads `GET /api/status` (public, booleans only) and the
+Feedback form posts to `POST /api/feedback` (rate limited to 5 per hour per IP and per account). The website
+and sign-in screens are translated (`apps/web/src/i18n/<lang>.ts`; English is the source of every key).
+After changing dependencies, refresh the list on /licenses with `node scripts/gen-licenses.cjs`.
+
+**Legal pages (note for the operator).** The Terms, Privacy and Cookie pages are plain-language general
+templates written to match what Huddle does out of the box (scrypt password hashes, hashed 10-minute email
+codes, a self-run server with 7-day nightly backups, Brevo for email, GIPHY for GIF search, no ads or tracking).
+They are not legal advice: review them, and the translations, with someone qualified for your country before
+relying on them, and update them (and the `POLICIES_UPDATED` date in `apps/web/src/landing/InfoLayout.tsx`)
+whenever your setup changes. The repository has no LICENSE file yet, so /licenses only says the source code is
+available on GitHub; add a licence and update that page when you choose one.

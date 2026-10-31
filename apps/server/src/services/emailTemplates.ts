@@ -84,3 +84,30 @@ export function emailChangedMail(publicUrl: string, newEmail: string): Rendered 
 <p style="margin:0;color:#334155;">${esc(warn)}</p>`),
   };
 }
+
+export interface FeedbackMailInput {
+  id: string;
+  category: string;
+  message: string;
+  replyTo: string | null;
+  username: string | null;
+  createdAt: string;
+}
+
+/** Feedback page submission, sent to the operator's contact address. */
+export function feedbackMail(publicUrl: string, f: FeedbackMailInput): Rendered {
+  const subject = `Huddle feedback: ${f.category} (#${f.id.slice(-6)})`;
+  const meta: [string, string][] = [
+    ['Category', f.category],
+    ['Reply to', f.replyTo ?? '(none given)'],
+    ['Username', f.username ?? '(not included)'],
+    ['Received', f.createdAt],
+    ['Reference', f.id],
+  ];
+  const text = `New message from the Huddle Feedback page\n\n${meta.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${f.message}\n\nHuddle — ${publicUrl}\n`;
+  const rows = meta.map(([k, v]) =>
+    `<tr><td style="padding:2px 12px 2px 0;color:#64748b;white-space:nowrap;">${esc(k)}</td><td style="padding:2px 0;">${esc(v)}</td></tr>`).join('');
+  const html = layout(publicUrl, 'New feedback', `<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:0 0 16px;">${rows}</table>
+<div style="white-space:pre-wrap;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">${esc(f.message)}</div>`);
+  return { subject, text, html };
+}

@@ -1,15 +1,13 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useDocTitle, useT } from '../i18n';
+import { Lines } from '../i18n/Rich';
 import { Buddy } from './Buddies';
 import './hero.css';
 
 /** 404 in the home page's style: a confused buddy and a way back. */
 export default function NotFound() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Page not found — Huddle';
-    return () => { document.title = prev; };
-  }, []);
+  const t = useT();
+  useDocTitle('nf.title', false);
   return (
     <div className="hx nf">
       <div className="starfield" aria-hidden="true" />
@@ -21,9 +19,9 @@ export default function NotFound() {
           <span className="q q2">?</span>
           <span className="q q3">?</span>
         </div>
-        <h1 className="disp"><span>This channel</span><span className="grad">doesn’t exist.</span></h1>
-        <p>The page you’re after has moved, or it never was. Let’s get you back to your people.</p>
-        <Link className="btn big white" to="/">Back home</Link>
+        <h1 className="disp"><Lines text={t('nf.h1')} gradLast /></h1>
+        <p>{t('nf.body')}</p>
+        <Link className="btn big white" to="/">{t('nf.back')}</Link>
       </main>
     </div>
   );

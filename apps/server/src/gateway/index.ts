@@ -28,6 +28,7 @@ export class Gateway {
   private wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
   private timer: NodeJS.Timeout;
   private closed = false;
+  private attachedTo: Server | null = null;
 
   constructor(private ctx: Ctx) {
     this.wss.on('connection', (ws) => this.onConnection(ws));
@@ -36,7 +37,13 @@ export class Gateway {
     this.timer.unref();
   }
 
+  /** Cheap health check: attached to a listening HTTP server and not shut down. */
+  get accepting(): boolean {
+    return !this.closed && !!this.attachedTo?.listening;
+  }
+
   attach(server: Server): void {
+    this.attachedTo = server;
     server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
       const pathname = (req.url ?? '').split('?')[0];
       if (pathname !== '/gateway' && pathname !== '/gateway/') {

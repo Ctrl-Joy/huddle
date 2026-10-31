@@ -12,6 +12,21 @@ import { AppShell } from './components/layout/AppShell';
 // Public home page — lazy so it stays out of the app bundle.
 const HeroHome = lazy(() => import('./landing/HeroHome'));
 const NotFound = lazy(() => import('./landing/NotFound'));
+// Footer pages (status, about, policies, …): one shared lazy chunk.
+const info = () => import('./landing/InfoPages');
+const INFO_PAGES = {
+  status: lazy(() => info().then((m) => ({ default: m.StatusPage }))),
+  about: lazy(() => info().then((m) => ({ default: m.AboutPage }))),
+  brand: lazy(() => info().then((m) => ({ default: m.BrandPage }))),
+  careers: lazy(() => info().then((m) => ({ default: m.CareersPage }))),
+  guidelines: lazy(() => info().then((m) => ({ default: m.GuidelinesPage }))),
+  developers: lazy(() => info().then((m) => ({ default: m.DevelopersPage }))),
+  feedback: lazy(() => info().then((m) => ({ default: m.FeedbackPage }))),
+  terms: lazy(() => info().then((m) => ({ default: m.TermsPage }))),
+  privacy: lazy(() => info().then((m) => ({ default: m.PrivacyPage }))),
+  cookies: lazy(() => info().then((m) => ({ default: m.CookiesPage }))),
+  licenses: lazy(() => info().then((m) => ({ default: m.LicensesPage }))),
+};
 
 function Lazy({ children }: { children: ReactNode }) {
   return <Suspense fallback={<div style={{ height: '100%', background: '#000' }} />}>{children}</Suspense>;
@@ -51,6 +66,9 @@ export function App() {
         {/* old marketing pages now live as sections of the home page */}
         {['features', 'safety', 'support', 'blog'].map((id) => (
           <Route key={id} path={`/${id}`} element={<Navigate to={`/#${id}`} replace />} />
+        ))}
+        {Object.entries(INFO_PAGES).map(([path, Page]) => (
+          <Route key={path} path={`/${path}`} element={<Lazy><Page /></Lazy>} />
         ))}
         <Route path="/download" element={<Navigate to="/" replace />} />
         <Route path="/blog/:slug" element={<Navigate to="/#blog" replace />} />

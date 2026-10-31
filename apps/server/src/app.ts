@@ -44,6 +44,7 @@ import { LinkPreviews, type PageFetcher } from './services/linkPreview';
 import { GifService, type GifFetch } from './services/gifs';
 import stickerRoutes from './routes/stickers';
 import gifRoutes from './routes/gifs';
+import siteRoutes from './routes/site';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SERVER_ROOT = path.resolve(here, '..');
@@ -74,10 +75,12 @@ export interface BuildOptions {
   publicUrl?: string;
   /** Default: . */
   mailFrom?: string;
+  /** Where Feedback page messages are emailed. Default: $HUDDLE_CONTACT_EMAIL; unset = stored only. */
+  contactEmail?: string | null;
 }
 
 /** Signed-in but unverified accounts may only reach these (plus every /api/auth/* route). */
-const UNVERIFIED_ALLOWED = new Set(['GET /api/users/@me', 'PATCH /api/users/@me', 'GET /api/health']);
+const UNVERIFIED_ALLOWED = new Set(['GET /api/users/@me', 'PATCH /api/users/@me', 'GET /api/health', 'GET /api/status', 'POST /api/feedback']);
 
 /** Lifetime of TURN REST credentials handed out by /api/ice. */
 const TURN_CREDENTIAL_TTL = 24 * 60 * 60;
@@ -262,6 +265,9 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
     gifRoutes(api, ctx);
     scheduledEventRoutes(api, ctx);
     soundboardRoutes(api, ctx);
+    siteRoutes(api, ctx, {
+      contactEmail: (opts.contactEmail !== undefined ? opts.contactEmail : process.env.HUDDLE_CONTACT_EMAIL)?.trim() || null,
+    });
   }, { prefix: '/api' });
 
   // Close polls whose time is up (votes are refused after expiry regardless; this posts the result line).
