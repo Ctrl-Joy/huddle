@@ -151,5 +151,10 @@ templates written to match what Huddle does out of the box (scrypt password hash
 codes, a self-run server with 7-day nightly backups, Brevo for email, GIPHY for GIF search, no ads or tracking).
 They are not legal advice: review them, and the translations, with someone qualified for your country before
 relying on them, and update them (and the `POLICIES_UPDATED` date in `apps/web/src/landing/InfoLayout.tsx`)
-whenever your setup changes. The repository has no LICENSE file yet, so /licenses only says the source code is
-available on GitHub; add a licence and update that page when you choose one.
+whenever your setup changes.
+
+## License
+
+Copyright (c) 2026 Ctrl-Joy. All rights reserved. The code is visible for reference only; copying, modifying,
+redistributing or hosting it requires written permission. See [LICENSE](LICENSE). Third-party packages keep their own
+licences (listed on the /licenses page).

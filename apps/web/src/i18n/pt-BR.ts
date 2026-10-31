@@ -415,7 +415,7 @@ const ptBR: Partial<Dict> = {
   'lic.h1': 'Licenças de\ncódigo aberto',
   'lic.lead': 'O Huddle é construído com software de código aberto. Obrigado a todo mundo que o torna possível.',
   'lic.own.h': 'O próprio Huddle',
-  'lic.own.b': 'O código-fonte do Huddle está disponível no [GitHub](https://github.com/Ctrl-Joy/huddle).',
+  'lic.own.b': '© 2026 Ctrl-Joy. Todos os direitos reservados. Você pode ver o código-fonte do Huddle no [GitHub](https://github.com/Ctrl-Joy/huddle), mas ele não pode ser copiado, modificado nem redistribuído sem permissão por escrito. As bibliotecas de código aberto abaixo mantêm suas próprias licenças.',
   'lic.deps.h': 'Pacotes que o Huddle usa',
   'lic.deps.b': 'O servidor e o app web do Huddle incluem {n} pacotes, sob estas licenças:',
   'lic.search': 'Buscar pacotes',

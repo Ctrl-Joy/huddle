@@ -431,7 +431,7 @@ const ja: Partial<Dict> = {
   'lic.h1': 'オープンソース\nライセンス',
   'lic.lead': 'Huddleはオープンソースソフトウェアの上に作られています。それを作っているすべての人に感謝します。',
   'lic.own.h': 'Huddle本体',
-  'lic.own.b': 'Huddleのソースコードは[GitHub](https://github.com/Ctrl-Joy/huddle)で公開されています。',
+  'lic.own.b': '© 2026 Ctrl-Joy. All rights reserved. Huddleのソースコードは[GitHub](https://github.com/Ctrl-Joy/huddle)で閲覧できますが、書面による許可なく複製・改変・再配布することはできません。以下のオープンソースライブラリには、それぞれのライセンスが適用されます。',
   'lic.deps.h': 'Huddleが使っているパッケージ',
   'lic.deps.b': 'HuddleのサーバーとWebアプリには{n}個のパッケージが含まれており、以下のライセンスで提供されています：',
   'lic.search': 'パッケージを検索',

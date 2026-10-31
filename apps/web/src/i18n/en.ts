@@ -432,7 +432,7 @@ export const en = {
   'lic.h1': 'Open-source\nlicenses',
   'lic.lead': 'Huddle is built on open-source software. Thank you to everyone who makes it.',
   'lic.own.h': 'Huddle itself',
-  'lic.own.b': 'Huddle’s source code is available on [GitHub](https://github.com/Ctrl-Joy/huddle).',
+  'lic.own.b': '© 2026 Ctrl-Joy. All rights reserved. You can view Huddle’s source code on [GitHub](https://github.com/Ctrl-Joy/huddle), but it may not be copied, modified or redistributed without written permission. The open-source libraries below keep their own licences.',
   'lic.deps.h': 'Packages Huddle uses',
   'lic.deps.b': '{n} packages ship with the Huddle server and web app, under these licenses:',
   'lic.search': 'Search packages',

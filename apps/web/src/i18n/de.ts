@@ -431,7 +431,7 @@ const de: Partial<Dict> = {
   'lic.h1': 'Open-Source-\nLizenzen',
   'lic.lead': 'Huddle basiert auf Open-Source-Software. Danke an alle, die sie möglich machen.',
   'lic.own.h': 'Huddle selbst',
-  'lic.own.b': 'Der Quellcode von Huddle ist auf [GitHub](https://github.com/Ctrl-Joy/huddle) verfügbar.',
+  'lic.own.b': '© 2026 Ctrl-Joy. Alle Rechte vorbehalten. Der Quellcode von Huddle ist auf [GitHub](https://github.com/Ctrl-Joy/huddle) einsehbar, darf aber ohne schriftliche Genehmigung nicht kopiert, verändert oder weitergegeben werden. Die unten aufgeführten Open-Source-Bibliotheken behalten ihre eigenen Lizenzen.',
   'lic.deps.h': 'Pakete, die Huddle nutzt',
   'lic.deps.b': '{n} Pakete werden mit dem Huddle-Server und der Web-App ausgeliefert, unter diesen Lizenzen:',
   'lic.search': 'Pakete suchen',
