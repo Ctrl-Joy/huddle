@@ -14,6 +14,7 @@ import { channelPermsBulk, getGuildRow, guildPerms } from '../services/permissio
 import { fullGuild } from '../services/guilds';
 import { userSettingsOf } from '../services/userSettings';
 import { Session, SessionRegistry } from './sessions';
+import { authenticate, needsVerification } from '../services/accounts';
 import { guildMemberIds, presenceAudience, readyPresenceIds } from './dispatch';
 
 export type Payload<K extends DispatchEventName> =
@@ -122,18 +123,29 @@ export class Gateway {
 
   private async identify(s: Session, d: any): Promise<void> {
     if (s.identified) return;
-    const userId = await this.ctx.tokens.verify(d?.token);
+    const user = await authenticate(this.ctx, d?.token);
     if (this.closed) return;
-    const user = userId ? getUserRow(this.ctx.db, userId) : undefined;
     if (!user) {
       s.close(GatewayCloseCode.AUTHENTICATION_FAILED, 'Authentication failed');
       return;
     }
+    if (needsVerification(this.ctx, user)) {
+      s.close(GatewayCloseCode.EMAIL_NOT_VERIFIED, 'Email not verified');
+      return;
+    }
     if (s.ws.readyState !== s.ws.OPEN) return;
+    s.tokenVersion = user.token_version ?? 0;
     s.lastHeartbeat = Date.now();
     const first = this.sessions.bind(s, user.id);
     s.dispatch('READY', this.buildReady(s, user));
     if (first) this.broadcastPresence(user.id);
+  }
+
+  /** Closes the user's sessions that identified with a token older than `version` (revoked sessions). */
+  dropStaleSessions(userId: string, version: number, code: number): void {
+    const set = this.sessions.of(userId);
+    if (!set) return;
+    for (const s of [...set]) if (s.tokenVersion < version) s.close(code, 'Session invalidated');
   }
 
   private onClose(s: Session): void {
@@ -155,7 +167,7 @@ export class Gateway {
     ).map((r) => r.guild_id);
     return {
       session_id: s.id,
-      user: privateUser(user),
+      user: privateUser(user, this.ctx.cfg.requireEmailVerification),
       guilds: guildIds.map((id) => fullGuild(this.ctx, id)!).filter(Boolean),
       private_channels: privateChannelsOf(db, user.id),
       relationships: relationshipsOf(db, user.id),
@@ -196,7 +208,7 @@ export class Gateway {
     else db.run('UPDATE users SET status = ?, custom_status = ? WHERE id = ?', status, custom, userId);
     const u = getUserRow(db, userId);
     if (!u) return;
-    this.dispatchToUser(userId, 'USER_UPDATE', privateUser(u));
+    this.dispatchToUser(userId, 'USER_UPDATE', privateUser(u, this.ctx.cfg.requireEmailVerification));
     this.broadcastPresence(userId);
   }
 
@@ -204,7 +216,7 @@ export class Gateway {
   broadcastUserUpdate(userId: string): void {
     const u = getUserRow(this.ctx.db, userId);
     if (!u) return;
-    const full = privateUser(u);
+    const full = privateUser(u, this.ctx.cfg.requireEmailVerification);
     const pub = publicUser(u);
     this.dispatchToUsers(presenceAudience(this.ctx.db, userId), 'USER_UPDATE', (uid) => (uid === userId ? full : pub));
   }

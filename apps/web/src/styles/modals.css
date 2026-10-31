@@ -131,6 +131,17 @@
 .account-fields { margin: 16px; background: var(--bg-elevated); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 18px; }
 .account-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .inline-edit { width: 100%; }
+.account-field-stack { flex-direction: column; align-items: stretch; }
+.account-field-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.account-field-main { min-width: 0; }
+.email-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.email-value { word-break: break-all; }
+.verified-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); border-radius: 999px; padding: 2px 8px 2px 6px; }
+.pending-email { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--accent-soft); display: flex; flex-direction: column; gap: 8px; }
+.pending-email-text { font-size: 14px; word-break: break-word; }
+.pending-email .code-input { justify-content: flex-start; margin: 0; }
+.pending-email-actions { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
+.danger-link { color: var(--danger); }
 .profile-editor { display: flex; gap: 32px; flex-wrap: wrap; }
 .profile-form { flex: 1 1 300px; }
 .profile-preview { flex: 0 0 320px; }
@@ -241,6 +252,25 @@
 .auth-sub { color: var(--text-muted); margin: 6px 0 20px; }
 .auth-switch { margin-top: 16px; font-size: 14px; color: var(--text-muted); }
 .auth-card .btn-block { margin-top: 6px; }
+.auth-forgot { align-self: flex-start; font-size: 13px; margin: -8px 0 16px; }
+/* one-time code entry (verify email, password reset, pending email) */
+.code-input { display: flex; gap: 8px; justify-content: center; margin: 4px 0 12px; }
+.code-input .code-box {
+  width: 48px; height: 56px; flex: 0 1 48px; min-width: 0; padding: 0; text-align: center;
+  font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; border-radius: 10px;
+  background: var(--bg-input); border: 1px solid var(--border-strong); caret-color: var(--accent);
+}
+.code-input .code-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.code-input.invalid .code-box { border-color: var(--danger); }
+.code-input .code-box:disabled { opacity: .6; }
+.verify-card h1 { margin-bottom: 0; }
+.verify-email { color: var(--text); word-break: break-all; }
+.verify-hint { color: var(--text-faint); font-size: 13px; text-align: center; margin: 0 0 14px; }
+.code-error { text-align: center; }
+.spam-hint { color: var(--text-faint); font-size: 12.5px; margin: 8px 0 0; }
+.pending-email .spam-hint { margin: 0; }
+.verify-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; margin-top: 14px; font-size: 14px; }
+.btn-link:disabled { color: var(--text-faint); cursor: default; text-decoration: none; }
 .invite-card { align-items: center; text-align: center; }
 .invite-card .auth-brand { align-self: flex-start; }
 .invite-guild-icon { border-radius: 24px; margin-bottom: 12px; }

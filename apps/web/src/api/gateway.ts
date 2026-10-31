@@ -32,6 +32,11 @@ export class GatewayClient {
     this.open();
   }
 
+  /** Use a new token for the next (re)connect, e.g. after a password change revoked the old one. */
+  setToken(token: string): void {
+    this.token = token;
+  }
+
   disconnect(): void {
     this.manualClose = true;
     this.clearTimers();
@@ -96,7 +101,7 @@ export class GatewayClient {
       this.ws = null;
       this.clearTimers();
       if (this.manualClose) return;
-      if (ev.code === GatewayCloseCode.AUTHENTICATION_FAILED) {
+      if (ev.code === GatewayCloseCode.AUTHENTICATION_FAILED || ev.code === GatewayCloseCode.EMAIL_NOT_VERIFIED) {
         this.setStatus('closed', { code: ev.code, reason: ev.reason });
         return;
       }

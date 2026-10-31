@@ -5,6 +5,8 @@ import { GatewayOp, type DispatchEventName, type GatewayFrame } from '@huddle/sh
 export class Session {
   readonly id = crypto.randomBytes(16).toString('hex');
   userId: string | null = null;
+  /** token_version of the token this session identified with. */
+  tokenVersion = 0;
   seq = 0;
   lastHeartbeat = Date.now();
   readonly connectedAt = Date.now();

@@ -6,6 +6,7 @@ import { startSession } from './lib/session';
 import { AuthPage } from './pages/AuthPage';
 import { InvitePage } from './pages/InvitePage';
 import { Splash } from './pages/Splash';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { AppShell } from './components/layout/AppShell';
 
 // Public home page — lazy so it stays out of the app bundle.
@@ -25,9 +26,12 @@ function NavBridge() {
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const status = useAuthStore((s) => s.status);
+  // An unverified account stays on the "check your email" screen; the gateway isn't started until it's verified.
+  const unverified = useAuthStore((s) => s.user?.verified === false);
   const loc = useLocation();
-  useEffect(() => { if (token) startSession(); }, [token]);
+  useEffect(() => { if (token && !unverified) startSession(); }, [token, unverified]);
   if (!token) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname)}`} replace />;
+  if (unverified) return <VerifyEmailPage />;
   if (status !== 'ready') return <Splash />;
   return <>{children}</>;
 }
@@ -39,6 +43,7 @@ export function App() {
       <Routes>
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/register" element={<AuthPage mode="register" />} />
+        <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
         <Route path="/invite/:code" element={<InvitePage />} />
         <Route path="/channels/:guildId/:channelId?" element={<RequireAuth><AppShell /></RequireAuth>} />
         <Route path="/channels" element={<Navigate to="/channels/@me" replace />} />

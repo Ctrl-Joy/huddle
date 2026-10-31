@@ -22,6 +22,9 @@ export async function startServer(opts: BuildOptions = {}): Promise<TestServer> 
     uploadsDir,
     jwtSecret: 'test-secret',
     rateLimits: { messages: BIG, writes: BIG, auth: BIG },
+    // No SMTP and no verification unless a test opts in (independent of the shell's environment).
+    mailTransport: null,
+    requireEmailVerification: false,
     ...opts,
   });
   await app.listen({ port: 0, host: '127.0.0.1' });

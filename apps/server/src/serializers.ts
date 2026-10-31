@@ -12,6 +12,7 @@ export interface UserRow {
   id: string; email: string; username: string; display_name: string | null; password_hash: string;
   avatar: string | null; banner_color: string | null; bio: string | null; custom_status: string | null;
   status: string; bot: number; created_at: string; banner: string | null; accent_color: string | null; pronouns: string | null;
+  email_verified: number; token_version: number; pending_email: string | null;
 }
 export interface GuildRow {
   id: string; name: string; icon: string | null; description: string | null; owner_id: string;
@@ -58,8 +59,13 @@ export function publicUser(u: UserRow): PublicUser {
   };
 }
 
-export function privateUser(u: UserRow): User {
-  return { ...publicUser(u), email: u.email, custom_status: u.custom_status, status: u.status as User['status'] };
+/** The account owner's view. `requireVerification` is ctx.cfg.requireEmailVerification: when off, nobody is held back. */
+export function privateUser(u: UserRow, requireVerification = true): User {
+  return {
+    ...publicUser(u), email: u.email, custom_status: u.custom_status, status: u.status as User['status'],
+    verified: !requireVerification || !!u.email_verified,
+    pending_email: u.pending_email ?? null,
+  };
 }
 
 export function getUserRow(db: Db, id: string): UserRow | undefined {

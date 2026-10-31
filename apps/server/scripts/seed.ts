@@ -4,7 +4,11 @@ import { Permissions } from '@huddle/shared';
 import { buildApp } from '../src/app';
 
 const BIG = { capacity: 1_000_000, windowMs: 1000 };
-const app = await buildApp({ rateLimits: { messages: BIG, writes: BIG, auth: BIG } });
+// Seed users start verified (no codes to type); see README "Email".
+const app = await buildApp({
+  rateLimits: { messages: BIG, writes: BIG, auth: BIG, codesPerEmail: BIG, codesPerIp: BIG, codesPerUser: BIG },
+  requireEmailVerification: false,
+});
 const ctx = app.huddle;
 
 async function call<T = any>(token: string | null, method: string, url: string, payload?: unknown): Promise<T> {

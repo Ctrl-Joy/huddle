@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { LIMITS } from '@huddle/shared';
 import { SettingsLayout, UnsavedBar } from './SettingsLayout';
-import { useAuthStore } from '../../stores/auth';
+import { cancelEmailChange, changeEmail, changePassword, resendVerification, resendWait, useAuthStore, verifyEmail } from '../../stores/auth';
+import { ApiError } from '../../api/client';
+import { CodeInput } from '../common/CodeInput';
+import { describeCodeError, useCountdown } from '../../pages/VerifyEmailPage';
 import { useUIStore, confirmDialog, toast } from '../../stores/ui';
 import { updateMe, uploadAvatar, uploadProfileBanner } from '../../lib/actions';
 import { errorMessage } from '../../api/client';
@@ -108,14 +111,164 @@ function MyAccount({ goProfile }: { goProfile: () => void }) {
               )}
             </div>
           ))}
-          <div className="account-field">
-            <div><div className="field-label">Email</div><div>{showEmail ? user.email : masked} <button className="btn-link" onClick={() => setShowEmail((v) => !v)}>{showEmail ? 'Hide' : 'Reveal'}</button></div></div>
-          </div>
+          <EmailField showEmail={showEmail} masked={masked} toggleShow={() => setShowEmail((v) => !v)} />
+          <PasswordField />
           <div className="account-field">
             <div><div className="field-label">Member Since</div><div>{formatShortDate(user.created_at)}</div></div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function EmailField({ showEmail, masked, toggleShow }: { showEmail: boolean; masked: string; toggleShow: () => void }) {
+  const user = useAuthStore((s) => s.user!);
+  const [editing, setEditing] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const pending = user.pending_email ?? null;
+
+  const save = async () => {
+    const e: Record<string, string> = {};
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Enter a valid email address';
+    if (!password) e.password = 'Required';
+    setErrors(e);
+    if (Object.keys(e).length) return;
+    setBusy(true);
+    try {
+      const u = await changeEmail(email.trim(), password);
+      setEditing(false); setPassword('');
+      toast(u.pending_email ? `We sent a code to ${u.pending_email}` : 'Email updated', 'success');
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) setErrors(err.errors);
+      else setErrors({ email: errorMessage(err) });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="account-field account-field-stack">
+      {editing ? (
+        <form className="inline-edit" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+          <Field label="New Email" error={errors.email}>
+            <input type="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          <Field label="Current Password" error={errors.password} hint="We'll send a code to the new address. Your email only changes once you enter it.">
+            <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          <div className="row-end">
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => { setEditing(false); setErrors({}); }}>Cancel</button>
+            <button className="btn btn-primary btn-small" disabled={busy}>{busy ? 'Sending…' : 'Send Code'}</button>
+          </div>
+        </form>
+      ) : (
+        <div className="account-field-row">
+          <div className="account-field-main">
+            <div className="field-label">Email</div>
+            <div className="email-line">
+              <span className="email-value">{showEmail ? user.email : masked}</span>
+              {user.verified !== false && <span className="verified-badge" title="Verified"><IconCheck size={12} strokeWidth={3} /> Verified</span>}
+              <button className="btn-link" onClick={toggleShow}>{showEmail ? 'Hide' : 'Reveal'}</button>
+            </div>
+          </div>
+          <button className="btn btn-secondary btn-small" onClick={() => { setEditing(true); setEmail(''); setPassword(''); setErrors({}); }}>Edit</button>
+        </div>
+      )}
+      {pending && !editing && <PendingEmail pending={pending} />}
+    </div>
+  );
+}
+
+function PendingEmail({ pending }: { pending: string }) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [left, restart] = useCountdown(resendWait(pending));
+
+  const submit = async (c = code) => {
+    if (c.length !== 6 || busy) return;
+    setBusy(true); setError('');
+    try { const u = await verifyEmail(c); toast(`Your email is now ${u.email}`, 'success'); }
+    catch (e) { setError(describeCodeError(e).text); setCode(''); }
+    finally { setBusy(false); }
+  };
+  const resend = async () => {
+    setError('');
+    try { const r = await resendVerification(); restart(r.resend_after); toast(`We sent a new code to ${r.email}`, 'success'); }
+    catch (e) { if (e instanceof ApiError && e.retryAfter) restart(e.retryAfter); setError(describeCodeError(e).text); }
+  };
+  const cancel = async () => {
+    try { await cancelEmailChange(); toast('Email change cancelled'); } catch (e) { toast(errorMessage(e), 'error'); }
+  };
+
+  return (
+    <div className="pending-email" role="region" aria-label="Pending email change">
+      <div className="pending-email-text">Pending: <strong>{pending}</strong> — enter the code we sent.</div>
+      <CodeInput value={code} onChange={(v) => { setCode(v); if (error) setError(''); }} onComplete={(c) => void submit(c)} disabled={busy} invalid={!!error} label="Code for your new email" />
+      {error && <div className="form-error" role="alert">{error}</div>}
+      <div className="pending-email-actions">
+        <button type="button" className="btn-link" disabled={left > 0} onClick={() => void resend()}>{left > 0 ? `Resend in ${left}s` : 'Resend code'}</button>
+        <button type="button" className="btn-link danger-link" onClick={() => void cancel()}>Cancel change</button>
+      </div>
+      <p className="spam-hint">Didn't get it? Check your Spam or Promotions folder.</p>
+    </div>
+  );
+}
+
+function PasswordField() {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  const close = () => { setOpen(false); setCurrent(''); setNext(''); setConfirm(''); setErrors({}); };
+  const save = async () => {
+    const e: Record<string, string> = {};
+    if (!current) e.password = 'Required';
+    if (next.length < LIMITS.PASSWORD_MIN) e.new_password = `Must be at least ${LIMITS.PASSWORD_MIN} characters`;
+    else if (next.length > 128) e.new_password = 'Too long';
+    if (confirm !== next) e.confirm = "Passwords don't match";
+    setErrors(e);
+    if (Object.keys(e).length) return;
+    setBusy(true);
+    try {
+      await changePassword(current, next);
+      close();
+      toast('Password changed. Other devices were signed out.', 'success');
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) setErrors(err.errors);
+      else setErrors({ password: errorMessage(err) });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="account-field account-field-stack">
+      {open ? (
+        <form className="inline-edit" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+          <Field label="Current Password" error={errors.password}>
+            <input type="password" autoComplete="current-password" autoFocus value={current} onChange={(e) => setCurrent(e.target.value)} />
+          </Field>
+          <Field label="New Password" error={errors.new_password}>
+            <input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+          </Field>
+          <Field label="Confirm New Password" error={errors.confirm} hint="Changing your password signs you out everywhere else.">
+            <input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </Field>
+          <div className="row-end">
+            <button type="button" className="btn btn-ghost btn-small" onClick={close}>Cancel</button>
+            <button className="btn btn-primary btn-small" disabled={busy}>{busy ? 'Saving…' : 'Change Password'}</button>
+          </div>
+        </form>
+      ) : (
+        <div className="account-field-row">
+          <div className="account-field-main"><div className="field-label">Password</div><div className="muted">••••••••</div></div>
+          <button className="btn btn-secondary btn-small" onClick={() => setOpen(true)}>Change Password</button>
+        </div>
+      )}
     </div>
   );
 }

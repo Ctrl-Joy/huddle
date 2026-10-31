@@ -1,4 +1,5 @@
 // API errors serialised as { message, code, errors?, retry_after? }.
+import { ApiErrorCode } from '@huddle/shared';
 
 export const ErrorCode = {
   GENERAL: 0,
@@ -31,6 +32,12 @@ export const ErrorCode = {
   UNKNOWN_SCHEDULED_EVENT: 10070,
   RATE_LIMITED: 20028,
   SLOWMODE: 20016,
+  EMAIL_NOT_VERIFIED: ApiErrorCode.EMAIL_NOT_VERIFIED,
+  VERIFICATION_CODE_INVALID: ApiErrorCode.VERIFICATION_CODE_INVALID,
+  VERIFICATION_CODE_EXPIRED: ApiErrorCode.VERIFICATION_CODE_EXPIRED,
+  VERIFICATION_CODE_EXHAUSTED: ApiErrorCode.VERIFICATION_CODE_EXHAUSTED,
+  VERIFICATION_CODE_MISSING: ApiErrorCode.VERIFICATION_CODE_MISSING,
+  EMAIL_SEND_FAILED: ApiErrorCode.EMAIL_SEND_FAILED,
 } as const;
 
 export class ApiErr extends Error {
@@ -65,3 +72,5 @@ export const tooMany = (retryAfterSec: number, message = 'You are being rate lim
   e.retryAfter = Math.max(0, Math.round(retryAfterSec * 1000) / 1000);
   return e;
 };
+export const emailNotVerified = () =>
+  new ApiErr(403, 'Verify your email address to continue.', ErrorCode.EMAIL_NOT_VERIFIED);

@@ -1,7 +1,7 @@
 import type { User } from '@huddle/shared';
 import { gateway } from '../api/gateway';
-import { onUnauthorized } from '../api/client';
-import { useAuthStore } from '../stores/auth';
+import { onEmailNotVerified, onUnauthorized } from '../api/client';
+import { refreshMe, useAuthStore } from '../stores/auth';
 import { bindGateway, resetAllStores } from '../stores/gatewayBindings';
 import { useUIStore } from '../stores/ui';
 import { voiceActions } from '../stores/voice';
@@ -81,6 +81,22 @@ export function forgetAccount(id: string) {
 
 onUnauthorized(() => {
   if (useAuthStore.getState().token) logout();
+});
+
+// The server says this account must confirm its email first (REST 403 or gateway 4012): load the user, whose
+// `verified: false` makes RequireAuth show the verify screen; the gateway stays down until it's verified.
+let checkingVerification = false;
+onEmailNotVerified(() => {
+  if (!useAuthStore.getState().token || checkingVerification) return;
+  checkingVerification = true;
+  refreshMe()
+    .then((u) => {
+      if (u.verified !== false) return;
+      teardown();
+      useAuthStore.getState().setStatus('connecting');
+    })
+    .catch(() => { /* a 401 logs out via onUnauthorized */ })
+    .finally(() => { checkingVerification = false; });
 });
 
 // Keep the remembered copy of the active account (token + name/avatar) current.

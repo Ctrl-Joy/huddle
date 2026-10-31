@@ -1,5 +1,5 @@
 // Applies EVERY DispatchEvents event to the zustand stores. Call bindGateway() once at startup.
-import { ChannelType, NotificationLevel, type DispatchEventName, type DispatchEvents, type Message, type User } from '@huddle/shared';
+import { ChannelType, GatewayCloseCode, NotificationLevel, type DispatchEventName, type DispatchEvents, type Message, type User } from '@huddle/shared';
 import { gateway } from '../api/gateway';
 import { useAuthStore } from './auth';
 import { useGuildStore, displayName, channelDisplayName } from './guilds';
@@ -18,7 +18,7 @@ import { useStickerStore } from './stickers';
 import { stickerPreview } from '../lib/stickers';
 import { useEventStore } from './scheduledEvents';
 import { useSoundboardStore, handleSoundboardPlay } from './soundboard';
-import { notifyUnauthorized } from '../api/client';
+import { notifyEmailNotVerified, notifyUnauthorized } from '../api/client';
 import { mentionsMe } from '../lib/mentionUtil';
 import { navigate, channelPath } from '../lib/nav';
 import { playPing, showDesktopNotification } from '../lib/notifications';
@@ -266,6 +266,10 @@ export function bindGateway() {
     if (s === 'closed' && info?.code === 4004) {
       // token rejected: log this account out (lib/session switches to another stored account if any)
       notifyUnauthorized();
+    }
+    if (s === 'closed' && info?.code === GatewayCloseCode.EMAIL_NOT_VERIFIED) {
+      // the account still has to confirm its email: lib/session shows the verify screen
+      notifyEmailNotVerified();
     }
   });
 }

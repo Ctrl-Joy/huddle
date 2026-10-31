@@ -1,4 +1,5 @@
 // REST client: fetch wrapper with JWT, JSON & multipart, typed ApiError, and an XHR upload path with progress.
+import { ApiErrorCode } from '@huddle/shared';
 
 const TOKEN_KEY = 'huddle.token';
 
@@ -7,6 +8,7 @@ let token: string | null = (() => {
 })();
 
 let unauthorizedHandler: (() => void) | null = null;
+let notVerifiedHandler: (() => void) | null = null;
 
 export function getToken(): string | null { return token; }
 export function setToken(t: string | null): void {
@@ -17,6 +19,10 @@ export function setToken(t: string | null): void {
   } catch { /* ignore */ }
 }
 export function onUnauthorized(fn: () => void): void { unauthorizedHandler = fn; }
+/** The server refused a call because the account's email isn't verified (403, EMAIL_NOT_VERIFIED). */
+export function onEmailNotVerified(fn: () => void): void { notVerifiedHandler = fn; }
+/** For non-REST signals that the email isn't verified (the gateway closing with 4012). */
+export function notifyEmailNotVerified(): void { notVerifiedHandler?.(); }
 /** For non-REST rejections of the token (the gateway closing with 4004). */
 export function notifyUnauthorized(): void { unauthorizedHandler?.(); }
 
@@ -24,11 +30,14 @@ export class ApiError extends Error {
   status: number;
   code: number;
   errors?: Record<string, string>;
-  constructor(status: number, message: string, code = 0, errors?: Record<string, string>) {
+  /** Seconds to wait (429 responses). */
+  retryAfter?: number;
+  constructor(status: number, message: string, code = 0, errors?: Record<string, string>, retryAfter?: number) {
     super(message);
     this.status = status;
     this.code = code;
     this.errors = errors;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -55,15 +64,17 @@ async function parseError(res: Response): Promise<ApiError> {
   let message = res.statusText || 'Request failed';
   let code = 0;
   let errors: Record<string, string> | undefined;
+  let retryAfter: number | undefined;
   try {
     const data = await res.json();
     if (data && typeof data === 'object') {
       message = data.message || message;
       code = data.code ?? 0;
       errors = data.errors;
+      if (typeof data.retry_after === 'number') retryAfter = data.retry_after;
     }
   } catch { /* not JSON */ }
-  return new ApiError(res.status, message, code, errors);
+  return new ApiError(res.status, message, code, errors, retryAfter);
 }
 
 export async function request<T = unknown>(method: Method, path: string, opts: RequestOptions = {}): Promise<T> {
@@ -85,6 +96,7 @@ export async function request<T = unknown>(method: Method, path: string, opts: R
   if (!res.ok) {
     const err = await parseError(res);
     if (res.status === 401 && token && !path.startsWith('/auth/')) unauthorizedHandler?.();
+    if (res.status === 403 && err.code === ApiErrorCode.EMAIL_NOT_VERIFIED) notVerifiedHandler?.();
     throw err;
   }
   if (res.status === 204) return undefined as T;

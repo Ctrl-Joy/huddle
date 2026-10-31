@@ -25,6 +25,10 @@ export enum GatewayCloseCode {
   NOT_AUTHENTICATED = 4003,
   AUTHENTICATION_FAILED = 4004,
   SESSION_TIMED_OUT = 4009,
+  /** The account's sessions were revoked (password changed/reset): reconnect with the current token. */
+  SESSION_INVALIDATED = 4011,
+  /** The account's email isn't verified yet; don't reconnect until it is. */
+  EMAIL_NOT_VERIFIED = 4012,
 }
 
 export interface GatewayFrame<D = unknown> {

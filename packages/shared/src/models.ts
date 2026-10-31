@@ -79,6 +79,13 @@ export interface PublicUser {
 /** The current user (includes private fields). */
 export interface User extends PublicUser {
   email: string;
+  /**
+   * False while the account's email still needs confirming (only when the server requires verification);
+   * such a session may only verify, resend, change the email or log out. Always sent by the server.
+   */
+  verified?: boolean;
+  /** A new address waiting for its confirmation code (My Account → change email). Always sent by the server. */
+  pending_email?: string | null;
   custom_status: string | null;
   status: PresenceStatus; // preferred status (what they set), not the computed presence
 }

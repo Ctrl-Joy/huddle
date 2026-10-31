@@ -39,11 +39,17 @@ export function resolveSecret(explicit: string | undefined, dataDir: string | nu
   return new TextEncoder().encode(crypto.randomBytes(48).toString('base64url'));
 }
 
-export class TokenService {
-  constructor(private secret: Uint8Array) {}
+export interface TokenClaims {
+  userId: string;
+  /** users.token_version when the token was issued (tokens from before versions existed count as 0). */
+  version: number;
+}
 
-  sign(userId: string): Promise<string> {
-    return new SignJWT({})
+export class TokenService {
+  constructor(readonly secret: Uint8Array) {}
+
+  sign(userId: string, version = 0): Promise<string> {
+    return new SignJWT({ ver: version })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(userId)
       .setIssuedAt()
@@ -51,12 +57,15 @@ export class TokenService {
       .sign(this.secret);
   }
 
-  /** Returns the user id, or null when the token is invalid/expired. */
-  async verify(token: string | undefined | null): Promise<string | null> {
-    if (!token) return null;
+  /** Signature + expiry only; callers must also compare the version with the user's (see services/accounts). */
+  async verify(token: string | undefined | null): Promise<TokenClaims | null> {
+    if (!token || typeof token !== 'string') return null;
     try {
       const { payload } = await jwtVerify(token, this.secret, { algorithms: ['HS256'] });
-      return typeof payload.sub === 'string' ? payload.sub : null;
+      if (typeof payload.sub !== 'string') return null;
+      const ver = payload.ver === undefined ? 0 : payload.ver;
+      if (typeof ver !== 'number' || !Number.isInteger(ver) || ver < 0) return null;
+      return { userId: payload.sub, version: ver };
     } catch {
       return null;
     }

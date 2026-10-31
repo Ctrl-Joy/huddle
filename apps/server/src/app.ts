@@ -12,9 +12,11 @@ import { TokenService, bearer, resolveSecret } from './auth';
 import { RateLimiter, DEFAULT_RATE_LIMITS, type RateLimitConfig } from './ratelimit';
 import { Gateway } from './gateway';
 import { VoiceManager } from './gateway/voice';
-import { ApiErr, ErrorCode, tooMany, unauthorized } from './errors';
+import { ApiErr, ErrorCode, emailNotVerified, tooMany, unauthorized } from './errors';
 import type { Ctx } from './context';
-import { getUserRow } from './serializers';
+import { Mailer, smtpTransportFromEnv, type MailTransport } from './services/mailer';
+import { VerificationCodes } from './services/verification';
+import { authenticate, needsVerification } from './services/accounts';
 
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -64,7 +66,18 @@ export interface BuildOptions {
   gifApiKey?: string | null;
   /** GIF provider fetcher; tests pass a stub. */
   fetchGifs?: GifFetch;
+  /** Outgoing mail. Default: SMTP from HUDDLE_SMTP_* (null when unset). Tests pass a MemoryTransport. */
+  mailTransport?: MailTransport | null;
+  /** Default: on when mail can be sent, or HUDDLE_REQUIRE_EMAIL_VERIFICATION=1. */
+  requireEmailVerification?: boolean;
+  /** Default:  (links in emails). */
+  publicUrl?: string;
+  /** Default: . */
+  mailFrom?: string;
 }
+
+/** Signed-in but unverified accounts may only reach these (plus every /api/auth/* route). */
+const UNVERIFIED_ALLOWED = new Set(['GET /api/users/@me', 'PATCH /api/users/@me', 'GET /api/health']);
 
 /** Lifetime of TURN REST credentials handed out by /api/ice. */
 const TURN_CREDENTIAL_TTL = 24 * 60 * 60;
@@ -87,11 +100,37 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
     trustProxy: true,
   }) as unknown as HuddleApp;
 
+  // Email: verification is required whenever mail can actually be delivered (or explicitly asked for).
+  const mailTransport = opts.mailTransport !== undefined ? opts.mailTransport : smtpTransportFromEnv(process.env);
+  const requireEmailVerification = opts.requireEmailVerification
+    ?? (!!mailTransport || process.env.HUDDLE_REQUIRE_EMAIL_VERIFICATION === '1');
+  const publicUrl = (opts.publicUrl ?? process.env.HUDDLE_PUBLIC_URL ?? '').trim().replace(/\/+$/, '')
+    || (production ? '' : 'http://localhost:5173');
+  const smtpUser = process.env.HUDDLE_SMTP_USER?.trim() ?? '';
+  const mailFrom = (opts.mailFrom ?? process.env.HUDDLE_MAIL_FROM ?? '').trim()
+    || (smtpUser.includes('@') ? `Huddle <${smtpUser}>` : 'Huddle <no-reply@localhost>');
+  if (opts.requireEmailVerification === undefined) {
+    if (!requireEmailVerification) {
+      console.warn('[huddle] email verification is OFF (no SMTP configured): new accounts are created verified and password-reset emails cannot be delivered. Set HUDDLE_SMTP_* to enable email.');
+    } else if (!mailTransport) {
+      if (production) console.error('[huddle] HUDDLE_REQUIRE_EMAIL_VERIFICATION=1 but SMTP is not configured: verification emails cannot be delivered!');
+      else console.warn('[huddle] email verification is ON without SMTP (dev): codes are printed to this console.');
+    } else if (!publicUrl) {
+      console.warn('[huddle] HUDDLE_PUBLIC_URL is not set: links in emails will be incomplete.');
+    }
+  }
+
+  const tokens = new TokenService(resolveSecret(opts.jwtSecret, dataDir));
   const ctx = {
     db,
-    cfg: { uploadsDir, heartbeatInterval: opts.heartbeatInterval ?? 30_000, production, webDist },
+    cfg: {
+      uploadsDir, heartbeatInterval: opts.heartbeatInterval ?? 30_000, production, webDist,
+      requireEmailVerification, publicUrl,
+    },
     id: createSnowflakeGenerator(0),
-    tokens: new TokenService(resolveSecret(opts.jwtSecret, dataDir)),
+    tokens,
+    mail: new Mailer({ transport: mailTransport, from: mailFrom, devLog: !production }),
+    codes: new VerificationCodes(db, tokens.secret),
     limiter: new RateLimiter({ ...DEFAULT_RATE_LIMITS, ...(opts.rateLimits ?? {}) }),
     slowmode: new Map(),
   } as unknown as Ctx;
@@ -163,8 +202,14 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
     api.addHook('onRequest', async (req) => {
       const token = bearer(req.headers.authorization);
       if (!token) return;
-      const id = await ctx.tokens.verify(token);
-      if (id && getUserRow(db, id)) req.userId = id;
+      const user = await authenticate(ctx, token);
+      if (!user) return;
+      req.userId = user.id;
+      // Unverified accounts: only verify / resend / change email / read themselves until the email is confirmed.
+      if (needsVerification(ctx, user)) {
+        const route = req.routeOptions.url;
+        if (route && !route.startsWith('/api/auth/') && !UNVERIFIED_ALLOWED.has(`${req.method} ${route}`)) throw emailNotVerified();
+      }
     });
 
     // WebRTC relay config, read at runtime so a deploy can set it without rebuilding the web app.

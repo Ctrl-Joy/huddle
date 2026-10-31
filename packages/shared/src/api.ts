@@ -1,10 +1,28 @@
 // REST response envelopes that aren't plain model objects (added by the server; additive only).
 import type { AuditLogEntry, Channel, Message, PublicUser, User } from './models';
 
-/** POST /auth/register, POST /auth/login */
+/** POST /auth/register, POST /auth/login, POST /auth/password/reset */
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+/**
+ * PATCH /users/@me — the updated user. Changing the password revokes every other session and hands this one
+ * a fresh `token` (the old one stops working).
+ */
+export type UserUpdateResponse = User & { token?: string };
+
+/** POST /auth/verify-email/resend, or PATCH /users/@me with a new email (the code goes to `email`). */
+export interface VerificationSentResponse {
+  email: string;
+  /** Seconds before another code can be requested. */
+  resend_after: number;
+}
+
+/** POST /auth/password/forgot — identical whether or not the account exists. */
+export interface ForgotPasswordResponse {
+  ok: true;
 }
 
 /** GET /users/:id */

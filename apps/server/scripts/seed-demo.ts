@@ -5,10 +5,15 @@
 import crypto from 'node:crypto';
 import type { GuildCategory, GuildTemplateId } from '@huddle/shared';
 import { buildApp } from '../src/app';
+import { issueToken } from '../src/services/accounts';
 import { bannerPng, iconPng, rng, type Glyph, type Motif } from './demo-art';
 
 const BIG = { capacity: 1_000_000, windowMs: 1000 };
-const app = await buildApp({ rateLimits: { messages: BIG, writes: BIG, auth: BIG } });
+// Demo accounts start verified (requireEmailVerification: false).
+const app = await buildApp({
+  rateLimits: { messages: BIG, writes: BIG, auth: BIG, codesPerEmail: BIG, codesPerIp: BIG, codesPerUser: BIG },
+  requireEmailVerification: false,
+});
 const ctx = app.huddle;
 
 async function call<T = any>(token: string | null, method: string, url: string, payload?: unknown, headers: Record<string, string> = {}): Promise<T> {
@@ -142,8 +147,8 @@ interface Person { id: string; token: string }
 
 /** Registers a demo user, or reuses the existing account (minting a token in-process; the password is never needed). */
 async function person(username: string, display: string): Promise<Person> {
-  const existing = ctx.db.one<{ id: string }>('SELECT id FROM users WHERE username = ?', username);
-  if (existing) return { id: existing.id, token: await ctx.tokens.sign(existing.id) };
+  const existing = ctx.db.one<{ id: string; token_version: number }>('SELECT id, token_version FROM users WHERE username = ?', username);
+  if (existing) return { id: existing.id, token: await issueToken(ctx, existing) };
   const r = await call<{ token: string; user: { id: string } }>(null, 'POST', '/auth/register', {
     email: `${username}@demo.huddle.test`, username, display_name: display,
     password: crypto.randomBytes(24).toString('base64url'), // unguessable and never shown: demo accounts aren't for logging in

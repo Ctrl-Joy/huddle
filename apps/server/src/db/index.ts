@@ -77,6 +77,15 @@ export class Db {
     addColumns('messages', { stickers: 'TEXT' });
     // "Hide Muted Channels" in the server menu
     addColumns('user_guild_settings', { hide_muted_channels: 'INTEGER NOT NULL DEFAULT 0' });
+    // Email verification + session revocation. email_verified defaults to 0 for new rows (register sets it);
+    // token_version is embedded in login tokens and bumped to revoke every session (password change/reset).
+    addColumns('users', {
+      email_verified: 'INTEGER NOT NULL DEFAULT 0', token_version: 'INTEGER NOT NULL DEFAULT 0', pending_email: 'TEXT',
+    });
+    // Everyone who signed up before verification existed is treated as verified, so nobody gets locked out.
+    once('verify_existing_users', () => {
+      this.raw.prepare('UPDATE users SET email_verified = 1').run();
+    });
   }
 
   private stmt(sql: string): StatementSync {

@@ -1,8 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import { ChannelType, LIMITS, RelationshipType, type UserGuildSettings } from '@huddle/shared';
+import { ChannelType, LIMITS, RelationshipType, type UserGuildSettings, type UserUpdateResponse } from '@huddle/shared';
 import { now, type Ctx } from '../context';
 import { hashPassword, verifyPassword } from '../auth';
-import { ErrorCode, badRequest, forbidden, invalidField, notFound } from '../errors';
+import { ErrorCode, badRequest, emailNotVerified, forbidden, invalidField, notFound } from '../errors';
+import {
+  consumeCodeBuckets, cooldownError, issueToken, needsVerification, notifyPasswordChanged, revokeSessions, sendVerificationCode,
+  validEmail,
+} from '../services/accounts';
 import {
   channel as serializeChannel, getChannelRow, getUserRow, guild, guildSettings, privateChannelsOf, privateUser,
   publicUser, type ChannelRow, type GuildRow,
@@ -11,7 +15,7 @@ import { getGuildRow } from '../services/permissions';
 import { removeMember } from '../services/guilds';
 import { IMAGE_EXT, removeUpload, saveUpload, sniffImage } from '../uploads';
 import { body, optBool, optInt, optStr, readMultipart, uid } from './util';
-import { validateUsername } from './auth';
+import { validateNewPassword, validateUsername } from './auth';
 
 export const AVATAR_BYTES = 8 * 1024 * 1024;
 
@@ -25,12 +29,28 @@ export function isBlocked(ctx: Ctx, a: string, b: string): boolean {
 export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
   const { db } = ctx;
 
-  app.get('/users/@me', async (req) => privateUser(getUserRow(db, uid(req))!));
+  const self = (id: string) => privateUser(getUserRow(db, id)!, ctx.cfg.requireEmailVerification);
+
+  app.get('/users/@me', async (req) => self(uid(req)));
+
+  // Cancel a pending email change.
+  app.delete('/users/@me/pending-email', async (req) => {
+    const me = uid(req);
+    db.run('UPDATE users SET pending_email = NULL WHERE id = ?', me);
+    ctx.codes.clear(me, 'verify_email');
+    ctx.gw.broadcastUserUpdate(me);
+    return self(me);
+  });
 
   app.patch('/users/@me', async (req) => {
     const me = uid(req);
     const b = body(req);
     const u = getUserRow(db, me)!;
+    // Until the email is verified the only change allowed is the email itself (a typo at sign-up).
+    if (needsVerification(ctx, u) && Object.keys(b).some((k) => k !== 'email' && k !== 'password')) throw emailNotVerified();
+    let newToken: string | undefined;
+    let passwordChanged = false;
+    let sendCodeTo: string | null = null;
     const sets: string[] = [];
     const vals: (string | null)[] = [];
     const set = (col: string, v: string | null) => { sets.push(`${col} = ?`); vals.push(v); };
@@ -80,22 +100,49 @@ export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
       }
       if (b.email !== undefined) {
         const email = String(b.email).trim();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw invalidField('email', 'Enter a valid email address');
+        if (!validEmail(email)) throw invalidField('email', 'Enter a valid email address');
         const taken = db.one<{ id: string }>('SELECT id FROM users WHERE email = ?', email);
         if (taken && taken.id !== me) throw invalidField('email', 'Email is already registered');
-        set('email', email);
+        const same = email.toLowerCase() === u.email.toLowerCase();
+        if (!ctx.cfg.requireEmailVerification) {
+          set('email', email); // verification off: switch straight away (the original behaviour)
+        } else if (same) {
+          if (u.pending_email) set('pending_email', null); // back to the current address = cancel the change
+          if (email !== u.email) set('email', email); // capitalisation only
+        } else {
+          // The new address must prove itself with a code before it replaces the current one.
+          const wait = ctx.codes.cooldown(me, 'verify_email', email);
+          if (wait > 0) throw cooldownError(wait);
+          consumeCodeBuckets(ctx, email, req.ip, me);
+          if (needsVerification(ctx, u)) set('email', email); // never verified: fix the sign-up address in place
+          else set('pending_email', email);
+          sendCodeTo = email;
+        }
       }
       if (b.new_password !== undefined) {
-        if (typeof b.new_password !== 'string' || b.new_password.length < LIMITS.PASSWORD_MIN) {
-          throw invalidField('new_password', `Password must be at least ${LIMITS.PASSWORD_MIN} characters`);
-        }
+        const pErr = validateNewPassword(b.new_password);
+        if (pErr) throw invalidField('new_password', pErr);
         set('password_hash', await hashPassword(b.new_password));
+        passwordChanged = true;
       }
     }
     if (sets.length) db.run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, ...vals, me);
+    if (passwordChanged) {
+      // Sign out every other session; this one carries on with a fresh token.
+      revokeSessions(ctx, me);
+      newToken = await issueToken(ctx, getUserRow(db, me)!);
+      notifyPasswordChanged(ctx, getUserRow(db, me)!.email);
+    }
     ctx.gw.broadcastUserUpdate(me);
     if (custom !== undefined || b.status !== undefined) ctx.gw.broadcastPresence(me);
-    return privateUser(getUserRow(db, me)!);
+    if (sendCodeTo) {
+      await sendVerificationCode(ctx, {
+        user: getUserRow(db, me)!, email: sendCodeTo, ip: req.ip, change: !needsVerification(ctx, u), skipBuckets: true,
+      });
+    }
+    const out: UserUpdateResponse = self(me);
+    if (newToken) out.token = newToken;
+    return out;
   });
 
   app.post('/users/@me/avatar', async (req) => {
@@ -110,7 +157,7 @@ export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
     db.run('UPDATE users SET avatar = ? WHERE id = ?', url, me);
     removeUpload(ctx.cfg.uploadsDir, old);
     ctx.gw.broadcastUserUpdate(me);
-    return privateUser(getUserRow(db, me)!);
+    return self(me);
   });
 
   // Profile banner image (≤2 MB; validated by content, not the declared type).
@@ -126,7 +173,7 @@ export default function userRoutes(app: FastifyInstance, ctx: Ctx) {
     db.run('UPDATE users SET banner = ? WHERE id = ?', url, me);
     removeUpload(ctx.cfg.uploadsDir, old);
     ctx.gw.broadcastUserUpdate(me);
-    return privateUser(getUserRow(db, me)!);
+    return self(me);
   });
 
   app.get('/users/:id', async (req) => {

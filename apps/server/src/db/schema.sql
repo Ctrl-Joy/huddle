@@ -320,3 +320,17 @@ CREATE TABLE IF NOT EXISTS scheduled_event_users (
   created_at TEXT NOT NULL,
   PRIMARY KEY (event_id, user_id)
 );
+
+-- One-time email verification / password reset codes (only an HMAC of the code is kept).
+CREATE TABLE IF NOT EXISTS verification_codes (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purpose    TEXT NOT NULL,              -- verify_email | reset_password
+  email      TEXT NOT NULL,              -- the address the code was sent to
+  code_hash  TEXT NOT NULL,
+  attempts   INTEGER NOT NULL DEFAULT 0,
+  consumed   INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,           -- ms since epoch
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_verification_codes_user ON verification_codes(user_id, purpose, created_at);

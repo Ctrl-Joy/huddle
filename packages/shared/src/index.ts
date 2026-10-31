@@ -9,3 +9,4 @@ export * from './emojis';
 export * from './scheduledEvents';
 export * from './soundboard';
 export * from './stickers';
+export * from './errors';

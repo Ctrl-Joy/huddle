@@ -65,6 +65,46 @@ environment variable). The picker shows "Powered by GIPHY" as GIPHY's terms requ
 the key to clients; `/api/config` tells the web app whether to show the GIF button. Picked GIFs are sent
 as the GIPHY media URL and render inline as an animated embed.
 
+## Email (verification & password reset)
+
+With SMTP configured, Huddle emails 6-digit codes to:
+
+- **verify the email at sign-up** — new accounts can't use chat until they enter the code (they can resend it, fix a
+  mistyped address, or log out). Accounts that existed before this feature are treated as verified.
+- **reset a forgotten password** — "Forgot your password?" on the login page. Resetting signs out every other
+  session and also verifies the email.
+- **confirm a new email** in Settings → My Account — the address only changes once the code sent to it is entered,
+  and the old address gets a notice. Changing the password in settings also signs out every other device.
+
+Codes are valid for 10 minutes, allow 5 guesses, can be resent once a minute, and are capped per address and per IP
+each hour. Only a keyed hash of each code is stored. Set the variables (repo-root or `apps/server/.env` locally, real
+environment variables in production) and restart:
+
+```sh
+# Brevo (free tier, 300 emails/day): SMTP & API → SMTP keys
+HUDDLE_SMTP_HOST=smtp-relay.brevo.com
+HUDDLE_SMTP_PORT=587
+HUDDLE_SMTP_USER=<your Brevo SMTP login>
+HUDDLE_SMTP_PASS=<your SMTP key>
+HUDDLE_MAIL_FROM=Huddle <no-reply@huddlechat.duckdns.org>   # a sender/domain verified in Brevo
+HUDDLE_PUBLIC_URL=https://huddlechat.duckdns.org
+
+# Gmail (small deployments): turn on 2-Step Verification, then create an app password
+# at myaccount.google.com/apppasswords
+HUDDLE_SMTP_HOST=smtp.gmail.com
+HUDDLE_SMTP_PORT=465
+HUDDLE_SMTP_USER=you@gmail.com
+HUDDLE_SMTP_PASS=<16-character app password>
+HUDDLE_MAIL_FROM=Huddle <you@gmail.com>
+HUDDLE_PUBLIC_URL=https://huddlechat.duckdns.org
+```
+
+Port 465 uses TLS from the start; 587 requires STARTTLS. With a free sender address (no SPF/DKIM for your own
+domain, e.g. on DuckDNS) some codes will land in Spam or Promotions; the code screens tell users to look there. Without `HUDDLE_SMTP_HOST` verification is off: new
+accounts are created verified and the server logs a warning at boot. For local testing without a mail server,
+set `HUDDLE_REQUIRE_EMAIL_VERIFICATION=1`: codes are then printed to the server console (never in production).
+Seeded accounts (`npm run seed`) are always verified.
+
 ## Deploy
 
 The `Dockerfile` builds one container that serves everything on port 8080. The host needs:
@@ -80,7 +120,13 @@ The `Dockerfile` builds one container that serves everything on port 8080. The h
 | `HUDDLE_TURN_URL` | for calls across networks | e.g. `turn:relay.example.com:3478,turns:relay.example.com:5349` |
 | `HUDDLE_TURN_SECRET` | with TURN (recommended) | coturn `static-auth-secret`; Huddle issues 24 h credentials per user |
 | `HUDDLE_TURN_USERNAME`, `HUDDLE_TURN_CREDENTIAL` | with TURN, no secret | Fixed relay login |
-| `HUDDLE_GIF_API_KEY` | optional | GIPHY API key for the composer GIF picker (see below) |
+| `HUDDLE_GIF_API_KEY` | optional | GIPHY API key for the composer GIF picker (see above) |
+| `HUDDLE_SMTP_HOST` | for email | SMTP server; setting it turns on email verification and password reset (see above) |
+| `HUDDLE_SMTP_PORT` | with SMTP | `587` (STARTTLS, default) or `465` (TLS) |
+| `HUDDLE_SMTP_USER`, `HUDDLE_SMTP_PASS` | with SMTP | SMTP login |
+| `HUDDLE_MAIL_FROM` | with SMTP | Sender, e.g. `Huddle <no-reply@huddlechat.duckdns.org>` (must be allowed by your provider) |
+| `HUDDLE_PUBLIC_URL` | with SMTP | The site address used in email links, e.g. `https://huddlechat.duckdns.org` |
+| `HUDDLE_REQUIRE_EMAIL_VERIFICATION` | optional | `1` forces verification on without SMTP (dev only: codes print to the server console) |
 
 **Railway or Fly.io** (both support volumes and WebSockets): create an app from this repo, let it
 build the Dockerfile, attach a volume mounted at `/data`, set the variables above, and open the

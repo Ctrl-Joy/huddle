@@ -2,12 +2,13 @@ import { useState, type FormEvent, type ReactElement } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LIMITS } from '@huddle/shared';
 import { login, register, requestLogin, requestRegister, useAuthStore } from '../stores/auth';
+import { ForgotPassword } from './ForgotPassword';
 import { adoptSession } from '../lib/session';
 import { MAX_ACCOUNTS, listAccounts } from '../lib/accounts';
 import { ApiError, errorMessage } from '../api/client';
 import { LogoMark } from '../components/common/icons';
 
-export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
+export function AuthPage({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
   const token = useAuthStore((s) => s.token);
   const [params] = useSearchParams();
   const next = params.get('next') || '/channels/@me';
@@ -23,6 +24,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [busy, setBusy] = useState(false);
 
   if (token && !adding) return <Navigate to={next} replace />;
+  if (mode === 'forgot') return <ForgotPassword next={next} adding={adding} />;
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -89,6 +91,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           field('login', 'Email or username', <input autoComplete="username" value={loginName} onChange={(e) => setLoginName(e.target.value)} autoFocus />)
         )}
         {field('password', 'Password', <input type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} />)}
+        {mode === 'login' && <Link className="auth-forgot" to={`/forgot-password${suffix}`}>Forgot your password?</Link>}
         <button className="btn btn-primary btn-block btn-lg" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Log In' : 'Create Account'}</button>
         <div className="auth-switch">
           {mode === 'login'
