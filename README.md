@@ -44,8 +44,9 @@ Production: `npm run build && NODE_ENV=production npm start` serves the API and 
 ## Voice & video across networks
 
 Calls are peer-to-peer (WebRTC mesh, best for ≤ 8 people) and use public STUN. For users behind
-strict NATs, set a TURN relay on the server with `HUDDLE_TURN_URL`, `HUDDLE_TURN_USERNAME` and
-`HUDDLE_TURN_CREDENTIAL` (served to clients at `/api/ice`, no rebuild needed). Build-time
+strict NATs, set a TURN relay on the server with `HUDDLE_TURN_URL` plus either `HUDDLE_TURN_SECRET` (coturn
+`static-auth-secret`: each signed-in user gets credentials that expire after 24 h) or a fixed
+`HUDDLE_TURN_USERNAME` / `HUDDLE_TURN_CREDENTIAL`. Clients fetch them from `/api/ice` (sign-in required, no rebuild needed). Build-time
 `VITE_TURN_*` in `apps/web/.env` still works as a fallback.
 Camera, microphone and screen share require `localhost` or HTTPS.
 
@@ -77,7 +78,8 @@ The `Dockerfile` builds one container that serves everything on port 8080. The h
 |---|---|---|
 | `HUDDLE_JWT_SECRET` | recommended | Login token signing key; otherwise generated into `/data` on first boot |
 | `HUDDLE_TURN_URL` | for calls across networks | e.g. `turn:relay.example.com:3478,turns:relay.example.com:5349` |
-| `HUDDLE_TURN_USERNAME`, `HUDDLE_TURN_CREDENTIAL` | with TURN | Relay login |
+| `HUDDLE_TURN_SECRET` | with TURN (recommended) | coturn `static-auth-secret`; Huddle issues 24 h credentials per user |
+| `HUDDLE_TURN_USERNAME`, `HUDDLE_TURN_CREDENTIAL` | with TURN, no secret | Fixed relay login |
 | `HUDDLE_GIF_API_KEY` | optional | GIPHY API key for the composer GIF picker (see below) |
 
 **Railway or Fly.io** (both support volumes and WebSockets): create an app from this repo, let it

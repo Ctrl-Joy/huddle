@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +12,7 @@ import { TokenService, bearer, resolveSecret } from './auth';
 import { RateLimiter, DEFAULT_RATE_LIMITS, type RateLimitConfig } from './ratelimit';
 import { Gateway } from './gateway';
 import { VoiceManager } from './gateway/voice';
-import { ApiErr, ErrorCode, tooMany } from './errors';
+import { ApiErr, ErrorCode, tooMany, unauthorized } from './errors';
 import type { Ctx } from './context';
 import { getUserRow } from './serializers';
 
@@ -64,6 +65,9 @@ export interface BuildOptions {
   /** GIF provider fetcher; tests pass a stub. */
   fetchGifs?: GifFetch;
 }
+
+/** Lifetime of TURN REST credentials handed out by /api/ice. */
+const TURN_CREDENTIAL_TTL = 24 * 60 * 60;
 
 export type HuddleApp = FastifyInstance & { huddle: Ctx };
 
@@ -155,10 +159,27 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
   await app.register(async (api) => {
     api.get('/health', async () => ({ ok: true }));
 
+    // Resolve the bearer token (if any) for every API request.
+    api.addHook('onRequest', async (req) => {
+      const token = bearer(req.headers.authorization);
+      if (!token) return;
+      const id = await ctx.tokens.verify(token);
+      if (id && getUserRow(db, id)) req.userId = id;
+    });
+
     // WebRTC relay config, read at runtime so a deploy can set it without rebuilding the web app.
-    api.get('/ice', async () => {
+    // With HUDDLE_TURN_SECRET (coturn's static-auth-secret) each signed-in user gets credentials that
+    // expire after a day, so the relay can't be used by people outside Huddle.
+    api.get('/ice', async (req) => {
       const urls = (process.env.HUDDLE_TURN_URL ?? '').split(',').map((u) => u.trim()).filter(Boolean);
       if (!urls.length) return { iceServers: [] };
+      if (!req.userId) throw unauthorized();
+      const secret = process.env.HUDDLE_TURN_SECRET;
+      if (secret) {
+        const username = `${Math.floor(Date.now() / 1000) + TURN_CREDENTIAL_TTL}:${req.userId}`;
+        const credential = crypto.createHmac('sha1', secret).update(username).digest('base64');
+        return { iceServers: [{ urls, username, credential }] };
+      }
       return {
         iceServers: [{
           urls,
@@ -166,14 +187,6 @@ export async function buildApp(opts: BuildOptions = {}): Promise<HuddleApp> {
           credential: process.env.HUDDLE_TURN_CREDENTIAL || undefined,
         }],
       };
-    });
-
-    // Resolve the bearer token (if any) for every API request.
-    api.addHook('onRequest', async (req) => {
-      const token = bearer(req.headers.authorization);
-      if (!token) return;
-      const id = await ctx.tokens.verify(token);
-      if (id && getUserRow(db, id)) req.userId = id;
     });
 
     // Token-bucket rate limiting for writes.
