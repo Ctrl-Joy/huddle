@@ -12,7 +12,8 @@ import { SECTIONS, SiteFooter } from './SiteChrome';
 import './hero.css';
 
 const SKY_VIDEO = 'https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/4b73c700-3112-4c07-bd48-0af2893dff7c.mp4';
-const SKY_POSTER = 'https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/0bf7409c-9fa2-4bef-a49d-34903dcc91ad.png';
+// First frame of the video, compressed and served from this site so the hero paints without waiting on the video host.
+const SKY_POSTER = '/hero-sky.webp';
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -291,7 +292,14 @@ export default function HeroHome() {
     const v = videoRef.current;
     if (!v) return;
     v.muted = true;
-    const play = () => { if (v.paused) v.play().catch(() => {}); };
+    // The poster is the hero until the page has loaded and gone quiet; only then is the video fetched, so it never
+    // competes with first paint. Reduced motion and data saver keep the still image.
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true;
+    if (reducedMotion() || saveData) return;
+    let idle = 0;
+    const attach = () => { idle = window.setTimeout(() => { if (!v.src) { v.src = SKY_VIDEO; v.load(); } play(); }, 1200); };
+    if (document.readyState === 'complete') attach(); else window.addEventListener('load', attach, { once: true });
+    const play = () => { if (v.src && v.paused) v.play().catch(() => {}); };
     const onVis = () => { if (document.visibilityState === 'visible') play(); };
     const once = { once: true, passive: true } as const;
     play();
@@ -301,6 +309,8 @@ export default function HeroHome() {
     window.addEventListener('touchstart', play, once);
     window.addEventListener('scroll', play, once);
     return () => {
+      window.clearTimeout(idle);
+      window.removeEventListener('load', attach);
       v.removeEventListener('canplay', play);
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('pointerdown', play);
@@ -370,7 +380,7 @@ export default function HeroHome() {
 
       <section className="hero" ref={heroRef} aria-labelledby="h-hero">
         <div className="hero-bg" aria-hidden="true">
-          <video ref={videoRef} className="sky" autoPlay muted loop playsInline preload="auto" poster={SKY_POSTER} src={SKY_VIDEO} />
+          <video ref={videoRef} className="sky" autoPlay muted loop playsInline preload="none" poster={SKY_POSTER} />
           <div className="veil" />
           <div className="stars">
             {STARS.map((s, i) => (

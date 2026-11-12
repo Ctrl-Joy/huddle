@@ -42,6 +42,9 @@ export function ForgotPassword({ next, adding }: { next: string; adding: boolean
     setErrors({});
     setBusy(true);
     try {
+      // a server without SMTP cannot deliver the code: say so instead of sending the user to wait for an email
+      const status = await fetch('/api/status', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      if (status && status.email === false) { setFormError(t('auth.forgot.noMail')); return; }
       await requestPasswordReset(email.trim());
       restart(resendWait(email.trim()) || VERIFICATION.RESEND_COOLDOWN_SECS);
       setStep('reset');

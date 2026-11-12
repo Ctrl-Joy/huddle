@@ -7,7 +7,12 @@ import { AuthPage } from './pages/AuthPage';
 import { InvitePage } from './pages/InvitePage';
 import { Splash } from './pages/Splash';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
-import { AppShell } from './components/layout/AppShell';
+
+// The signed-in app is its own chunk, so the home, sign-in and invite pages do not download it.
+// Someone who is already signed in starts fetching it straight away, alongside their session.
+const loadShell = () => import('./components/layout/AppShell').then((m) => ({ default: m.AppShell }));
+const AppShell = lazy(loadShell);
+if (useAuthStore.getState().token) void loadShell().catch(() => {});
 
 // Public home page — lazy so it stays out of the app bundle.
 const HeroHome = lazy(() => import('./landing/HeroHome'));
@@ -60,7 +65,7 @@ export function App() {
         <Route path="/register" element={<AuthPage mode="register" />} />
         <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
         <Route path="/invite/:code" element={<InvitePage />} />
-        <Route path="/channels/:guildId/:channelId?" element={<RequireAuth><AppShell /></RequireAuth>} />
+        <Route path="/channels/:guildId/:channelId?" element={<RequireAuth><Suspense fallback={<Splash />}><AppShell /></Suspense></RequireAuth>} />
         <Route path="/channels" element={<Navigate to="/channels/@me" replace />} />
         <Route path="/" element={<Lazy><HeroHome /></Lazy>} />
         {/* old marketing pages now live as sections of the home page */}

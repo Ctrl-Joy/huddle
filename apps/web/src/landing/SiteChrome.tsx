@@ -24,7 +24,8 @@ const LINEUP: { hue: Hue; mood: 'happy' | 'grin' | 'wow' | 'wink' | 'sleepy'; to
   { hue: 'mint', mood: 'grin', topper: 'none', wave: true },
 ];
 
-const SOCIAL: { label: Key; icon: string }[] = [
+// Add an href to an entry to show it in the footer; entries without a real profile link are not rendered.
+const SOCIAL: { label: Key; icon: string; href?: string }[] = [
   { label: 'social.chat', icon: ICONS.chat },
   { label: 'social.photos', icon: ICONS.camera },
   { label: 'social.videos', icon: ICONS.play },
@@ -88,13 +89,16 @@ export function SiteFooter({ onSection }: { onSection?: SectionHandler }) {
             <p className="foot-tag">{t('footer.tag')}</p>
             <span className="f-label" id="foot-lang-label">{t('footer.language')}</span>
             <div className="foot-lang"><LangPicker id="foot-lang" labelledBy="foot-lang-label" /></div>
-            <span className="f-label">{t('footer.social')}</span>
-            {/* TODO: the owner will provide the real social profile links; until then these stay inert. */}
-            <div className="social">
-              {SOCIAL.map((s) => (
-                <a key={s.label} href="#" aria-label={t(s.label)} onClick={(e) => e.preventDefault()}><I d={s.icon} /></a>
-              ))}
-            </div>
+            {SOCIAL.some((s) => s.href) && (
+              <>
+                <span className="f-label">{t('footer.social')}</span>
+                <div className="social">
+                  {SOCIAL.filter((s) => s.href).map((s) => (
+                    <a key={s.label} href={s.href} target="_blank" rel="noreferrer noopener" aria-label={t(s.label)}><I d={s.icon} /></a>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <div className="foot-right">
             <div className="foot-cta"><Link className="btn pill-w" to={appLink}>{t('nav.open')}</Link></div>

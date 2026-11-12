@@ -159,6 +159,7 @@ export const en = {
   'auth.forgot.send': 'Send code',
   'auth.forgot.remembered': 'Remembered it?',
   'auth.forgot.back': 'Back to log in',
+  'auth.forgot.noMail': 'This server has no email set up, so it cannot send reset codes. Ask whoever runs it to reset your password.',
   'auth.forgot.sent': 'If an account exists for {email}, we sent a code to it. It expires in 10 minutes.',
   'auth.reset.title': 'Reset your password',
   'auth.reset.code': 'Code',
