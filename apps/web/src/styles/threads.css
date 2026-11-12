@@ -8,7 +8,7 @@
 .thread-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .thread-body .channel-intro h1 { font-size: 22px; }
 .thread-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
-.thread-archived-pill { flex-shrink: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); background: var(--bg-input); border-radius: 999px; padding: 2px 8px; }
+.thread-archived-pill { flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--text-muted); background: var(--bg-input); border-radius: 999px; padding: 2px 9px; }
 .thread-archived-note { margin: 0 16px 6px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text-muted); font-size: 13px; }
 
 .new-thread { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 8px; }

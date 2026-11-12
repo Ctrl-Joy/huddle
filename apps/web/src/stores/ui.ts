@@ -83,7 +83,8 @@ export const useUIStore = create<UIState>()((set, get) => ({
   modals: [],
   contextMenu: null,
   popout: null,
-  memberListOpen: load('huddle.memberList', true),
+  // open by default only where it fits beside the chat; on narrower screens it would cover the conversation
+  memberListOpen: load('huddle.memberList', typeof window === 'undefined' || window.innerWidth > 1000),
   mobileNavOpen: false,
   mobileMembersOpen: false,
   searchOpen: false,

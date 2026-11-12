@@ -2,7 +2,7 @@
 /* channel list: "N Events" row + LIVE badges */
 .events-row { width: 100%; text-align: left; color: var(--text-muted); margin-bottom: 4px; }
 .events-row .channel-link { pointer-events: none; }
-.event-live-pill { margin-left: auto; flex-shrink: 0; background: var(--success); color: #062010; font-size: 9.5px; font-weight: 800; letter-spacing: .05em; border-radius: 6px; padding: 1px 6px; }
+.event-live-pill { margin-left: auto; flex-shrink: 0; background: var(--success); color: #05230f; font-size: 9.5px; font-weight: 800; letter-spacing: .05em; border-radius: 999px; padding: 1px 7px; }
 .channel-row.event-live { color: var(--text); background: color-mix(in srgb, var(--success) 12%, transparent); box-shadow: inset 2px 0 0 var(--success); }
 .channel-row.event-live:hover { background: color-mix(in srgb, var(--success) 18%, transparent); }
 .channel-row.event-live .channel-icon { color: var(--success); }
@@ -42,7 +42,7 @@
 .events-empty-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; }
 .event-muted { color: var(--text-faint); font-size: 14px; padding: 4px 0; }
 .event-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; font-size: 14px; }
-.event-status-tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border-radius: 6px; padding: 2px 8px; background: var(--bg-input); color: var(--text-muted); }
+.event-status-tag { display: inline-block; font-size: 11px; font-weight: 750; letter-spacing: .02em; border-radius: 999px; padding: 2px 9px; background: var(--bg-input); color: var(--text-muted); }
 .event-status-tag.active { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
 .event-status-tag.cancelled { background: var(--danger-soft); color: var(--danger); }
 .event-detail-name { font-size: 22px; margin: 8px 0 10px; overflow-wrap: anywhere; }
@@ -54,7 +54,7 @@
 .event-detail > .event-actions { padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .event-people-head { margin-top: 4px; }
 .event-people { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.event-people li { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px; font-size: 14px; min-width: 0; }
+.event-people li { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 10px; font-size: 14px; min-width: 0; }
 .event-people li:hover { background: var(--bg-hover); }
 .event-delete { margin-top: 16px; font-size: 13px; }
 
@@ -77,7 +77,7 @@
 .event-time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
 .event-time-grid .field { gap: 8px; }
 .event-datetime { display: flex; gap: 6px; }
-.event-datetime input[type="date"] { flex: 1 1 auto; min-width: 0; background: var(--bg-input); border: 1px solid transparent; border-radius: 8px; padding: 9px 10px; color: var(--text); color-scheme: dark; }
+.event-datetime input[type="date"] { flex: 1 1 auto; min-width: 0; background: var(--bg-input); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 9px 10px; color: var(--text); color-scheme: dark; }
 [data-theme="light"] .event-datetime input[type="date"] { color-scheme: light; }
 .event-datetime select { flex: 0 0 auto; width: auto; min-width: 104px; }
 .event-end-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }

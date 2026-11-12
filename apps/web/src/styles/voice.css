@@ -66,14 +66,14 @@
 
 /* ===== Soundboard ===== */
 .soundboard-popover { position: fixed; z-index: 60; max-height: min(460px, 70vh); display: flex; flex-direction: column; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); animation: menuIn var(--dur-fast) var(--ease-out); transform-origin: bottom center; }
-.sb-head { position: relative; display: flex; align-items: center; padding: 12px 14px; font-weight: 700; border-bottom: 1px solid var(--border); background: var(--bg-sidebar); border-radius: 12px 12px 0 0; overflow: hidden; }
+.sb-head { position: relative; display: flex; align-items: center; padding: 12px 14px; font-weight: 700; border-bottom: 1px solid var(--border); background: var(--bg-panel); border-radius: 12px 12px 0 0; overflow: hidden; }
 .sb-cooldown { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--accent); transform-origin: left; animation: sbCooldown 2s linear forwards; }
 @keyframes sbCooldown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .sb-note { margin: 10px 12px 0; padding: 8px 10px; border-radius: 8px; background: var(--bg-input); color: var(--text-muted); font-size: 12.5px; }
 .sb-body { padding: 4px 12px 12px; overflow-y: auto; }
-.sb-section { margin: 12px 0 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.sb-section { margin: 12px 0 6px; font-size: 12px; font-weight: 650; letter-spacing: .02em; color: var(--text-muted); }
 .sb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
-.sb-sound { display: flex; align-items: center; gap: 6px; min-width: 0; height: 38px; padding: 0 10px; border-radius: 8px; background: var(--bg-input); color: var(--text); font-size: 13px; font-weight: 600; text-align: left; transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.sb-sound { display: flex; align-items: center; gap: 6px; min-width: 0; height: 38px; padding: 0 12px; border-radius: var(--radius-pill); background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--border); color: var(--text); font-size: 13px; font-weight: 600; text-align: left; transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
 .sb-sound:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
 .sb-sound:active:not(:disabled) { transform: scale(.96); }
 .sb-sound:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
