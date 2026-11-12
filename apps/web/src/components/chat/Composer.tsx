@@ -18,7 +18,7 @@ import { TypingIndicator } from './TypingIndicator';
 import { addFilesChecked } from './ChatView';
 import { ApiError } from '../../api/client';
 import { openModal, type MenuItem } from '../../stores/ui';
-import { IconPoll, IconUpload } from '../common/icons';
+import { IconPoll, IconSend, IconUpload } from '../common/icons';
 import { MicButton, RecordingBar, useVoiceRecording } from './VoiceMessage';
 import { GifPicker, IconGif, IconSticker, StickerPicker } from './MediaPickers';
 import { ensureServerConfig, useServerConfig } from '../../stores/stickers';
@@ -278,7 +278,7 @@ export function Composer({ channel }: { channel: Channel }) {
             {files.map((f) => <FileChip key={f.id} channelId={channelId} id={f.id} file={f.file} spoiler={!!f.spoiler} />)}
           </div>
         )}
-        {voice.active ? <RecordingBar rec={voice} /> : <div className="composer-row">
+        {voice.active ? <RecordingBar rec={voice} /> : <div className={'composer-row' + (text.trim() || files.length ? ' has-draft' : '')}>
           {canSend && !timedOutUntil && (
             <Tooltip label="Upload or create">
               <button className="composer-btn" aria-label="Upload or create" aria-haspopup="menu" onClick={(e) => {
@@ -309,6 +309,7 @@ export function Composer({ channel }: { channel: Channel }) {
             onSelect={(e) => setCursor(e.currentTarget.selectionStart)}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
+            enterKeyHint="send"
           />
           {!disabledReason && gifsOn && (
             <Tooltip label="Send a GIF">
@@ -326,6 +327,10 @@ export function Composer({ channel }: { channel: Channel }) {
             </Tooltip>
           )}
           {!disabledReason && canAttach && !text.trim() && !files.length && !replyToId && <MicButton rec={voice} />}
+          {/* touch screens get a visible send button; with a keyboard, Enter sends */}
+          {!disabledReason && (text.trim() || files.length > 0) && (
+            <button type="button" className="composer-btn send-btn" aria-label="Send message" onMouseDown={(e) => e.preventDefault()} onClick={submit}><IconSend size={20} /></button>
+          )}
         </div>}
         {text.length > LIMITS.MESSAGE_LENGTH - 200 && <div className={'char-count' + (text.length > LIMITS.MESSAGE_LENGTH ? ' over' : '')}>{LIMITS.MESSAGE_LENGTH - text.length}</div>}
       </div>

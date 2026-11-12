@@ -9,9 +9,21 @@
     transform: translateX(-100%); visibility: hidden; transition: transform .26s var(--ease-out), visibility 0s linear .26s; box-shadow: var(--shadow-lg);
   }
   .mobile-nav-open .nav-column { transform: none; visibility: visible; transition: transform .26s var(--ease-out); }
+  .nav-column { background: var(--shell-glow), var(--bg-rail); will-change: transform; }
   .nav-column .sidebar { flex: 1; width: auto; border-radius: 0; }
+  /* full-bleed chat on phones: no floating sheet */
+  .main { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .message { padding-left: 12px; padding-right: 12px; }
+  .message-row { gap: 12px; }
+  .reply-preview { margin-left: 52px; }
+  .day-divider, .new-divider { margin-left: 12px; margin-right: 12px; }
+  .channel-intro { padding: 16px 12px 8px; }
+  .md-codeblock { max-width: 100%; }
+  .md-codeblock[data-lang]::after { display: none; }
+  .jump-bar { left: 8px; right: 8px; }
+  .autocomplete { left: 8px; right: 8px; }
   .mobile-scrim {
-    display: block; position: absolute; inset: 0; z-index: 30; background: rgba(0, 0, 0, .55);
+    display: block; position: absolute; inset: 0; z-index: 30; background: rgba(8, 5, 28, .66);
     opacity: 0; pointer-events: none; transition: opacity .26s var(--ease-out);
   }
   .mobile-nav-open .mobile-scrim, .mobile-members-open .mobile-scrim { opacity: 1; pointer-events: auto; }
@@ -24,20 +36,24 @@
   .nav-column { --user-panel-space: calc(72px + env(safe-area-inset-bottom)); }
   .friends-main { padding: 12px; }
   .chat-header { padding: 0 6px 0 8px; gap: 4px; }
+  .chat-header .icon-btn { width: 38px; height: 38px; }
   .chat-header-title .header-topic, .chat-header-title .header-divider { display: none; }
   .header-name { overflow: hidden; text-overflow: ellipsis; }
   /* Friends: title on top, tabs on their own scrolling row */
   .friends > .chat-header { flex-wrap: wrap; height: auto; padding-top: 6px; padding-bottom: 8px; row-gap: 6px; }
   .friends > .chat-header .friends-tabs { order: 3; flex: 1 0 100%; padding: 0 4px; }
-  .friends-tabs .tab { padding: 6px 12px; }
+  .friends-tabs { gap: 4px; }
+  .friends-tabs .tab { padding: 6px 10px; font-size: 13.5px; }
   /* search collapses to an icon and opens across the header */
   .search-box { width: 36px; height: 36px; margin-left: 0; }
   .search-box input { width: 100%; height: 36px; padding: 0 8px 0 34px; background: transparent; cursor: pointer; font-size: 16px; }
   .search-box > svg { left: 10px; right: auto; }
   .search-box:focus-within, .search-box.has-value { position: absolute; left: 8px; right: 8px; top: 7px; width: auto; z-index: 3; }
-  .search-box:focus-within input, .search-box.has-value input { background: var(--bg-rail); cursor: text; }
+  .search-box input { border-color: transparent; }
+  .search-box:focus-within input, .search-box.has-value input { background: var(--bg-input); border-color: var(--accent); cursor: text; }
   .search-box:focus-within > svg, .search-box.has-value > svg { left: 10px; }
   .composer-wrap { padding: 0 8px calc(4px + env(safe-area-inset-bottom)); }
+  .composer-btn { width: 34px; }
   .composer-footer { height: 18px; }
   /* Server Settings → Emoji: stack the name editor under the preview, roomier tap targets */
   .emoji-pending-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
@@ -47,7 +63,7 @@
   .emoji-name-input input { font-size: 16px; } /* avoids iOS zoom on focus */
   .emoji-picker .ep-cell .custom-emoji { width: 28px; height: 28px; }
   /* sticker + GIF pickers become a bottom sheet; stickers shrink a little in the message list */
-  .media-picker { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-width: none; height: min(62vh, 480px); border-radius: 14px 14px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .media-picker { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-width: none; height: min(62vh, 480px); border-radius: 20px 20px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   .media-picker .ep-search input { font-size: 16px; }
   .sp-cells { grid-template-columns: repeat(4, 1fr); }
   .sticker-img { width: 128px; height: 128px; }
@@ -145,6 +161,10 @@
 /* ===== Auth: verify email / reset password on phones ===== */
 @media (max-width: 800px) {
   .auth-page { padding: 16px; align-items: flex-start; }
+  /* smaller planets, tucked into the corners so they never sit behind the form */
+  .blob.b1 { width: 84px; height: 84px; left: -18px; top: 4%; }
+  .blob.b2 { width: 150px; height: 150px; right: -46px; bottom: -34px; }
+  .blob.b3 { width: 44px; height: 44px; right: 10%; top: 3%; }
   .auth-card { padding: 24px 18px; margin: auto 0; }
   .code-input { gap: 6px; }
   .code-input .code-box { height: 52px; font-size: 22px; }
@@ -155,4 +175,57 @@
 @media (max-width: 360px) {
   .code-input { gap: 4px; }
   .code-input .code-box { height: 46px; font-size: 20px; border-radius: 8px; }
+}
+
+/* ===== Touch comfort: 16px inputs (no zoom on focus) and 44px tap targets ===== */
+@media (max-width: 800px) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select { font-size: 16px !important; }
+  /* things you tap all the time get real size */
+  .btn, .btn-small { min-height: 44px; }
+  .chat-header { gap: 0; }
+  .chat-header .icon-btn, .modal-close, .settings-close-btn, .settings-back-btn, .user-panel .icon-btn { width: 44px; height: 44px; }
+  .channel-link, .channel-row, .dm-nav, .dm-row, .search-trigger, .ctx-item, .member-row, .qs-row, .pick-row, .user-panel-id { min-height: 44px; }
+  .category-header, .category-toggle { min-height: 36px; }
+  .discover-tab { min-height: 44px; }
+  .friends-tabs .tab { min-height: 40px; }
+  .user-panel { gap: 0; }
+  .composer-btn { width: 40px; }
+  .send-btn { display: flex; }
+  /* while a draft is open the GIF and sticker buttons step aside for the text and the send button */
+  .composer-row.has-draft .gif-btn, .composer-row.has-draft .sticker-btn { display: none; }
+  /* small controls keep their look and get an invisible 44px hit area */
+  /* :where() keeps this at zero specificity so buttons that are positioned by their own class stay put */
+  :where(.icon-btn, .dm-close, .toggle, .btn-link, .author-name, .category-toggle, .friends-tabs .tab, .composer-btn, .ep-cell, .ep-nav button, .reaction,
+  .poll-emoji-btn, .poll-add-answer, .round-btn, .chip, .auth-forgot, .thread-link) { position: relative; }
+  .icon-btn::after, .dm-close::after, .toggle::after, .btn-link::after, .author-name::after, .category-toggle::after, .friends-tabs .tab::after,
+  .composer-btn::after, .ep-cell::after, .ep-nav button::after, .reaction::after, .poll-emoji-btn::after, .poll-add-answer::after, .round-btn::after,
+  .chip::after, .auth-forgot::after, .thread-link::after {
+    content: ''; position: absolute;
+    top: min(0px, calc((100% - 44px) / 2)); bottom: min(0px, calc((100% - 44px) / 2));
+    left: min(0px, calc((100% - 44px) / 2)); right: min(0px, calc((100% - 44px) / 2));
+  }
+}
+@media (hover: none) {
+  .send-btn { display: flex; }
+}
+@media (max-width: 800px) {
+  /* five header actions and the channel name share one row: slimmer buttons, full-height hit area */
+  .chat-header .icon-btn { width: 40px; height: 44px; }
+  .friends-tabs .tab { min-height: 44px; padding: 6px 9px; }
+  .sidebar .icon-btn.tiny { width: 36px; height: 44px; }
+  /* the emoji picker is a bottom sheet, like the GIF and sticker pickers */
+  .emoji-picker { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-width: none; height: min(62dvh, 480px); border-radius: 20px 20px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .media-picker { height: min(62dvh, 480px); }
+  .ep-cells { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+  .ep-cell { height: 44px; }
+  .ep-nav button { width: 36px; height: 40px; }
+  /* a long placeholder stays on one line instead of wrapping under the composer */
+  .composer-input::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 400px) {
+  .chat-header-title .header-icon { display: none; }
+  .chat-header-title { padding-left: 4px; }
+}
+@media (max-width: 800px) {
+  .tb-btn { width: 44px; height: 44px; }
 }
