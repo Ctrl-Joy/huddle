@@ -130,7 +130,7 @@ export function useDocTitle(key: Key, suffix = true): void {
   const title = t(key);
   useEffect(() => {
     const prev = document.title;
-    document.title = suffix && !title.includes('Huddle') ? `${title} — Huddle` : title;
+    document.title = suffix && !title.includes('Huddle') ? `${title} | Huddle` : title;
     return () => { document.title = prev; };
   }, [title, suffix]);
 }

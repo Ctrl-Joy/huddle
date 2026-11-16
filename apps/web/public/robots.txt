@@ -1,2 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /gateway
+Disallow: /channels
+Disallow: /invite/
+
+Sitemap: https://huddlechat.duckdns.org/sitemap.xml

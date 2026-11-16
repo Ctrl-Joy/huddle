@@ -46,7 +46,7 @@ export const en = {
   'lang.choose': 'Choose a language',
 
   // ---------- home ----------
-  'home.title': 'Huddle — Your people. Your space.',
+  'home.title': 'Group Chat with Voice, Video and Screen Sharing | Huddle',
   'home.hero.l1': 'Your people.',
   'home.hero.l2': 'Your space.',
   'home.hero.l3': 'Let’s huddle.',
@@ -113,7 +113,7 @@ export const en = {
   'home.closing': 'Your crew’s online.\nCome say hi.',
 
   // ---------- 404 ----------
-  'nf.title': 'Page not found — Huddle',
+  'nf.title': 'Page Not Found | Huddle',
   'nf.h1': 'This channel\ndoesn’t exist.',
   'nf.body': 'The page you’re after has moved, or it never was. Let’s get you back to your people.',
   'nf.back': 'Back home',
@@ -194,7 +194,7 @@ export const en = {
   'info.onThisPage': 'On this page',
 
   // ---------- status ----------
-  'status.title': 'Status',
+  'status.title': 'Service Status',
   'status.kicker': 'Live',
   'status.h1': 'Huddle status',
   'status.lead': 'Live checks of the services that make Huddle work. This page refreshes itself every 30 seconds.',
@@ -227,7 +227,7 @@ export const en = {
   'status.trouble': 'Something not working that shows green here? Tell us on the [Feedback page](/feedback).',
 
   // ---------- about ----------
-  'about.title': 'About',
+  'about.title': 'About the Group Chat App',
   'about.kicker': 'About',
   'about.h1': 'A free home\nfor your groups',
   'about.lead': 'Huddle is a free, open-source place for the groups in your life to talk, hang out and make plans.',
@@ -243,7 +243,7 @@ export const en = {
   'about.cta.start': 'Try Huddle',
 
   // ---------- brand ----------
-  'brand.title': 'Brand',
+  'brand.title': 'Brand Assets and Logo',
   'brand.kicker': 'Brand',
   'brand.h1': 'The Huddle\nbrand kit',
   'brand.lead': 'Logos, colours and type for writing about Huddle or linking to it.',
@@ -281,7 +281,7 @@ export const en = {
   'brand.dont.list': '- Stretch, rotate, recolour or add effects to the logo\n- Put the logo on busy photos where it gets lost\n- Use the name or logo in a way that suggests we endorse you\n- Use the logo as part of your own product’s name or logo',
 
   // ---------- careers ----------
-  'careers.title': 'Careers',
+  'careers.title': 'Careers and Jobs',
   'careers.kicker': 'Careers',
   'careers.h1': 'Build Huddle\nwith us',
   'careers.lead': 'Straight answer first: Huddle is a small open-source project and there are no paid roles right now.',
@@ -292,7 +292,7 @@ export const en = {
   'careers.cta': 'Send feedback',
 
   // ---------- guidelines ----------
-  'guidelines.title': 'Community guidelines',
+  'guidelines.title': 'Community Guidelines',
   'guidelines.kicker': 'Community',
   'guidelines.h1': 'Community\nguidelines',
   'guidelines.lead': 'Huddle is for people who like each other. These rules apply everywhere on Huddle, alongside any extra rules a server sets.',
@@ -316,7 +316,7 @@ export const en = {
   'guidelines.9.b': 'Server moderators can delete messages, time people out, kick or ban them. For serious or repeated violations we may remove content and suspend or delete accounts.',
 
   // ---------- developers ----------
-  'dev.title': 'Developers',
+  'dev.title': 'Developers: Architecture and Self-Hosting',
   'dev.kicker': 'Developers',
   'dev.h1': 'Under the hood',
   'dev.lead': 'Huddle is open source. Here’s how it’s built and how to run your own.',
@@ -335,7 +335,7 @@ export const en = {
   'dev.copied': 'Copied',
 
   // ---------- feedback ----------
-  'fb.title': 'Feedback',
+  'fb.title': 'Send Feedback',
   'fb.kicker': 'Feedback',
   'fb.h1': 'Tell us\nanything',
   'fb.lead': 'Found a bug, have an idea or need to report a problem? Send it here. A real person reads every message.',
@@ -428,7 +428,7 @@ export const en = {
   'cookies.4.b': 'Contact us via the [Feedback page](/feedback).',
 
   // ---------- licenses ----------
-  'lic.title': 'Licenses',
+  'lic.title': 'Open Source Licenses',
   'lic.kicker': 'Open source',
   'lic.h1': 'Open-source\nlicenses',
   'lic.lead': 'Huddle is built on open-source software. Thank you to everyone who makes it.',

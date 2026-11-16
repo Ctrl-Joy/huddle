@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0d0a24" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- installable app on Android, iPhone and Windows -->
@@ -16,13 +17,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600..900&display=swap" />
-    <meta name="description" content="Huddle is a home for your groups: text channels, drop-in voice, video and screen sharing, roles and DMs, right in your browser." />
-    <title>Huddle · Chat, voice and video for your groups</title>
+    <meta name="description" content="Huddle is a free group chat app for friends and communities: text channels, drop-in voice and video calls, screen sharing, roles and DMs in your browser." />
+    <title>Group Chat with Voice, Video and Screen Sharing | Huddle</title>
     <link rel="canonical" href="https://huddlechat.duckdns.org/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Huddle" />
-    <meta property="og:title" content="Huddle · Chat, voice and video for your groups" />
-    <meta property="og:description" content="Huddle is a home for your groups: text channels, drop-in voice, video and screen sharing, roles and DMs, right in your browser." />
+    <meta property="og:title" content="Huddle · Group chat, voice and video for your people" />
+    <meta property="og:description" content="Huddle is a free group chat app for friends and communities: text channels, drop-in voice and video calls, screen sharing, roles and DMs in your browser." />
     <meta property="og:url" content="https://huddlechat.duckdns.org/" />
     <meta property="og:image" content="https://huddlechat.duckdns.org/og-image.png" />
     <meta property="og:image:type" content="image/png" />
@@ -30,10 +31,47 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Huddle logo with the tagline: Your people. Your space. Let’s huddle." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Huddle · Chat, voice and video for your groups" />
-    <meta name="twitter:description" content="Huddle is a home for your groups: text channels, drop-in voice, video and screen sharing, roles and DMs, right in your browser." />
+    <meta name="twitter:title" content="Huddle · Group chat, voice and video for your people" />
+    <meta name="twitter:description" content="Huddle is a free group chat app for friends and communities: text channels, drop-in voice and video calls, screen sharing, roles and DMs in your browser." />
     <meta name="twitter:image" content="https://huddlechat.duckdns.org/og-image.png" />
     <meta name="twitter:image:alt" content="Huddle logo with the tagline: Your people. Your space. Let’s huddle." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://huddlechat.duckdns.org/#website",
+            "name": "Huddle",
+            "url": "https://huddlechat.duckdns.org/",
+            "description": "Huddle is a free group chat app for friends and communities: text channels, drop-in voice and video calls, screen sharing, roles and DMs in your browser.",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://www.shreejoybikalp.in/#person" }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://huddlechat.duckdns.org/#app",
+            "name": "Huddle",
+            "url": "https://huddlechat.duckdns.org/",
+            "description": "Huddle is a free group chat app for friends and communities: text channels, drop-in voice and video calls, screen sharing, roles and DMs in your browser.",
+            "applicationCategory": "CommunicationApplication",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript and a modern browser with WebRTC.",
+            "image": "https://huddlechat.duckdns.org/og-image.png",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "author": { "@id": "https://www.shreejoybikalp.in/#person" },
+            "sameAs": ["https://github.com/Ctrl-Joy/huddle"]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://www.shreejoybikalp.in/#person",
+            "name": "Shreejoy Bikalp",
+            "url": "https://www.shreejoybikalp.in",
+            "sameAs": ["https://github.com/Ctrl-Joy", "https://www.linkedin.com/in/shreejoy-bikalp-283748209"]
+          }
+        ]
+      }
+    </script>
     <script>
       try { var t = localStorage.getItem('huddle.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
     </script>
